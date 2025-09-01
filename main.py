@@ -140,7 +140,7 @@ handler = MessageHandler(
 )
 
 for cmd in handler.watcher.supported_commands:
-    print(cmd.name, cmd.description)
+    print(cmd.name, cmd.desc)
     handler.watcher.watch(obd.commands[cmd.name], callback=handler.submit_data_point)
 
 handler.watcher.start()
