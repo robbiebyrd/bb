@@ -133,7 +133,7 @@ class MessageHandler:
 
 
 handler = MessageHandler(
-    "/dev/ttys000",
+    "/dev/rfcomm0",
     38400,
     WSHandler("ws://localhost:8001/"),
     MQTTHandler("x6d01861.ala.us-east-1.emqxsl.com"),
