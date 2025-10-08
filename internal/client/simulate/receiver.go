@@ -6,14 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"go.einride.tech/can/pkg/socketcan"
-
 	commonUtils "github.com/robbiebyrd/bb/internal/client/common"
 	"github.com/robbiebyrd/bb/internal/models/can"
 )
 
-func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) bool {
-	scc.Receiver = socketcan.NewReceiver(scc.Connection)
+func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 	scc.Streaming = true
 
 	wg.Go(func() {
@@ -21,7 +18,6 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) bool {
 			scc.simulateCanMessage()
 		}
 	})
-	return true
 }
 
 func (scc *SimulationCanClient) simulateCanMessage() {
@@ -40,7 +36,7 @@ func (scc *SimulationCanClient) simulateCanMessage() {
 
 	scc.Channel <- can.CanMessage{
 		Timestamp: time.Now().Unix(),
-		Interface: commonUtils.InterfaceName(scc),
+		Interface: scc.GetInterfaceName(),
 		Transmit:  false,
 		ID:        uint32(mathRand.Intn(255)),
 		Remote:    false,
@@ -48,9 +44,5 @@ func (scc *SimulationCanClient) simulateCanMessage() {
 		Data:      commonUtils.PadOrTrim(randomBytes[:randomLength], int(maxLength)),
 	}
 
-	time.Sleep(10 * time.Millisecond)
-}
-
-func generateRandomInt(r *mathRand.Rand, min, max int) int {
-	return r.Intn(max-min+1) + min
+	time.Sleep(100 * time.Microsecond)
 }

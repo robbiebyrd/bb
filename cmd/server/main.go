@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	cm "github.com/robbiebyrd/bb/internal/client"
@@ -16,7 +15,7 @@ func main() {
 	ctx := context.Background()
 	cfg := config.Load()
 
-	MessageChannel := make(chan can.CanMessage, cfg.BufferMessageSize)
+	MessageChannel := make(chan can.CanMessage, cfg.MessageBufferSize)
 
 	jlog := logging.NewJSONLogger(os.Stdout)
 
@@ -36,10 +35,10 @@ func main() {
 
 	i := 0
 
+	go dbClient.Run()
+
 	for msg := range MessageChannel {
 		i++
-		fmt.Printf("Received CAN message %v: %+v\n", i, msg)
-		dbClient.Run()
 		dbClient.Handle(msg)
 	}
 }

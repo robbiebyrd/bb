@@ -19,7 +19,12 @@ type InfluxDBClient struct {
 	measurementName string
 	messageBlock    []canModels.CanMessage
 	wg              sync.WaitGroup
-	channel         chan InfluxDBCanMessage
+	maxBlocks       int
+	maxConnections  int
+	connections     int
+	channel         chan canModels.CanMessage
+	flushTime       int // ms
+	lastRun         time.Time
 }
 
 func NewClient(ctx *context.Context, cfg canModels.Config) (*InfluxDBClient, error) {
@@ -32,18 +37,47 @@ func NewClient(ctx *context.Context, cfg canModels.Config) (*InfluxDBClient, err
 		return nil, err
 	}
 
+	channel := make(chan canModels.CanMessage)
+
 	return &InfluxDBClient{
 		client:          client,
 		ctx:             *ctx,
 		measurementName: cfg.InfluxTableName,
 		wg:              sync.WaitGroup{},
+		maxBlocks:       cfg.InfluxMaxWriteLines,
+		maxConnections:  5,
+		connections:     0,
+		channel:         channel,
+		flushTime:       cfg.InfluxFlushTime,
+		lastRun:         time.Now(),
 	}, nil
 }
 
-func (c *InfluxDBClient) Convert(msg canModels.CanMessage) InfluxDBCanMessage {
+func (c *InfluxDBClient) Run() {
+	c.wg.Go(func() {
+		for {
+			blockSize := min(len(c.messageBlock), c.maxBlocks)
+			a := time.Since(c.lastRun)
 
-	newMsgData := make([]string, len(msg.Data[:msg.Length]))
-	for i, b := range msg.Data[:msg.Length] {
+			if blockSize > 0 && c.connections < c.maxConnections && a.Milliseconds() > int64(c.flushTime) {
+				c.connections++
+				go c.write(c.convertMany(c.messageBlock[:blockSize]))
+				c.messageBlock = c.messageBlock[blockSize:]
+				c.connections--
+				c.lastRun = time.Now()
+			}
+		}
+	})
+}
+
+func (c *InfluxDBClient) Handle(msg canModels.CanMessage) {
+	fmt.Printf("queuing #%v\n", len(c.messageBlock)+1)
+	c.messageBlock = append(c.messageBlock, msg)
+}
+
+func (c *InfluxDBClient) convertMsg(msg canModels.CanMessage) InfluxDBCanMessage {
+	newMsgData := make([]string, len(msg.Data))
+	for i, b := range msg.Data {
 		newMsgData[i] = strconv.Itoa(int(b - '0'))
 	}
 
@@ -58,61 +92,26 @@ func (c *InfluxDBClient) Convert(msg canModels.CanMessage) InfluxDBCanMessage {
 		Measurement: c.measurementName,
 	}
 
-	fmt.Printf("Message Converted: %v\n", msgConverted)
 	return msgConverted
 }
 
-func (c *InfluxDBClient) ConvertMany(msgs []canModels.CanMessage) []InfluxDBCanMessage {
+func (c *InfluxDBClient) convertMany(msgs []canModels.CanMessage) []InfluxDBCanMessage {
 	var convertedMessages []InfluxDBCanMessage
 	for _, m := range msgs {
-		convertedMessages = append(convertedMessages, c.Convert(m))
+		convertedMessages = append(convertedMessages, c.convertMsg(m))
 	}
 	return convertedMessages
 }
 
-func (c *InfluxDBClient) Run() {
-	select {
-	case msg := <-c.channel:
-		fmt.Println("received", msg)
-	default: // This case runs if `messages` has no value ready
-		fmt.Println("No message received")
-	}
-
-	c.wg.Go(func() {
-		for {
-			maxBlocks := 50
-			if len(c.messageBlock) <= maxBlocks {
-				maxBlocks = len(c.messageBlock)
-			}
-			msgs := c.messageBlock[0:maxBlocks]
-			c.messageBlock = c.messageBlock[maxBlocks:]
-			c.WriteMany(c.ConvertMany(msgs))
-			time.Sleep(100 * time.Millisecond)
-		}
-	})
-}
-
-func (c *InfluxDBClient) Handle(msg canModels.CanMessage) {
-	fmt.Printf("queueing #%v\n", len(c.messageBlock)+1)
-	c.messageBlock = append(c.messageBlock, msg)
-}
-
-func (c *InfluxDBClient) Write(msg InfluxDBCanMessage) {
-	err := c.client.WriteData(c.ctx, []any{msg})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (c *InfluxDBClient) WriteMany(msg []InfluxDBCanMessage) {
+func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) {
 	data := make([]any, len(msg))
 	for i, m := range msg {
 		data[i] = m
-		fmt.Printf("Writing data: %v", m)
-		err := c.client.WriteData(c.ctx, []any{m})
-		if err != nil {
-			panic(err)
-		}
+	}
+
+	err := c.client.WriteData(c.ctx, data)
+	if err != nil {
+		panic(err)
 	}
 }
 

@@ -18,12 +18,14 @@ type CanMessage struct {
 }
 
 type Config struct {
-	InfluxHost        string               `env:"INFLUX_HOST,required"`
-	InfluxToken       string               `env:"INFLUX_TOKEN,required"`
-	InfluxDatabase    string               `env:"INFLUX_DATABASE" envDefault:"can_data"`
-	InfluxTableName   string               `env:"INFLUX_TABLE" envDefault:"can_message"`
-	CanInterfaces     []CanInterfaceOption `envPrefix:"INTERFACE"`
-	BufferMessageSize int                  `eng:"BUFFER_MSG_SIZE" envDefault:"1024"`
+	InfluxHost          string               `env:"INFLUX_HOST,required"`
+	InfluxToken         string               `env:"INFLUX_TOKEN,required"`
+	InfluxDatabase      string               `env:"INFLUX_DATABASE" envDefault:"can_data"`
+	InfluxTableName     string               `env:"INFLUX_TABLE" envDefault:"can_message"`
+	InfluxFlushTime     int                  `env:"INFLUX_FLUSH_TIME" envDefault:"100"`
+	InfluxMaxWriteLines int                  `env:"INFLUX_MAX_WRITE_LINES" envDefault:"1000"`
+	CanInterfaces       []CanInterfaceOption `envPrefix:"INTERFACE"`
+	MessageBufferSize   int                  `eng:"MSG_BUFFER_SIZE" envDefault:"1024"`
 }
 
 type CanInterfaceOptions []CanInterfaceOption
@@ -36,6 +38,7 @@ type CanInterfaceOption struct {
 
 type CanConnection interface {
 	GetName() string
+	GetInterfaceName() string
 	SetName(name string)
 	GetConnection() net.Conn
 	SetConnection(conn net.Conn)
@@ -47,7 +50,7 @@ type CanConnection interface {
 	Close() error
 	IsOpen() bool
 	Discontinue() error
-	Receive(wg *sync.WaitGroup) bool
+	Receive(wg *sync.WaitGroup)
 }
 
 type ReceiverInterface interface {
