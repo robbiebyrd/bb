@@ -15,12 +15,12 @@ services:
       - --plugin-dir=/var/lib/influxdb3/plugins
       - --admin-token-file=/etc/influxdb3/config/token.json
     volumes:
-      - type: bind
-        source: ~/.influxdb3/core/data
-        target: /var/lib/influxdb3/data
-      - type: bind
-        source: ~/.influxdb3/core/plugins
-        target: /var/lib/influxdb3/plugins
+      # - type: bind
+      #   source: ./data/influxdb3/core/data
+      #   target: /var/lib/influxdb3/data
+      # - type: bind
+      #   source: ./data/influxdb3/core/plugins
+      #   target: /var/lib/influxdb3/plugins
       - type: bind
         source: ./config/influxdb/token.json
         target: /etc/influxdb3/config/token.json

@@ -57,6 +57,10 @@ func (scc *SimulationCanClient) GetNetwork() string {
 	return scc.Network
 }
 
+func (scc *SimulationCanClient) GetInterfaceName() string {
+	return scc.GetName() + ":>" + scc.GetNetwork() + ":>" + scc.GetURI()
+}
+
 func (scc *SimulationCanClient) SetNetwork(network string) {
 	scc.Network = network
 }

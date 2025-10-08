@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"go.einride.tech/can"
-	"go.einride.tech/can/pkg/socketcan"
+	goCan "go.einride.tech/can/pkg/socketcan"
 
 	canModel "github.com/robbiebyrd/bb/internal/models/can"
 )
@@ -21,7 +21,7 @@ type ReceiverInterface interface {
 	Close() error
 }
 
-type CanConnectionClient struct {
+type SocketCanConnectionClient struct {
 	ctx        *context.Context
 	Name       string
 	Network    string
@@ -33,7 +33,7 @@ type CanConnectionClient struct {
 	Streaming  bool
 }
 
-func NewSocketcanConnection(ctx *context.Context, name string, channel chan canModel.CanMessage, network, uri *string) *CanConnectionClient {
+func NewSocketCanConnection(ctx *context.Context, name string, channel chan canModel.CanMessage, network, uri *string) *SocketCanConnectionClient {
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {
@@ -49,7 +49,7 @@ func NewSocketcanConnection(ctx *context.Context, name string, channel chan canM
 		network = &defaultNetwork
 	}
 
-	return &CanConnectionClient{
+	return &SocketCanConnectionClient{
 		ctx:     ctx,
 		Name:    name,
 		Channel: channel,
@@ -58,40 +58,44 @@ func NewSocketcanConnection(ctx *context.Context, name string, channel chan canM
 	}
 }
 
-func (scc *CanConnectionClient) GetURI() string {
+func (scc *SocketCanConnectionClient) GetURI() string {
 	return scc.URI
 }
 
-func (scc *CanConnectionClient) SetURI(uri string) {
+func (scc *SocketCanConnectionClient) SetURI(uri string) {
 	scc.URI = uri
 }
 
-func (scc *CanConnectionClient) GetNetwork() string {
+func (scc *SocketCanConnectionClient) GetNetwork() string {
 	return scc.Network
 }
 
-func (scc *CanConnectionClient) SetNetwork(network string) {
+func (scc *SocketCanConnectionClient) SetNetwork(network string) {
 	scc.Network = network
 }
 
-func (scc *CanConnectionClient) GetName() string {
+func (scc *SocketCanConnectionClient) GetName() string {
 	return scc.Name
 }
 
-func (scc *CanConnectionClient) SetName(name string) {
+func (scc *SocketCanConnectionClient) SetName(name string) {
 	scc.Name = name
 }
 
-func (scc *CanConnectionClient) GetConnection() net.Conn {
+func (scc *SocketCanConnectionClient) GetInterfaceName() string {
+	return scc.GetName() + ":>" + scc.GetNetwork() + ":>" + scc.GetURI()
+}
+
+func (scc *SocketCanConnectionClient) GetConnection() net.Conn {
 	return scc.Connection
 }
 
-func (scc *CanConnectionClient) SetConnection(conn net.Conn) {
+func (scc *SocketCanConnectionClient) SetConnection(conn net.Conn) {
 	scc.Connection = conn
 }
 
-func (scc *CanConnectionClient) Open() error {
-	if conn, err := socketcan.DialContext(*scc.ctx, scc.Network, scc.Name); err == nil {
+func (scc *SocketCanConnectionClient) Open() error {
+	if conn, err := goCan.DialContext(*scc.ctx, scc.Network, scc.Name); err == nil {
 		scc.Connection = conn
 		scc.Opened = true
 		return nil
@@ -100,7 +104,7 @@ func (scc *CanConnectionClient) Open() error {
 	}
 }
 
-func (scc *CanConnectionClient) Close() error {
+func (scc *SocketCanConnectionClient) Close() error {
 	err := scc.Connection.Close()
 	if err != nil {
 		panic(err)
@@ -109,11 +113,11 @@ func (scc *CanConnectionClient) Close() error {
 	return nil
 }
 
-func (scc *CanConnectionClient) IsOpen() bool {
+func (scc *SocketCanConnectionClient) IsOpen() bool {
 	return scc.Opened
 }
 
-func (scc *CanConnectionClient) Discontinue() error {
+func (scc *SocketCanConnectionClient) Discontinue() error {
 	scc.Receiver.Close()
 	scc.Streaming = false
 
