@@ -4,21 +4,21 @@ import (
 	"sync"
 	"time"
 
-	goCan "go.einride.tech/can/pkg/socketcan"
+	goSocketCan "go.einride.tech/can/pkg/socketcan"
 
 	commonUtils "github.com/robbiebyrd/bb/internal/client/common"
-	"github.com/robbiebyrd/bb/internal/models/can"
+	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 func (scc *SocketCanConnectionClient) Receive(wg *sync.WaitGroup) {
-	scc.Receiver = goCan.NewReceiver(scc.Connection)
+	scc.Receiver = goSocketCan.NewReceiver(scc.Connection)
 	scc.Streaming = true
 
 	wg.Go(func() {
 		for {
 			for scc.Receiver.Receive() {
 				frame := scc.Receiver.Frame()
-				scc.Channel <- can.CanMessage{
+				scc.Channel <- canModels.CanMessage{
 					Timestamp: time.Now().Unix(),
 					Interface: scc.GetInterfaceName(),
 					Transmit:  false,

@@ -1,5 +1,5 @@
 {
   "token": "apiv3_ABC-_123_123",
-  "name": "service-account-token",
+  "name": "_admin",
   "expiry_millis": 1759887397063
 }

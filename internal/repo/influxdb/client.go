@@ -3,6 +3,7 @@ package influxdb
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/InfluxCommunity/influxdb3-go/v2/influxdb3"
 
-	canModels "github.com/robbiebyrd/bb/internal/models/can"
+	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 type InfluxDBClient struct {
@@ -21,58 +22,102 @@ type InfluxDBClient struct {
 	wg              sync.WaitGroup
 	maxBlocks       int
 	maxConnections  int
-	connections     int
-	channel         chan canModels.CanMessage
+	channel         chan []canModels.CanMessage
 	flushTime       int // ms
-	lastRun         time.Time
+	l               *slog.Logger
+	workerLastRan   time.Time
+	count           int
 }
 
-func NewClient(ctx *context.Context, cfg canModels.Config) (*InfluxDBClient, error) {
+func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.DBClient {
+	logger.Debug("starting influxdb3 client")
 	client, err := influxdb3.New(influxdb3.ClientConfig{
-		Host:     cfg.InfluxHost,
-		Token:    cfg.InfluxToken,
-		Database: cfg.InfluxDatabase,
+		Host:     cfg.InfluxDB.Host,
+		Token:    cfg.InfluxDB.Token,
+		Database: cfg.InfluxDB.Database,
 	})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	channel := make(chan canModels.CanMessage)
+	logger.Debug("started influxdb3 client")
 
+	now := time.Now()
 	return &InfluxDBClient{
 		client:          client,
 		ctx:             *ctx,
-		measurementName: cfg.InfluxTableName,
+		measurementName: cfg.InfluxDB.TableName,
 		wg:              sync.WaitGroup{},
-		maxBlocks:       cfg.InfluxMaxWriteLines,
-		maxConnections:  5,
-		connections:     0,
-		channel:         channel,
-		flushTime:       cfg.InfluxFlushTime,
-		lastRun:         time.Now(),
-	}, nil
+		maxBlocks:       cfg.InfluxDB.MaxWriteLines,
+		maxConnections:  cfg.InfluxDB.MaxConnections,
+		channel:         make(chan []canModels.CanMessage),
+		flushTime:       cfg.InfluxDB.FlushTime,
+		l:               logger,
+		workerLastRan:   now,
+	}
 }
 
-func (c *InfluxDBClient) Run() {
-	c.wg.Go(func() {
-		for {
-			blockSize := min(len(c.messageBlock), c.maxBlocks)
-			a := time.Since(c.lastRun)
+// func (c *InfluxDBClient) takeItem() canModels.CanMessage {
+// 	msg := c.messageBlock[0]
+// 	c.messageBlock = c.messageBlock[1:]
+// 	return msg
+// }
 
-			if blockSize > 0 && c.connections < c.maxConnections && a.Milliseconds() > int64(c.flushTime) {
-				c.connections++
-				go c.write(c.convertMany(c.messageBlock[:blockSize]))
-				c.messageBlock = c.messageBlock[blockSize:]
-				c.connections--
-				c.lastRun = time.Now()
-			}
-		}
-	})
-}
+// func (c *InfluxDBClient) returnItem(msg canModels.CanMessage) {
+// 	c.messageBlock = append(c.messageBlock, msg)
+// }
 
 func (c *InfluxDBClient) Handle(msg canModels.CanMessage) {
-	fmt.Printf("queuing #%v\n", len(c.messageBlock)+1)
+	c.count++
+	c.l.Debug(fmt.Sprintf("influxdb3 handling message %v", c.count))
 	c.messageBlock = append(c.messageBlock, msg)
+	if len(c.messageBlock) >= c.maxBlocks {
+		c.l.Debug(fmt.Sprintf("adding message %v to queue", c.count))
+		fmt.Printf("adding %v\n", len(c.messageBlock))
+		c.channel <- c.messageBlock
+		fmt.Printf("added %v\n", len(c.messageBlock))
+		c.messageBlock = []canModels.CanMessage{}
+	}
+}
+
+func (c *InfluxDBClient) HandleChannel(channel chan canModels.CanMessage) {
+	c.l.Debug("starting channel handler")
+	for msg := range channel {
+		c.Handle(msg)
+	}
+}
+
+func (c *InfluxDBClient) worker() {
+	c.l.Info("chunk worker started")
+	for msgChunk := range c.channel {
+		fmt.Println(time.Duration(c.flushTime)*time.Millisecond > time.Since(c.workerLastRan)*time.Millisecond)
+		fmt.Printf("FlushTime %v, Since %v\n", time.Duration(c.flushTime)*time.Millisecond, time.Since(c.workerLastRan))
+		if time.Duration(c.flushTime) < time.Since(c.workerLastRan)*time.Millisecond {
+			if err := c.write(c.convertMany(msgChunk)); err != nil {
+				panic(err)
+			} else {
+				fmt.Printf("wrote %v\n", len(msgChunk))
+				now := time.Now()
+				c.workerLastRan = now
+			}
+		}
+	}
+}
+
+func (c *InfluxDBClient) Run() error {
+	guard := make(chan struct{}, c.maxConnections)
+
+	for i := 0; i < cap(guard); i++ {
+		guard <- struct{}{}
+		c.wg.Add(1)
+		go func(id int) {
+			defer func() { <-guard }()
+			c.worker()
+		}(i)
+	}
+	c.wg.Wait()
+
+	return nil
 }
 
 func (c *InfluxDBClient) convertMsg(msg canModels.CanMessage) InfluxDBCanMessage {
@@ -103,7 +148,7 @@ func (c *InfluxDBClient) convertMany(msgs []canModels.CanMessage) []InfluxDBCanM
 	return convertedMessages
 }
 
-func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) {
+func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) error {
 	data := make([]any, len(msg))
 	for i, m := range msg {
 		data[i] = m
@@ -111,8 +156,10 @@ func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) {
 
 	err := c.client.WriteData(c.ctx, data)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func boolToInt(b bool) uint8 {

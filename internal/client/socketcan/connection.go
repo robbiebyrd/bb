@@ -6,9 +6,9 @@ import (
 	"net"
 
 	"go.einride.tech/can"
-	goCan "go.einride.tech/can/pkg/socketcan"
+	goSocketCan "go.einride.tech/can/pkg/socketcan"
 
-	canModel "github.com/robbiebyrd/bb/internal/models/can"
+	canModel "github.com/robbiebyrd/bb/internal/models"
 )
 
 type IFaceTest interface {
@@ -95,7 +95,7 @@ func (scc *SocketCanConnectionClient) SetConnection(conn net.Conn) {
 }
 
 func (scc *SocketCanConnectionClient) Open() error {
-	if conn, err := goCan.DialContext(*scc.ctx, scc.Network, scc.Name); err == nil {
+	if conn, err := goSocketCan.DialContext(*scc.ctx, scc.Network, scc.Name); err == nil {
 		scc.Connection = conn
 		scc.Opened = true
 		return nil

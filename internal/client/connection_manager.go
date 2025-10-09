@@ -7,7 +7,7 @@ import (
 
 	"github.com/robbiebyrd/bb/internal/client/simulate"
 	"github.com/robbiebyrd/bb/internal/client/socketcan"
-	canModels "github.com/robbiebyrd/bb/internal/models/can"
+	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 type ConnectionManager interface {
@@ -25,7 +25,7 @@ type CanConnectionManager struct {
 	connections    []canModels.CanConnection
 	MessageChannel chan canModels.CanMessage
 	wg             *sync.WaitGroup
-	logger         *slog.Logger
+	l              *slog.Logger
 }
 
 func NewConnectionManager(ctx *context.Context, msgChan chan canModels.CanMessage, logger *slog.Logger) *CanConnectionManager {
@@ -35,7 +35,7 @@ func NewConnectionManager(ctx *context.Context, msgChan chan canModels.CanMessag
 		ctx:            ctx,
 		MessageChannel: msgChan,
 		wg:             &wg,
-		logger:         logger,
+		l:              logger,
 	}
 }
 
@@ -62,7 +62,7 @@ func (cm *CanConnectionManager) Add(conn canModels.CanConnection) {
 func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 	switch options.Network {
 	case "sim":
-		cm.Add(simulate.NewSimulationCanClient(cm.ctx, options.Name, cm.MessageChannel, &options.Network, &options.URI))
+		cm.Add(simulate.NewSimulationCanClient(cm.ctx, options.Name, cm.MessageChannel, cm.l, &options.Network, &options.URI, nil))
 	default:
 		cm.Add(socketcan.NewSocketCanConnection(cm.ctx, options.Name, cm.MessageChannel, &options.Network, &options.URI))
 	}
@@ -102,9 +102,9 @@ func (cm *CanConnectionManager) CloseAll() error {
 	return nil
 }
 
-func (cm *CanConnectionManager) ReceiveAll() {
+func (cm *CanConnectionManager) ReceiveAll() error {
 	for _, connection := range cm.connections {
 		connection.Receive(cm.wg)
 	}
-	go cm.wg.Wait()
+	return nil
 }

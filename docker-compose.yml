@@ -13,14 +13,17 @@ services:
       - --object-store=file
       - --data-dir=/var/lib/influxdb3/data
       - --plugin-dir=/var/lib/influxdb3/plugins
-      - --admin-token-file=/etc/influxdb3/config/token.json
+    post_start:
+      - command: sh -c "sleep 5 && influxdb3 create token --admin --format json > /etc/influxdb3/config/token.json"
+        user: root
+
     volumes:
-      # - type: bind
-      #   source: ./data/influxdb3/core/data
-      #   target: /var/lib/influxdb3/data
-      # - type: bind
-      #   source: ./data/influxdb3/core/plugins
-      #   target: /var/lib/influxdb3/plugins
+      - type: bind
+        source: ./data/influxdb3/data
+        target: /var/lib/influxdb3/data
+      - type: bind
+        source: ./data/influxdb3/plugins
+        target: /var/lib/influxdb3/plugins
       - type: bind
         source: ./config/influxdb/token.json
         target: /etc/influxdb3/config/token.json
