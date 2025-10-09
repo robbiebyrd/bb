@@ -2,43 +2,52 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"os"
 
+	"golang.org/x/sync/errgroup"
+
 	cm "github.com/robbiebyrd/bb/internal/client"
-	"github.com/robbiebyrd/bb/internal/client/logging"
 	"github.com/robbiebyrd/bb/internal/config"
-	"github.com/robbiebyrd/bb/internal/models/can"
+	canModels "github.com/robbiebyrd/bb/internal/models"
 	"github.com/robbiebyrd/bb/internal/repo/influxdb"
 )
 
 func main() {
+	var wgClients errgroup.Group
 	ctx := context.Background()
-	cfg := config.Load()
 
-	MessageChannel := make(chan can.CanMessage, cfg.MessageBufferSize)
+	cfg, cfgJson := config.Load()
 
-	jlog := logging.NewJSONLogger(os.Stdout)
+	var programLevel = new(slog.LevelVar)
+	l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: programLevel}))
+	programLevel.Set(slog.LevelInfo)
 
-	cm := cm.NewConnectionManager(&ctx, MessageChannel, jlog)
+	l.Info("starting application")
+	l.Debug(fmt.Sprintf("loaded config: %v", cfgJson))
 
-	dbClient, err := influxdb.NewClient(&ctx, cfg)
-	if err != nil {
-		panic(err)
-	}
+	l.Debug("creating channel for incoming CAN messages")
+	canMsgChannel := make(chan canModels.CanMessage, cfg.MessageBufferSize)
 
-	if len(cfg.CanInterfaces) == 0 {
-		panic("no CAN interfaces configured")
-	}
+	l.Info("creating connection manager")
+	connections := cm.NewConnectionManager(&ctx, canMsgChannel, l)
 
-	cm.ConnectMultiple(cfg.CanInterfaces)
-	cm.ReceiveAll()
+	l.Info("creating database clients")
+	l.Info("creating influxdb3 client")
+	dbClient := influxdb.NewClient(&ctx, cfg, l)
 
-	i := 0
+	l.Info(fmt.Sprintf("creating %v can interfaces", len(cfg.CanInterfaces)))
+	connections.ConnectMultiple(cfg.CanInterfaces)
 
-	go dbClient.Run()
+	l.Info("starting processes")
 
-	for msg := range MessageChannel {
-		i++
-		dbClient.Handle(msg)
-	}
+	l.Info("running clients")
+	wgClients.Go(dbClient.Run)
+
+	l.Info("receiving data on connections")
+	wgClients.Go(connections.ReceiveAll)
+
+	l.Info("handling messages")
+	dbClient.HandleChannel(canMsgChannel)
 }

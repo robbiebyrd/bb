@@ -3,9 +3,11 @@ package simulate
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 
-	canModel "github.com/robbiebyrd/bb/internal/models/can"
+	"github.com/robbiebyrd/bb/internal/config"
+	canModel "github.com/robbiebyrd/bb/internal/models"
 )
 
 type SimulationCanClient struct {
@@ -18,20 +20,29 @@ type SimulationCanClient struct {
 	Receiver   canModel.ReceiverInterface
 	Opened     bool
 	Streaming  bool
+	l          *slog.Logger
+	rate       int //ms
+	count      int
 }
 
-func NewSimulationCanClient(ctx *context.Context, name string, channel chan canModel.CanMessage, network, uri *string) *SimulationCanClient {
+func NewSimulationCanClient(ctx *context.Context, name string, channel chan canModel.CanMessage, logger *slog.Logger, network, uri *string, rate *int) *SimulationCanClient {
+	cfg, _ := config.Load()
+
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {
 		panic(fmt.Errorf("message channel cannot be nil"))
 	}
 
-	if uri == nil {
+	if rate == nil || *rate == 0 {
+		rate = &cfg.SimEmitRate
+	}
+
+	if uri == nil || *uri == "" {
 		uri = &name
 	}
 
-	if network == nil {
+	if network == nil || *network == "" {
 		defaultNetwork := "sim"
 		network = &defaultNetwork
 	}
@@ -42,6 +53,8 @@ func NewSimulationCanClient(ctx *context.Context, name string, channel chan canM
 		Channel: channel,
 		Network: *network,
 		URI:     *uri,
+		l:       logger,
+		rate:    *rate,
 	}
 }
 

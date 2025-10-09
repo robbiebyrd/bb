@@ -1,10 +1,8 @@
-package can
+package models
 
 import (
 	"net"
 	"sync"
-
-	"go.einride.tech/can"
 )
 
 type CanMessage struct {
@@ -15,17 +13,6 @@ type CanMessage struct {
 	Length    uint8
 	Remote    bool
 	Data      []byte
-}
-
-type Config struct {
-	InfluxHost          string               `env:"INFLUX_HOST,required"`
-	InfluxToken         string               `env:"INFLUX_TOKEN,required"`
-	InfluxDatabase      string               `env:"INFLUX_DATABASE" envDefault:"can_data"`
-	InfluxTableName     string               `env:"INFLUX_TABLE" envDefault:"can_message"`
-	InfluxFlushTime     int                  `env:"INFLUX_FLUSH_TIME" envDefault:"100"`
-	InfluxMaxWriteLines int                  `env:"INFLUX_MAX_WRITE_LINES" envDefault:"1000"`
-	CanInterfaces       []CanInterfaceOption `envPrefix:"INTERFACE"`
-	MessageBufferSize   int                  `eng:"MSG_BUFFER_SIZE" envDefault:"1024"`
 }
 
 type CanInterfaceOptions []CanInterfaceOption
@@ -53,9 +40,18 @@ type CanConnection interface {
 	Receive(wg *sync.WaitGroup)
 }
 
+type FrameInterface interface {
+	JSON() string
+	MarshalJSON() ([]byte, error)
+	String() string
+	UnmarshalJSON(jsonData []byte) error
+	UnmarshalString(s string) error
+	Validate() error
+}
+
 type ReceiverInterface interface {
 	Receive() bool
-	Frame() can.Frame
+	Frame() FrameInterface
 	Err() error
 	Close() error
 }
