@@ -26,7 +26,6 @@ type InfluxDBClient struct {
 	flushTime       int // ms
 	l               *slog.Logger
 	workerLastRan   time.Time
-	count           int
 }
 
 func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.DBClient {
@@ -46,36 +45,21 @@ func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) 
 	return &InfluxDBClient{
 		client:          client,
 		ctx:             *ctx,
-		measurementName: cfg.InfluxDB.TableName,
-		wg:              sync.WaitGroup{},
-		maxBlocks:       cfg.InfluxDB.MaxWriteLines,
-		maxConnections:  cfg.InfluxDB.MaxConnections,
-		channel:         make(chan []canModels.CanMessage),
-		flushTime:       cfg.InfluxDB.FlushTime,
 		l:               logger,
 		workerLastRan:   now,
+		measurementName: cfg.InfluxDB.TableName,
+		maxBlocks:       cfg.InfluxDB.MaxWriteLines,
+		maxConnections:  cfg.InfluxDB.MaxConnections,
+		flushTime:       cfg.InfluxDB.FlushTime,
+		channel:         make(chan []canModels.CanMessage),
+		wg:              sync.WaitGroup{},
 	}
 }
 
-// func (c *InfluxDBClient) takeItem() canModels.CanMessage {
-// 	msg := c.messageBlock[0]
-// 	c.messageBlock = c.messageBlock[1:]
-// 	return msg
-// }
-
-// func (c *InfluxDBClient) returnItem(msg canModels.CanMessage) {
-// 	c.messageBlock = append(c.messageBlock, msg)
-// }
-
 func (c *InfluxDBClient) Handle(msg canModels.CanMessage) {
-	c.count++
-	c.l.Debug(fmt.Sprintf("influxdb3 handling message %v", c.count))
 	c.messageBlock = append(c.messageBlock, msg)
 	if len(c.messageBlock) >= c.maxBlocks {
-		c.l.Debug(fmt.Sprintf("adding message %v to queue", c.count))
-		fmt.Printf("adding %v\n", len(c.messageBlock))
 		c.channel <- c.messageBlock
-		fmt.Printf("added %v\n", len(c.messageBlock))
 		c.messageBlock = []canModels.CanMessage{}
 	}
 }
@@ -90,13 +74,11 @@ func (c *InfluxDBClient) HandleChannel(channel chan canModels.CanMessage) {
 func (c *InfluxDBClient) worker() {
 	c.l.Info("chunk worker started")
 	for msgChunk := range c.channel {
-		fmt.Println(time.Duration(c.flushTime)*time.Millisecond > time.Since(c.workerLastRan)*time.Millisecond)
-		fmt.Printf("FlushTime %v, Since %v\n", time.Duration(c.flushTime)*time.Millisecond, time.Since(c.workerLastRan))
 		if time.Duration(c.flushTime) < time.Since(c.workerLastRan)*time.Millisecond {
+			c.l.Info("chunk worker handling chunk")
 			if err := c.write(c.convertMany(msgChunk)); err != nil {
 				panic(err)
 			} else {
-				fmt.Printf("wrote %v\n", len(msgChunk))
 				now := time.Now()
 				c.workerLastRan = now
 			}
