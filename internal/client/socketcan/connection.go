@@ -11,9 +11,6 @@ import (
 	canModel "github.com/robbiebyrd/bb/internal/models"
 )
 
-type IFaceTest interface {
-	String() string
-}
 type ReceiverInterface interface {
 	Receive() bool
 	Frame() can.Frame

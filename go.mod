@@ -6,8 +6,10 @@ require (
 	github.com/InfluxCommunity/influxdb3-go/v2 v2.10.0 // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/caarlos0/env/v11 v11.3.1 // indirect
+	github.com/dnlo/struct2csv v0.0.0-20190928115744-2f584471b24e // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
+	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/influxdata/line-protocol/v2 v2.2.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect

@@ -9,8 +9,10 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	cm "github.com/robbiebyrd/bb/internal/client"
+	"github.com/robbiebyrd/bb/internal/client/broadcast"
 	"github.com/robbiebyrd/bb/internal/config"
 	canModels "github.com/robbiebyrd/bb/internal/models"
+	"github.com/robbiebyrd/bb/internal/repo/csv"
 	"github.com/robbiebyrd/bb/internal/repo/influxdb"
 )
 
@@ -35,7 +37,11 @@ func main() {
 
 	l.Info("creating database clients")
 	l.Info("creating influxdb3 client")
-	dbClient := influxdb.NewClient(&ctx, cfg, l)
+	influxDBClient := influxdb.NewClient(&ctx, cfg, l)
+
+	l.Info("creating database clients")
+	l.Info("creating influxdb3 client")
+	csvClient := csv.NewClient(&ctx, cfg, l)
 
 	l.Info(fmt.Sprintf("creating %v can interfaces", len(cfg.CanInterfaces)))
 	connections.ConnectMultiple(cfg.CanInterfaces)
@@ -43,11 +49,25 @@ func main() {
 	l.Info("starting processes")
 
 	l.Info("running clients")
-	wgClients.Go(dbClient.Run)
+	wgClients.Go(influxDBClient.Run)
 
 	l.Info("receiving data on connections")
 	wgClients.Go(connections.ReceiveAll)
 
+	broadcastClient := broadcast.NewBroadcastClient(&ctx, canMsgChannel)
+
+	csvMsgChannel := make(chan canModels.CanMessage, cfg.MessageBufferSize)
+	influxMsgChannel := make(chan canModels.CanMessage, cfg.MessageBufferSize)
+	csvMsgListener := broadcast.BroadcastClientListener{Name: "csv", Channel: csvMsgChannel}
+	influxMsgListener := broadcast.BroadcastClientListener{Name: "influx", Channel: influxMsgChannel}
+
+	broadcastClient.Add(csvMsgListener)
+	broadcastClient.Add(influxMsgListener)
+
 	l.Info("handling messages")
-	dbClient.HandleChannel(canMsgChannel)
+	go influxDBClient.HandleChannel(influxMsgChannel)
+	go csvClient.HandleChannel(csvMsgChannel)
+
+	wgClients.Go(broadcastClient.Broadcast)
+	wgClients.Wait()
 }

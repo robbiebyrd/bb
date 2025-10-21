@@ -106,5 +106,6 @@ func (cm *CanConnectionManager) ReceiveAll() error {
 	for _, connection := range cm.connections {
 		connection.Receive(cm.wg)
 	}
+	cm.wg.Wait()
 	return nil
 }

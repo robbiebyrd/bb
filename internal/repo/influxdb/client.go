@@ -26,6 +26,7 @@ type InfluxDBClient struct {
 	flushTime       int // ms
 	l               *slog.Logger
 	workerLastRan   time.Time
+	count           int
 }
 
 func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.DBClient {
@@ -74,14 +75,14 @@ func (c *InfluxDBClient) HandleChannel(channel chan canModels.CanMessage) {
 func (c *InfluxDBClient) worker() {
 	c.l.Info("chunk worker started")
 	for msgChunk := range c.channel {
-		if time.Duration(c.flushTime) < time.Since(c.workerLastRan)*time.Millisecond {
-			c.l.Info("chunk worker handling chunk")
-			if err := c.write(c.convertMany(msgChunk)); err != nil {
-				panic(err)
-			} else {
-				now := time.Now()
-				c.workerLastRan = now
-			}
+		c.l.Info("chunk worker handling chunk")
+		if err := c.write(c.convertMany(msgChunk)); err != nil {
+			panic(err)
+		} else {
+			now := time.Now()
+			c.workerLastRan = now
+			c.count += len(msgChunk)
+			fmt.Printf("PROC %v\n", c.count)
 		}
 	}
 }

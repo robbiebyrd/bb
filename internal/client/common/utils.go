@@ -2,10 +2,7 @@ package common
 
 func PadOrTrim(bb []byte, size int) []byte {
 	l := len(bb)
-	if l == size {
-		return bb
-	}
-	if l > size {
+	if l >= size {
 		return bb[:size]
 	}
 	tmp := make([]byte, size)

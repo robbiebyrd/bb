@@ -25,5 +25,5 @@ services:
         source: ./data/influxdb3/plugins
         target: /var/lib/influxdb3/plugins
       - type: bind
-        source: ./config/influxdb/token.json
-        target: /etc/influxdb3/config/token.json
+        source: ./config/influxdb
+        target: /etc/influxdb3/config
