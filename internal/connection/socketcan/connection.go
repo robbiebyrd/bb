@@ -20,14 +20,14 @@ type ReceiverInterface interface {
 
 type SocketCanConnectionClient struct {
 	ctx        *context.Context
-	Name       string
-	Network    string
-	URI        string
-	Channel    chan canModel.CanMessage
-	Connection net.Conn
-	Receiver   ReceiverInterface
-	Opened     bool
-	Streaming  bool
+	name       string
+	network    string
+	uri        string
+	channel    chan canModel.CanMessage
+	connection net.Conn
+	receiver   ReceiverInterface
+	opened     bool
+	streaming  bool
 }
 
 func NewSocketCanConnection(ctx *context.Context, name string, channel chan canModel.CanMessage, network, uri *string) *SocketCanConnectionClient {
@@ -48,35 +48,35 @@ func NewSocketCanConnection(ctx *context.Context, name string, channel chan canM
 
 	return &SocketCanConnectionClient{
 		ctx:     ctx,
-		Name:    name,
-		Channel: channel,
-		Network: *network,
-		URI:     *uri,
+		name:    name,
+		channel: channel,
+		network: *network,
+		uri:     *uri,
 	}
 }
 
 func (scc *SocketCanConnectionClient) GetURI() string {
-	return scc.URI
+	return scc.uri
 }
 
 func (scc *SocketCanConnectionClient) SetURI(uri string) {
-	scc.URI = uri
+	scc.uri = uri
 }
 
 func (scc *SocketCanConnectionClient) GetNetwork() string {
-	return scc.Network
+	return scc.network
 }
 
 func (scc *SocketCanConnectionClient) SetNetwork(network string) {
-	scc.Network = network
+	scc.network = network
 }
 
 func (scc *SocketCanConnectionClient) GetName() string {
-	return scc.Name
+	return scc.name
 }
 
 func (scc *SocketCanConnectionClient) SetName(name string) {
-	scc.Name = name
+	scc.name = name
 }
 
 func (scc *SocketCanConnectionClient) GetInterfaceName() string {
@@ -84,17 +84,17 @@ func (scc *SocketCanConnectionClient) GetInterfaceName() string {
 }
 
 func (scc *SocketCanConnectionClient) GetConnection() net.Conn {
-	return scc.Connection
+	return scc.connection
 }
 
 func (scc *SocketCanConnectionClient) SetConnection(conn net.Conn) {
-	scc.Connection = conn
+	scc.connection = conn
 }
 
 func (scc *SocketCanConnectionClient) Open() error {
-	if conn, err := goSocketCan.DialContext(*scc.ctx, scc.Network, scc.Name); err == nil {
-		scc.Connection = conn
-		scc.Opened = true
+	if conn, err := goSocketCan.DialContext(*scc.ctx, scc.network, scc.name); err == nil {
+		scc.connection = conn
+		scc.opened = true
 		return nil
 	} else {
 		panic(err)
@@ -102,21 +102,21 @@ func (scc *SocketCanConnectionClient) Open() error {
 }
 
 func (scc *SocketCanConnectionClient) Close() error {
-	err := scc.Connection.Close()
+	err := scc.connection.Close()
 	if err != nil {
 		panic(err)
 	}
-	scc.Opened = false
+	scc.opened = false
 	return nil
 }
 
 func (scc *SocketCanConnectionClient) IsOpen() bool {
-	return scc.Opened
+	return scc.opened
 }
 
 func (scc *SocketCanConnectionClient) Discontinue() error {
-	scc.Receiver.Close()
-	scc.Streaming = false
+	scc.receiver.Close()
+	scc.streaming = false
 
 	return nil
 }

@@ -1,24 +1,14 @@
-package client
+package connection
 
 import (
 	"context"
 	"log/slog"
 	"sync"
 
-	"github.com/robbiebyrd/bb/internal/client/simulate"
-	"github.com/robbiebyrd/bb/internal/client/socketcan"
+	"github.com/robbiebyrd/bb/internal/connection/simulate"
+	"github.com/robbiebyrd/bb/internal/connection/socketcan"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
-
-type ConnectionManager interface {
-	Add(conn canModels.CanConnection)
-	Connect(name string, network, uri *string)
-	ConnectMultiple(names []string)
-	DeleteConnection(name string)
-	OpenAll() error
-	CloseAll() error
-	ReceiveAll()
-}
 
 type CanConnectionManager struct {
 	ctx            *context.Context
@@ -28,7 +18,7 @@ type CanConnectionManager struct {
 	l              *slog.Logger
 }
 
-func NewConnectionManager(ctx *context.Context, msgChan chan canModels.CanMessage, logger *slog.Logger) *CanConnectionManager {
+func NewConnectionManager(ctx *context.Context, msgChan chan canModels.CanMessage, logger *slog.Logger) canModels.ConnectionManager {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	return &CanConnectionManager{
