@@ -19,7 +19,7 @@ type CSVClient struct {
 	incomingChannel chan canModels.CanMessage
 }
 
-func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.DBClient {
+func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.OutputClient {
 	file, err := os.OpenFile(cfg.CSVLog.OutputFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Printf("Error opening file %v\n")
@@ -40,22 +40,22 @@ func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) 
 	}
 }
 
-func (c *CSVClient) Handle(msg canModels.CanMessage) {
+func (c *CSVClient) Handle(canMsg canModels.CanMessage) {
 	row := []string{
-		strconv.FormatInt(msg.Timestamp, 10),
-		strconv.FormatUint(uint64(msg.ID), 10),
-		msg.Interface,
-		strconv.FormatBool(msg.Remote),
-		strconv.FormatBool(msg.Transmit),
-		strconv.Itoa(int(msg.Length)),
-		hex.EncodeToString(msg.Data)}
+		strconv.FormatInt(canMsg.Timestamp, 10),
+		strconv.FormatUint(uint64(canMsg.ID), 10),
+		canMsg.Interface,
+		strconv.FormatBool(canMsg.Remote),
+		strconv.FormatBool(canMsg.Transmit),
+		strconv.Itoa(int(canMsg.Length)),
+		hex.EncodeToString(canMsg.Data)}
 	c.w.Write(row)
 	c.w.Flush()
 }
 
 func (c *CSVClient) HandleChannel() error {
-	for msg := range c.incomingChannel {
-		c.Handle(msg)
+	for canMsg := range c.incomingChannel {
+		c.Handle(canMsg)
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (c *CSVClient) GetChannel() chan canModels.CanMessage {
 }
 
 func (c *CSVClient) GetName() string {
-	return "repo-csv"
+	return "output-csv"
 }
 
 func (c *CSVClient) Run() error {

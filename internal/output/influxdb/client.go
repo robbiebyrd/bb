@@ -30,7 +30,7 @@ type InfluxDBClient struct {
 	incomingChannel chan canModels.CanMessage
 }
 
-func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.DBClient {
+func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.OutputClient {
 	logger.Debug("starting influxdb3 client")
 	client, err := influxdb3.New(influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,
@@ -59,8 +59,8 @@ func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) 
 	}
 }
 
-func (c *InfluxDBClient) Handle(msg canModels.CanMessage) {
-	c.messageBlock = append(c.messageBlock, msg)
+func (c *InfluxDBClient) Handle(canMsg canModels.CanMessage) {
+	c.messageBlock = append(c.messageBlock, canMsg)
 	if len(c.messageBlock) >= c.maxBlocks {
 		c.internalChannel <- c.messageBlock
 		c.messageBlock = []canModels.CanMessage{}
@@ -73,14 +73,14 @@ func (c *InfluxDBClient) GetChannel() chan canModels.CanMessage {
 
 func (c *InfluxDBClient) HandleChannel() error {
 	c.l.Debug("starting channel handler")
-	for msg := range c.incomingChannel {
-		c.Handle(msg)
+	for canMsg := range c.incomingChannel {
+		c.Handle(canMsg)
 	}
 	return nil
 }
 
 func (c *InfluxDBClient) GetName() string {
-	return "repo-influxdb3"
+	return "output-influxdb3"
 }
 
 func (c *InfluxDBClient) worker(i int) {

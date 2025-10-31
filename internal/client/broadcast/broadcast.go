@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/robbiebyrd/bb/internal/client/common"
 	canModel "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -17,6 +18,7 @@ type BroadcastInterface interface {
 type BroadcastClientListener struct {
 	Name    string
 	Channel chan canModel.CanMessage
+	Filter  *canModel.CanMessageFilterGroup
 }
 
 type BroadcastClient struct {
@@ -34,11 +36,18 @@ func NewBroadcastClient(ctx *context.Context, incomingChannel chan canModel.CanM
 	}
 }
 
-func (scc *BroadcastClient) Add(listener BroadcastClientListener) error {
+func (scc *BroadcastClient) listenerExists(listener BroadcastClientListener) bool {
 	for _, c := range scc.broadcastChannels {
 		if c.Name == listener.Name {
-			return fmt.Errorf("the name %v is already in use", listener.Name)
+			return true
 		}
+	}
+	return false
+}
+
+func (scc *BroadcastClient) Add(listener BroadcastClientListener) error {
+	if scc.listenerExists(listener) {
+		return fmt.Errorf("the name %v is already in use", listener.Name)
 	}
 	scc.broadcastChannels = append(scc.broadcastChannels, listener)
 
@@ -68,10 +77,31 @@ func (scc *BroadcastClient) Remove(name string) error {
 
 func (scc *BroadcastClient) Broadcast() error {
 	for {
-		msg := <-scc.incomingChannel
+		canMsg := <-scc.incomingChannel
 		scc.msgCount++
 		for _, c := range scc.broadcastChannels {
-			c.Channel <- msg
+			broadcastMsg := true
+			if c.Filter != nil {
+				broadcastMsg = scc.testFilterGroup(c, canMsg)
+			}
+			if broadcastMsg {
+				c.Channel <- canMsg
+			}
 		}
+	}
+}
+
+func (scc *BroadcastClient) testFilterGroup(c BroadcastClientListener, canMsg canModel.CanMessage) bool {
+	filterValues := []bool{}
+
+	for _, f := range c.Filter.Filters {
+		filterValues = append(filterValues, f.Filter(canMsg))
+	}
+
+	switch c.Filter.Operator {
+	case canModel.FilterOr:
+		return common.ArrayContainsTrue(filterValues)
+	default:
+		return common.ArrayAllTrue(filterValues)
 	}
 }

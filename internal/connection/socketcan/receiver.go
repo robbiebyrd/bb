@@ -11,15 +11,15 @@ import (
 )
 
 func (scc *SocketCanConnectionClient) Receive(wg *sync.WaitGroup) {
-	scc.Receiver = goSocketCan.NewReceiver(scc.Connection)
-	scc.Streaming = true
+	scc.receiver = goSocketCan.NewReceiver(scc.connection)
+	scc.streaming = true
 
 	wg.Go(func() {
 		for {
-			for scc.Receiver.Receive() {
-				frame := scc.Receiver.Frame()
+			for scc.receiver.Receive() {
+				frame := scc.receiver.Frame()
 				now := time.Now().Unix()
-				scc.Channel <- canModels.CanMessage{
+				scc.channel <- canModels.CanMessage{
 					Timestamp: now,
 					Interface: scc.GetInterfaceName(),
 					Transmit:  false,

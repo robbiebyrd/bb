@@ -1,8 +1,8 @@
 package models
 
-type DBClient interface {
+type OutputClient interface {
 	Run() error
-	Handle(msg CanMessage)
+	Handle(canMsg CanMessage)
 	HandleChannel() error
 	GetChannel() chan CanMessage
 	GetName() string

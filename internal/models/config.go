@@ -10,6 +10,12 @@ type InfluxDBConfig struct {
 	MaxConnections int    `env:"MAX_CONNECTIONS" envDefault:"5"`
 }
 
+type MQTTConfig struct {
+	Host     string `env:"HOST,required"`
+	ClientId string `env:"CLIENTID,required"`
+	Topic    string `env:"TOPIC" envDefault:"can_data"`
+}
+
 type CSVLogConfig struct {
 	OutputFile     string `env:"OUTPUT_FILE,required"`
 	IncludeHeaders bool   `env:"OUTPUT_HEADERS" envDefault:"true"`
@@ -20,5 +26,7 @@ type Config struct {
 	MessageBufferSize int                  `env:"MSG_BUFFER_SIZE" envDefault:"81920"`
 	InfluxDB          InfluxDBConfig       `envPrefix:"INFLUX_"`
 	CSVLog            CSVLogConfig         `envPrefix:"CSV_"`
+	MQTTConfig        MQTTConfig           `envPrefix:"MQTT_"`
 	SimEmitRate       int                  `env:"SIM_RATE" envDefault:"10"`
+	LogLevel          string               `env:"LOG_LEVEL" envDefault:"info"`
 }
