@@ -8,10 +8,10 @@ import (
 type CanMessage struct {
 	Timestamp int64
 	Interface string
-	Transmit  bool
 	ID        uint32
-	Length    uint8
+	Transmit  bool
 	Remote    bool
+	Length    uint8
 	Data      []byte
 }
 

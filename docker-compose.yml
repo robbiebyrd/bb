@@ -1,5 +1,5 @@
 # compose.yaml
-name: influxdb3
+name: bb
 services:
   influxdb3-core:
     container_name: influxdb3-core
@@ -27,3 +27,14 @@ services:
       - type: bind
         source: ./config/influxdb
         target: /etc/influxdb3/config
+
+  mosquitto:
+    image: eclipse-mosquitto
+    hostname: mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto:/mosquitto/config

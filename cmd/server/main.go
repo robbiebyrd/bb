@@ -5,6 +5,7 @@ import (
 	canModels "github.com/robbiebyrd/bb/internal/models"
 	"github.com/robbiebyrd/bb/internal/output/csv"
 	"github.com/robbiebyrd/bb/internal/output/influxdb"
+	"github.com/robbiebyrd/bb/internal/output/mqtt"
 )
 
 func main() {
@@ -13,6 +14,7 @@ func main() {
 	b.AddOutputs([]canModels.OutputClient{
 		csv.NewClient(&b.Ctx, b.Cfg, b.Log),
 		influxdb.NewClient(&b.Ctx, b.Cfg, b.Log),
+		mqtt.NewClient(&b.Ctx, b.Cfg, b.Log),
 	})
 
 	b.Run()
