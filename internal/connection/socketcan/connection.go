@@ -28,10 +28,10 @@ type SocketCanConnectionClient struct {
 	receiver   ReceiverInterface
 	opened     bool
 	streaming  bool
-	cfg        canModels.Config
+	cfg        *canModels.Config
 }
 
-func NewSocketCanConnection(ctx *context.Context, cfg canModels.Config, name string, channel chan canModels.CanMessageTimestamped, network, uri *string) *SocketCanConnectionClient {
+func NewSocketCanConnection(ctx *context.Context, cfg *canModels.Config, name string, channel chan canModels.CanMessageTimestamped, network, uri *string) *SocketCanConnectionClient {
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {

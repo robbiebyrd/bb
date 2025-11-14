@@ -18,7 +18,7 @@ func main() {
 		influxdb.NewClient(ctx, cfg, log),
 		mqtt.NewClient(ctx, cfg, log, canModels.FilterInput{
 			Name:   "deduper",
-			Filter: dedupe.NewDedupeFilterClient(log, cfg.MQTTConfig.DedupeTimeout),
+			Filter: dedupe.NewDedupeFilterClient(log, cfg.MQTTConfig.DedupeTimeout, cfg.MQTTConfig.DedupeIDs),
 		}),
 	})
 

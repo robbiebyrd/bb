@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"golang.org/x/sync/errgroup"
 
@@ -15,7 +17,7 @@ import (
 )
 
 type AppData struct {
-	config          canModels.Config
+	config          *canModels.Config
 	wgClients       *errgroup.Group
 	broadcastClient *broadcast.BroadcastClient
 	OutputClients   []canModels.OutputClient
@@ -50,6 +52,25 @@ func NewApp() canModels.AppInterface {
 		lvl.Set(slog.LevelWarn)
 	}
 
+	if cfg.InfluxDB.Token == "" && cfg.InfluxDB.TokenFile != "" {
+		jsonFile, err := os.Open("./config/influxdb/token.json")
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer jsonFile.Close()
+
+		creds := struct {
+			Token string `json:"token"`
+		}{}
+
+		err = json.NewDecoder(jsonFile).Decode(&creds)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		cfg.InfluxDB.Token = creds.Token
+	}
+
 	l.Debug("creating process context and wait group")
 	wgClients, ctx := errgroup.WithContext(context.Background())
 
@@ -60,7 +81,7 @@ func NewApp() canModels.AppInterface {
 	broadcastClient := broadcast.NewBroadcastClient(&ctx, canMsgChannel)
 
 	l.Debug("creating connection manager")
-	connections := cm.NewConnectionManager(&ctx, cfg, canMsgChannel, l)
+	connections := cm.NewConnectionManager(&ctx, &cfg, canMsgChannel, l)
 
 	l.Info(fmt.Sprintf("creating %v can interfaces from config", len(cfg.CanInterfaces)))
 	connections.ConnectMultiple(cfg.CanInterfaces)
@@ -68,7 +89,7 @@ func NewApp() canModels.AppInterface {
 	l.Info("application started")
 
 	return &AppData{
-		config:          cfg,
+		config:          &cfg,
 		wgClients:       wgClients,
 		broadcastClient: broadcastClient,
 		OutputClients:   []canModels.OutputClient{},
@@ -134,7 +155,7 @@ func (b *AppData) GetContext() *context.Context {
 	return &b.ctx
 }
 
-func (b *AppData) GetConfig() canModels.Config {
+func (b *AppData) GetConfig() *canModels.Config {
 	return b.config
 }
 
