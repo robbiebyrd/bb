@@ -27,12 +27,12 @@ type SimulationCanClient struct {
 	l          *slog.Logger
 	rate       int //ms
 	count      int
-	cfg        canModels.Config
+	cfg        *canModels.Config
 }
 
 var CAN_MESSAGE_MAX_DATA_LENGTH uint8 = 8 // bytes
 
-func NewSimulationCanClient(ctx *context.Context, cfg canModels.Config, name string, channel chan canModels.CanMessageTimestamped, logger *slog.Logger, network, uri *string, rate *int) *SimulationCanClient {
+func NewSimulationCanClient(ctx *context.Context, cfg *canModels.Config, name string, channel chan canModels.CanMessageTimestamped, logger *slog.Logger, network, uri *string, rate *int) *SimulationCanClient {
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {

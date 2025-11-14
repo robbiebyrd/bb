@@ -31,7 +31,7 @@ type InfluxDBClient struct {
 	filters         map[string]canModels.FilterInterface
 }
 
-func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger) canModels.OutputClient {
+func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger) canModels.OutputClient {
 	logger.Debug("starting influxdb3 client")
 	client, err := influxdb3.New(influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,

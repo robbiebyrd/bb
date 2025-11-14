@@ -3,6 +3,7 @@ package dedupe
 import (
 	"encoding/json"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
@@ -14,10 +15,11 @@ type DedupeFilterClient struct {
 	storage map[uint64]time.Time
 	l       *slog.Logger
 	timeout int
+	ids     []uint32
 }
 
-func NewDedupeFilterClient(l *slog.Logger, timeout int) canModels.FilterInterface {
-	return &DedupeFilterClient{make(map[uint64]time.Time), l, timeout}
+func NewDedupeFilterClient(l *slog.Logger, timeout int, ids []uint32) canModels.FilterInterface {
+	return &DedupeFilterClient{make(map[uint64]time.Time), l, timeout, ids}
 }
 
 func (dc *DedupeFilterClient) Add(_ canModels.CanMessageFilter) error {
@@ -27,6 +29,10 @@ func (dc *DedupeFilterClient) Add(_ canModels.CanMessageFilter) error {
 func (dc *DedupeFilterClient) Mode(_ canModels.CanFilterGroupOperator) {}
 
 func (dc *DedupeFilterClient) Filter(canMsg canModels.CanMessageTimestamped) bool {
+	if !slices.Contains(dc.ids, canMsg.ID) {
+		return false
+	}
+
 	msgHash, err := hashCanMessageData(canMsg)
 	if err != nil {
 		dc.l.Error("error hashing message for shadow copy", "error", err)

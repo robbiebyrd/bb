@@ -13,7 +13,7 @@ type AppInterface interface {
 	Run()
 	GetConnections() ConnectionManager
 	GetContext() *context.Context
-	GetConfig() Config
+	GetConfig() *Config
 	GetLogger() *slog.Logger
 	GetLogLevel() *slog.LevelVar
 	SetLogLevel(logLevel slog.Level)

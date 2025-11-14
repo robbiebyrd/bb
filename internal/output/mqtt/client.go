@@ -17,11 +17,11 @@ type MQTTClient struct {
 	l               *slog.Logger
 	incomingChannel chan canModels.CanMessageTimestamped
 	topic           string
-	cfg             canModels.Config
+	cfg             *canModels.Config
 	filters         map[string]canModels.FilterInterface
 }
 
-func NewClient(ctx *context.Context, cfg canModels.Config, logger *slog.Logger, filters ...canModels.FilterInput) canModels.OutputClient {
+func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger, filters ...canModels.FilterInput) canModels.OutputClient {
 	logger.Debug("starting MQTT client")
 
 	opts := mqtt.NewClientOptions()

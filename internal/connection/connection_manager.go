@@ -16,10 +16,10 @@ type CanConnectionManager struct {
 	MessageChannel chan canModels.CanMessageTimestamped
 	wg             *sync.WaitGroup
 	l              *slog.Logger
-	cfg            canModels.Config
+	cfg            *canModels.Config
 }
 
-func NewConnectionManager(ctx *context.Context, cfg canModels.Config, msgChan chan canModels.CanMessageTimestamped, logger *slog.Logger) canModels.ConnectionManager {
+func NewConnectionManager(ctx *context.Context, cfg *canModels.Config, msgChan chan canModels.CanMessageTimestamped, logger *slog.Logger) canModels.ConnectionManager {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	return &CanConnectionManager{
