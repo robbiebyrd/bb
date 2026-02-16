@@ -1,24 +1,16 @@
 package filter
 
 import (
-	"strings"
-
 	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 type CanInterfaceFilter struct {
-	Value    string
-	Operator canModels.CanFilterTextOperator
+	Value int
 }
 
 func (iff CanInterfaceFilter) Filter(canMsg canModels.CanMessageTimestamped) bool {
-	switch iff.Operator {
-	case canModels.TextContains:
-		return strings.Contains(canMsg.Interface, iff.Value)
-	default:
-		return canMsg.Interface == iff.Value
-	}
+	return canMsg.Interface == iff.Value
 }
 
 type CanTransmitFilter struct {

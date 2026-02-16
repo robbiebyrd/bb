@@ -19,9 +19,15 @@ type CSVClient struct {
 	incomingChannel chan canModels.CanMessageTimestamped
 	filters         map[string]canModels.FilterInterface
 	l               *slog.Logger
+	resolver        canModels.InterfaceResolver
 }
 
-func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger) canModels.OutputClient {
+func NewClient(
+	ctx *context.Context,
+	cfg *canModels.Config,
+	logger *slog.Logger,
+	resolver canModels.InterfaceResolver,
+) canModels.OutputClient {
 	file, err := os.OpenFile(cfg.CSVLog.OutputFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Printf("Error opening file %v\n", cfg.CSVLog.OutputFile)
@@ -32,7 +38,10 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 	defer writer.Flush()
 
 	header := []string{"timestamp", "id", "interface", "remote", "transmit", "length", "data"}
-	writer.Write(header)
+	err = writer.Write(header)
+	if err != nil {
+		logger.Error("Could not write row to csv file", "error", err)
+	}
 
 	return &CSVClient{
 		w:               writer,
@@ -41,6 +50,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		filters:         make(map[string]canModels.FilterInterface),
 		l:               logger,
+		resolver:        resolver,
 	}
 }
 
@@ -54,15 +64,22 @@ func (c *CSVClient) AddFilter(name string, filter canModels.FilterInterface) err
 }
 
 func (c *CSVClient) Handle(canMsg canModels.CanMessageTimestamped) {
+	interfaceName := ""
+	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
+		interfaceName = conn.GetInterfaceName()
+	}
 	row := []string{
 		strconv.FormatInt(canMsg.Timestamp, 10),
 		strconv.FormatUint(uint64(canMsg.ID), 10),
-		canMsg.Interface,
+		interfaceName,
 		strconv.FormatBool(canMsg.Remote),
 		strconv.FormatBool(canMsg.Transmit),
 		strconv.Itoa(int(canMsg.Length)),
 		hex.EncodeToString(canMsg.Data)}
-	c.w.Write(row)
+	err := c.w.Write(row)
+	if err != nil {
+		c.l.Error("Could not write row to csv file", "error", err)
+	}
 	c.w.Flush()
 }
 

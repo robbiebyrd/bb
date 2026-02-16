@@ -20,6 +20,7 @@ type ReceiverInterface interface {
 
 type SocketCanConnectionClient struct {
 	ctx        *context.Context
+	id         int
 	name       string
 	network    string
 	uri        string
@@ -55,6 +56,14 @@ func NewSocketCanConnection(ctx *context.Context, cfg *canModels.Config, name st
 		uri:     *uri,
 		cfg:     cfg,
 	}
+}
+
+func (scc *SocketCanConnectionClient) GetID() int {
+	return scc.id
+}
+
+func (scc *SocketCanConnectionClient) SetID(id int) {
+	scc.id = id
 }
 
 func (scc *SocketCanConnectionClient) GetURI() string {

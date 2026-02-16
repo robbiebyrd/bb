@@ -1,7 +1,12 @@
 package models
 
+type InterfaceResolver interface {
+	ConnectionByID(id int) CanConnection
+}
+
 type ConnectionManager interface {
-	Add(conn CanConnection)
+	InterfaceResolver
+	Add(conn CanConnection) int
 	Connections() []CanConnection
 	ConnectionByName(name string) CanConnection
 	Connect(options CanInterfaceOption)
