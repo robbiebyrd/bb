@@ -3,7 +3,7 @@ package models
 type InfluxDBConfig struct {
 	Host           string `env:"HOST,required"`
 	Token          string `env:"TOKEN" envDefault:""`
-	TokenFile      string `env:"TOKEN_FILE" envDefault:"./config/influxdb/token.json`
+	TokenFile      string `env:"TOKEN_FILE" envDefault:"./config/influxdb/token.json"`
 	Database       string `env:"DATABASE" envDefault:"can_data"`
 	TableName      string `env:"TABLE" envDefault:"can_message"`
 	FlushTime      int    `env:"FLUSH_TIME" envDefault:"100"`
@@ -13,7 +13,7 @@ type InfluxDBConfig struct {
 
 type MQTTConfig struct {
 	Host          string   `env:"HOST,required"`
-	ClientId      string   `env:"CLIENTID,required"`
+	ClientId      string   `env:"CLIENT_ID,required"`
 	Topic         string   `env:"TOPIC" envDefault:"can_data"`
 	Qos           uint8    `env:"QOS" envDefault:"0"`
 	ShadowCopy    bool     `env:"SHADOW_COPY" envDefault:"false"`

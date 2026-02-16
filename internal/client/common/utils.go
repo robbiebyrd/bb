@@ -1,5 +1,7 @@
 package common
 
+import "slices"
+
 func PadOrTrim(bb []byte, size int) []byte {
 	l := len(bb)
 	if l >= size {
@@ -27,10 +29,5 @@ func ArrayContainsTrue(arr []bool) bool {
 }
 
 func ArrayContainsBool(arr []bool, value bool) bool {
-	for _, val := range arr {
-		if val == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, value)
 }

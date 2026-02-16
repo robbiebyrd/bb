@@ -28,7 +28,10 @@ type BroadcastClient struct {
 	msgCount          int
 }
 
-func NewBroadcastClient(ctx *context.Context, incomingChannel chan canModels.CanMessageTimestamped) *BroadcastClient {
+func NewBroadcastClient(
+	ctx *context.Context,
+	incomingChannel chan canModels.CanMessageTimestamped,
+) *BroadcastClient {
 	return &BroadcastClient{
 		ctx:             ctx,
 		incomingChannel: incomingChannel,
@@ -82,7 +85,10 @@ func (scc *BroadcastClient) Broadcast() error {
 	}
 }
 
-func (scc *BroadcastClient) testFilterGroup(c BroadcastClientListener, canMsg canModels.CanMessageTimestamped) bool {
+func (scc *BroadcastClient) testFilterGroup(
+	c BroadcastClientListener,
+	canMsg canModels.CanMessageTimestamped,
+) bool {
 	filterValues := []bool{}
 
 	for _, f := range c.Filter.Filters {

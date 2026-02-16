@@ -65,7 +65,7 @@ func NewApp() canModels.AppInterface {
 
 		err = json.NewDecoder(jsonFile).Decode(&creds)
 		if err != nil {
-			fmt.Println(err)
+			l.Error("could not decode influxdb token json file", "error", err)
 		}
 
 		cfg.InfluxDB.Token = creds.Token
