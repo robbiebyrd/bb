@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/mitchellh/hashstructure/v2"
+	hc "github.com/mitchellh/hashstructure/v2"
 
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
@@ -57,13 +57,21 @@ func (dc *DedupeFilterClient) Filter(canMsg canModels.CanMessageTimestamped) boo
 	return true
 }
 
-func marshalFrom(source *canModels.CanMessageTimestamped, destination *canModels.CanMessageData) error {
+func marshalFrom(
+	source *canModels.CanMessageTimestamped,
+	destination *canModels.CanMessageData,
+) error {
 	bytes, err := json.Marshal(source)
-	json.Unmarshal(bytes, destination)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(bytes, destination)
 	return err
 }
 
-func stripTimestampFromMessage(canMsg canModels.CanMessageTimestamped) (*canModels.CanMessageData, error) {
+func stripTimestampFromMessage(
+	canMsg canModels.CanMessageTimestamped,
+) (*canModels.CanMessageData, error) {
 	var small = &canModels.CanMessageData{}
 	err := marshalFrom(&canMsg, small)
 	if err != nil {
@@ -79,7 +87,7 @@ func hashCanMessageData(canMsg canModels.CanMessageTimestamped) (uint64, error) 
 		return 0, err
 	}
 
-	hashed, err := hashstructure.Hash(updatedMsg, hashstructure.FormatV2, nil)
+	hashed, err := hc.Hash(updatedMsg, hc.FormatV2, nil)
 	if err != nil {
 		return 0, err
 	}

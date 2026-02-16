@@ -20,7 +20,12 @@ func (c *MQTTClient) ToJSON(canMsg canModels.CanMessageTimestamped) string {
 		Data      string `json:"data"`
 	}{
 		Timestamp: canMsg.Timestamp,
-		Interface: canMsg.Interface,
+		Interface: func() string {
+			if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
+				return conn.GetInterfaceName()
+			}
+			return ""
+		}(),
 		ID:        "0x" + fmt.Sprintf("%x", canMsg.ID),
 		Transmit:  canMsg.Transmit,
 		Remote:    canMsg.Remote,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
@@ -19,9 +18,16 @@ type MQTTClient struct {
 	topic           string
 	cfg             *canModels.Config
 	filters         map[string]canModels.FilterInterface
+	resolver        canModels.InterfaceResolver
 }
 
-func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger, filters ...canModels.FilterInput) canModels.OutputClient {
+func NewClient(
+	ctx *context.Context,
+	cfg *canModels.Config,
+	logger *slog.Logger,
+	resolver canModels.InterfaceResolver,
+	filters ...canModels.FilterInput,
+) canModels.OutputClient {
 	logger.Debug("starting MQTT client")
 
 	opts := mqtt.NewClientOptions()
@@ -29,9 +35,23 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger,
 	opts.SetClientID(cfg.MQTTConfig.ClientId)
 	client := mqtt.NewClient(opts)
 
-	logger.Debug("connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId)
+	logger.Debug(
+		"connecting MQTT client",
+		"host",
+		cfg.MQTTConfig.Host,
+		"clientId",
+		cfg.MQTTConfig.ClientId,
+	)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		logger.Error("error connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId, "error", token.Error())
+		logger.Error(
+			"error connecting MQTT client",
+			"host",
+			cfg.MQTTConfig.Host,
+			"clientId",
+			cfg.MQTTConfig.ClientId,
+			"error",
+			token.Error(),
+		)
 		panic(token.Error())
 	}
 
@@ -51,6 +71,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger,
 		topic:           cfg.MQTTConfig.Topic,
 		cfg:             cfg,
 		filters:         newFilters,
+		resolver:        resolver,
 	}
 }
 
@@ -71,7 +92,13 @@ func (c *MQTTClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	}
 
 	if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
-		c.l.Debug("message filtered, dropping message", "message", c.ToJSON(canMsg), "filterName", *filterName)
+		c.l.Debug(
+			"message filtered, dropping message",
+			"message",
+			c.ToJSON(canMsg),
+			"filterName",
+			*filterName,
+		)
 		return
 	}
 
@@ -108,8 +135,14 @@ func (c *MQTTClient) Run() error {
 }
 
 func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped) string {
-	interfaceParts := strings.Split(canMsg.Interface, c.cfg.CanInterfaceSeparator)
-	return "/" + c.topic + "/" + interfaceParts[len(interfaceParts)-1] + "/0x" + fmt.Sprintf("%X", canMsg.ID)
+	uri := "unknown"
+	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
+		uri = conn.GetURI()
+	}
+	return "/" + c.topic + "/" + uri + "/0x" + fmt.Sprintf(
+		"%X",
+		canMsg.ID,
+	)
 }
 
 func (c *MQTTClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped) (bool, *string) {

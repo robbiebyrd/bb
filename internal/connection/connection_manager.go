@@ -12,7 +12,8 @@ import (
 
 type CanConnectionManager struct {
 	ctx            *context.Context
-	connections    []canModels.CanConnection
+	connections    map[int]canModels.CanConnection
+	nextID         int
 	MessageChannel chan canModels.CanMessageTimestamped
 	wg             *sync.WaitGroup
 	l              *slog.Logger
@@ -29,6 +30,8 @@ func NewConnectionManager(
 	wg.Add(1)
 	return &CanConnectionManager{
 		ctx:            ctx,
+		connections:    make(map[int]canModels.CanConnection),
+		nextID:         0,
 		MessageChannel: msgChan,
 		wg:             &wg,
 		l:              logger,
@@ -37,7 +40,11 @@ func NewConnectionManager(
 }
 
 func (cm *CanConnectionManager) Connections() []canModels.CanConnection {
-	return cm.connections
+	conns := make([]canModels.CanConnection, 0, len(cm.connections))
+	for _, conn := range cm.connections {
+		conns = append(conns, conn)
+	}
+	return conns
 }
 
 func (cm *CanConnectionManager) ConnectionByName(name string) canModels.CanConnection {
@@ -49,11 +56,23 @@ func (cm *CanConnectionManager) ConnectionByName(name string) canModels.CanConne
 	return nil
 }
 
-func (cm *CanConnectionManager) Add(conn canModels.CanConnection) {
-	if conn == nil {
-		return
+func (cm *CanConnectionManager) ConnectionByID(id int) canModels.CanConnection {
+	conn, ok := cm.connections[id]
+	if !ok {
+		return nil
 	}
-	cm.connections = append(cm.connections, conn)
+	return conn
+}
+
+func (cm *CanConnectionManager) Add(conn canModels.CanConnection) int {
+	if conn == nil {
+		return -1
+	}
+	id := cm.nextID
+	conn.SetID(id)
+	cm.connections[id] = conn
+	cm.nextID++
+	return id
 }
 
 func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
@@ -72,10 +91,10 @@ func (cm *CanConnectionManager) ConnectMultiple(options canModels.CanInterfaceOp
 }
 
 func (cm *CanConnectionManager) DeleteConnection(name string) {
-	for i, connection := range cm.connections {
+	for id, connection := range cm.connections {
 		if connection.GetName() == name {
 			connection.Close()
-			cm.connections = append(cm.connections[:i], cm.connections[i+1:]...)
+			delete(cm.connections, id)
 			return
 		}
 	}
