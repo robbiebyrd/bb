@@ -6,6 +6,7 @@ import (
 	"github.com/robbiebyrd/bb/internal/app"
 	"github.com/robbiebyrd/bb/internal/client/dedupe"
 	canModels "github.com/robbiebyrd/bb/internal/models"
+	"github.com/robbiebyrd/bb/internal/output/crtd"
 	"github.com/robbiebyrd/bb/internal/output/csv"
 	"github.com/robbiebyrd/bb/internal/output/influxdb"
 	"github.com/robbiebyrd/bb/internal/output/mqtt"
@@ -14,14 +15,17 @@ import (
 func main() {
 	b := app.NewApp()
 	ctx, cfg, log := b.GetContext(), b.GetConfig(), b.GetLogger()
+	connections := b.GetConnections()
 
-	csvClient, err := csv.NewClient(ctx, cfg, log)
+	crtdClient := crtd.NewClient(ctx, cfg, log)
+
+	csvClient, err := csv.NewClient(ctx, cfg, log, connections)
 	if err != nil {
 		log.Error("failed to create CSV client", "error", err)
 		os.Exit(1)
 	}
 
-	influxClient, err := influxdb.NewClient(ctx, cfg, log)
+	influxClient, err := influxdb.NewClient(ctx, cfg, log, connections)
 	if err != nil {
 		log.Error("failed to create InfluxDB client", "error", err)
 		os.Exit(1)
@@ -34,13 +38,13 @@ func main() {
 			Filter: dedupe.NewDedupeFilterClient(log, cfg.MQTTConfig.DedupeTimeout, cfg.MQTTConfig.DedupeIDs),
 		})
 	}
-	mqttClient, err := mqtt.NewClient(ctx, cfg, log, mqttFilters...)
+	mqttClient, err := mqtt.NewClient(ctx, cfg, log, connections, mqttFilters...)
 	if err != nil {
 		log.Error("failed to create MQTT client", "error", err)
 		os.Exit(1)
 	}
 
-	b.AddOutputs([]canModels.OutputClient{csvClient, influxClient, mqttClient})
+	b.AddOutputs([]canModels.OutputClient{crtdClient, csvClient, influxClient, mqttClient})
 
 	if err := b.Run(); err != nil {
 		log.Error("application error", "error", err)

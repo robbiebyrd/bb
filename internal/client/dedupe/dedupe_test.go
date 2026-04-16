@@ -20,7 +20,7 @@ func TestCanInterfaceFilter(t *testing.T) {
 
 	stamped := canModels.CanMessageTimestamped{
 		Timestamp: 123456789,
-		Interface: "can0",
+		Interface: 0,
 		ID:        42,
 		Transmit:  false,
 		Remote:    false,
@@ -30,7 +30,7 @@ func TestCanInterfaceFilter(t *testing.T) {
 
 	unstamped := stripTimestampFromMessage(stamped)
 	unstampedCheck := &canModels.CanMessageData{
-		Interface: "can0",
+		Interface: 0,
 		ID:        42,
 		Transmit:  false,
 		Remote:    false,
@@ -47,7 +47,7 @@ func TestCanInterfaceFilter(t *testing.T) {
 
 	differentMsg := canModels.CanMessageTimestamped{
 		Timestamp: 987654321,
-		Interface: "can1",
+		Interface: 1,
 		ID:        31,
 		Transmit:  false,
 		Remote:    false,
@@ -77,7 +77,7 @@ func TestFilterNonWatchedID(t *testing.T) {
 
 	msg := canModels.CanMessageTimestamped{
 		Timestamp: 111111111,
-		Interface: "can0",
+		Interface: 0,
 		ID:        99,
 		Transmit:  false,
 		Remote:    false,
@@ -99,7 +99,7 @@ func TestFilterTimeoutExpiry(t *testing.T) {
 
 	msg := canModels.CanMessageTimestamped{
 		Timestamp: 222222222,
-		Interface: "can0",
+		Interface: 0,
 		ID:        42,
 		Transmit:  false,
 		Remote:    false,

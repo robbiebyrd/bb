@@ -15,6 +15,7 @@ import (
 
 type SimulationCanClient struct {
 	ctx        context.Context
+	id         int
 	Name       string
 	Network    string
 	URI        string
@@ -68,6 +69,14 @@ func NewSimulationCanClient(
 		rate: *rate,
 		cfg:  cfg,
 	}
+}
+
+func (scc *SimulationCanClient) GetID() int {
+	return scc.id
+}
+
+func (scc *SimulationCanClient) SetID(id int) {
+	scc.id = id
 }
 
 func (scc *SimulationCanClient) GetURI() string {
@@ -147,8 +156,8 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 			randomLength := lengthOfDataPacket[mathRand.Intn(len(lengthOfDataPacket))]
 
 			scc.Channel <- canModels.CanMessageTimestamped{
-				Timestamp: time.Now().Unix(),
-				Interface: scc.GetInterfaceName(),
+				Timestamp: time.Now().UnixNano(),
+				Interface: scc.GetID(),
 				Transmit:  false,
 				ID:        uint32(mathRand.Intn(2047)),
 				Remote:    false,

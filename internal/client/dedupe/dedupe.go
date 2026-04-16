@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/mitchellh/hashstructure/v2"
+	hc "github.com/mitchellh/hashstructure/v2"
 
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
@@ -86,7 +86,7 @@ func stripTimestampFromMessage(canMsg canModels.CanMessageTimestamped) *canModel
 func hashCanMessageData(canMsg canModels.CanMessageTimestamped) (uint64, error) {
 	updatedMsg := stripTimestampFromMessage(canMsg)
 
-	hashed, err := hashstructure.Hash(updatedMsg, hashstructure.FormatV2, nil)
+	hashed, err := hc.Hash(updatedMsg, hc.FormatV2, nil)
 	if err != nil {
 		return 0, err
 	}

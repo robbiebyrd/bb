@@ -30,9 +30,10 @@ type InfluxDBClient struct {
 	count           int
 	incomingChannel chan canModels.CanMessageTimestamped
 	filters         map[string]canModels.FilterInterface
+	resolver        canModels.InterfaceResolver
 }
 
-func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) (canModels.OutputClient, error) {
+func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, resolver canModels.InterfaceResolver) (canModels.OutputClient, error) {
 	logger.Debug("starting influxdb3 client")
 	client, err := influxdb3.New(influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,
@@ -59,6 +60,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) 
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		wg:              sync.WaitGroup{},
 		filters:         make(map[string]canModels.FilterInterface),
+		resolver:        resolver,
 	}, nil
 }
 
@@ -143,14 +145,19 @@ func (c *InfluxDBClient) convertMsg(msg canModels.CanMessageTimestamped) InfluxD
 		newMsgData[i] = strconv.Itoa(int(msg.Data[i]))
 	}
 
+	interfaceName := ""
+	if conn := c.resolver.ConnectionByID(msg.Interface); conn != nil {
+		interfaceName = conn.GetInterfaceName()
+	}
+
 	msgConverted := InfluxDBCanMessage{
-		Timestamp:   time.Unix(msg.Timestamp, 0),
+		Timestamp:   time.Unix(0, msg.Timestamp),
 		ID:          fmt.Sprintf("%03x", msg.ID),
 		Length:      msg.Length,
 		Data:        strings.Join(newMsgData, ","),
 		Remote:      boolToInt(msg.Remote),
 		Transmit:    boolToInt(msg.Transmit),
-		Interface:   msg.Interface,
+		Interface:   interfaceName,
 		Measurement: c.measurementName,
 	}
 

@@ -2,11 +2,11 @@ package models
 
 type InfluxDBConfig struct {
 	Host           string `env:"HOST,required"`
-	Token          string `env:"TOKEN" envDefault:""`
-	TokenFile      string `env:"TOKEN_FILE" envDefault:"./config/influxdb/token.json"`
-	Database       string `env:"DATABASE" envDefault:"can_data"`
-	TableName      string `env:"TABLE" envDefault:"can_message"`
-	FlushTime      int    `env:"FLUSH_TIME" envDefault:"100"`
+	Token          string `env:"TOKEN"           envDefault:""`
+	TokenFile      string `env:"TOKEN_FILE"      envDefault:"./config/influxdb/token.json"`
+	Database       string `env:"DATABASE"        envDefault:"can_data"`
+	TableName      string `env:"TABLE"           envDefault:"can_message"`
+	FlushTime      int    `env:"FLUSH_TIME"      envDefault:"100"`
 	MaxWriteLines  int    `env:"MAX_WRITE_LINES" envDefault:"1000"`
 	MaxConnections int    `env:"MAX_CONNECTIONS" envDefault:"5"`
 }
@@ -27,16 +27,22 @@ type MQTTConfig struct {
 
 type CSVLogConfig struct {
 	OutputFile     string `env:"OUTPUT_FILE,required"`
-	IncludeHeaders bool   `env:"OUTPUT_HEADERS" envDefault:"true"`
+	IncludeHeaders bool   `env:"OUTPUT_HEADERS"       envDefault:"true"`
+}
+
+type CRTDLogConfig struct {
+	OutputFile string `env:"OUTPUT_FILE,required"`
 }
 
 type Config struct {
-	CanInterfaces         []CanInterfaceOption `envPrefix:"INTERFACE"`
-	MessageBufferSize     int                  `env:"MSG_BUFFER_SIZE" envDefault:"81920"`
-	InfluxDB              InfluxDBConfig       `envPrefix:"INFLUX_"`
-	CSVLog                CSVLogConfig         `envPrefix:"CSV_"`
-	MQTTConfig            MQTTConfig           `envPrefix:"MQTT_"`
-	SimEmitRate           int                  `env:"SIM_RATE" envDefault:"10"`
-	LogLevel              string               `env:"LOG_LEVEL" envDefault:"info"`
-	CanInterfaceSeparator string               `env:"CAN_INTERFACE_SEPARATOR" envDefault:"-"`
+	CanInterfaces []CanInterfaceOption `envPrefix:"INTERFACE"`
+	InfluxDB      InfluxDBConfig       `envPrefix:"INFLUX_"`
+	CSVLog        CSVLogConfig         `envPrefix:"CSV_"`
+	CRTDLogger    CRTDLogConfig        `envPrefix:"CRTD_"`
+	MQTTConfig    MQTTConfig           `envPrefix:"MQTT_"`
+
+	MessageBufferSize     int    `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
+	SimEmitRate           int    `env:"SIM_RATE"                envDefault:"10"`
+	LogLevel              string `env:"LOG_LEVEL"               envDefault:"info"`
+	CanInterfaceSeparator string `env:"CAN_INTERFACE_SEPARATOR" envDefault:"-"`
 }

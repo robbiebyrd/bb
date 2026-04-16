@@ -18,9 +18,10 @@ type CSVClient struct {
 	incomingChannel chan canModels.CanMessageTimestamped
 	filters         map[string]canModels.FilterInterface
 	l               *slog.Logger
+	resolver        canModels.InterfaceResolver
 }
 
-func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) (canModels.OutputClient, error) {
+func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, resolver canModels.InterfaceResolver) (canModels.OutputClient, error) {
 	file, err := os.OpenFile(cfg.CSVLog.OutputFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("opening CSV output file: %w", err)
@@ -29,8 +30,9 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) 
 	writer := csv.NewWriter(file)
 
 	header := []string{"timestamp", "id", "interface", "remote", "transmit", "length", "data"}
-	writer.Write(header)
-	writer.Flush()
+	if err = writer.Write(header); err != nil {
+		logger.Error("csv write header error", "error", err)
+	}
 
 	return &CSVClient{
 		w:               writer,
@@ -38,6 +40,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) 
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		filters:         make(map[string]canModels.FilterInterface),
 		l:               logger,
+		resolver:        resolver,
 	}, nil
 }
 
@@ -51,10 +54,14 @@ func (c *CSVClient) AddFilter(name string, filter canModels.FilterInterface) err
 }
 
 func (c *CSVClient) Handle(canMsg canModels.CanMessageTimestamped) {
+	interfaceName := ""
+	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
+		interfaceName = conn.GetInterfaceName()
+	}
 	row := []string{
 		strconv.FormatInt(canMsg.Timestamp, 10),
 		strconv.FormatUint(uint64(canMsg.ID), 10),
-		canMsg.Interface,
+		interfaceName,
 		strconv.FormatBool(canMsg.Remote),
 		strconv.FormatBool(canMsg.Transmit),
 		strconv.Itoa(int(canMsg.Length)),
@@ -62,6 +69,7 @@ func (c *CSVClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	if err := c.w.Write(row); err != nil {
 		c.l.Error("csv write error", "error", err)
 	}
+	c.w.Flush()
 }
 
 func (c *CSVClient) HandleChannel() error {

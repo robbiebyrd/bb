@@ -7,7 +7,7 @@ import (
 
 type CanMessageTimestamped struct {
 	Timestamp int64
-	Interface string
+	Interface int
 	ID        uint32
 	Transmit  bool
 	Remote    bool
@@ -16,7 +16,7 @@ type CanMessageTimestamped struct {
 }
 
 type CanMessageData struct {
-	Interface string
+	Interface int
 	ID        uint32
 	Transmit  bool
 	Remote    bool
@@ -28,11 +28,13 @@ type CanInterfaceOptions []CanInterfaceOption
 
 type CanInterfaceOption struct {
 	Name    string `env:"NAME,required"`
-	URI     string `env:"URI" envDefault:""`
-	Network string `env:"NET" envDefault:"can"`
+	URI     string `env:"URI"           envDefault:""`
+	Network string `env:"NET"           envDefault:"can"`
 }
 
 type CanConnection interface {
+	GetID() int
+	SetID(id int)
 	GetName() string
 	GetInterfaceName() string
 	SetName(name string)
