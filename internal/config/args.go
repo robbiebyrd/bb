@@ -32,6 +32,8 @@ func Load(logger *slog.Logger) (canModels.Config, string) {
 }
 
 func ToJSON(config canModels.Config) (*string, error) {
+	// Zero the token before marshalling to prevent it appearing in logs.
+	config.InfluxDB.Token = ""
 	jsonBytes, err := json.Marshal(config)
 	if err != nil {
 		return nil, err

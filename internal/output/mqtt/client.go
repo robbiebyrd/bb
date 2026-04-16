@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -27,6 +28,16 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger,
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(cfg.MQTTConfig.Host)
 	opts.SetClientID(cfg.MQTTConfig.ClientId)
+	if cfg.MQTTConfig.Username != "" {
+		opts.SetUsername(cfg.MQTTConfig.Username)
+		opts.SetPassword(cfg.MQTTConfig.Password)
+	}
+	if cfg.MQTTConfig.TLS {
+		tlsCfg := &tls.Config{
+			InsecureSkipVerify: false,
+		}
+		opts.SetTLSConfig(tlsCfg)
+	}
 	client := mqtt.NewClient(opts)
 
 	logger.Debug("connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId)

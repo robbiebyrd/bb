@@ -20,6 +20,9 @@ type MQTTConfig struct {
 	Dedupe        bool     `env:"DEDUPE" envDefault:"true"`
 	DedupeTimeout int      `env:"DEDUPE_TIMEOUT_MS" envDefault:"1000"`
 	DedupeIDs     []uint32 `env:"DEDUPE_IDS" envDefault:""` // Comma-separated list of IDs to dedupe
+	Username      string   `env:"USERNAME" envDefault:""`
+	Password      string   `env:"PASSWORD" envDefault:""`
+	TLS           bool     `env:"TLS" envDefault:"false"`
 }
 
 type CSVLogConfig struct {

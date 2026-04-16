@@ -8,7 +8,7 @@ func PadOrTrim(bb []byte, size int) []byte {
 		return bb[:size]
 	}
 	tmp := make([]byte, size)
-	copy(tmp[:size-l], bb)
+	copy(tmp, bb)
 	return tmp
 }
 

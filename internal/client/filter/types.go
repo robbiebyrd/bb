@@ -100,7 +100,7 @@ func (df CanDataFilter) Filter(msg canModels.CanMessageTimestamped) bool {
 
 	switch df.Operator {
 	case canModels.FilterAnd:
-		return common.ArrayContainsFalse(filterValues)
+		return common.ArrayAllTrue(filterValues)
 	default:
 		return common.ArrayContainsTrue(filterValues)
 	}

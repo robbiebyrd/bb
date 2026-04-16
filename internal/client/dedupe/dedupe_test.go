@@ -15,7 +15,7 @@ func TestCanInterfaceFilter(t *testing.T) {
 	lvl.Set(slog.LevelInfo)
 	l := logging.NewJSONLogger(lvl)
 
-	a := NewDedupeFilterClient(l, 1000, []uint32{})
+	a := NewDedupeFilterClient(l, 1000, []uint32{42})
 
 	stamped := canModels.CanMessageTimestamped{
 		Timestamp: 123456789,

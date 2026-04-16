@@ -6,6 +6,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPadOrTrim(t *testing.T) {
+	// pad: input shorter than half of size
+	assert.Equal(t, []byte{1, 2, 0, 0}, PadOrTrim([]byte{1, 2}, 4), "Should pad with zeros on the right.")
+
+	// pad: input longer than half of size (bug case)
+	assert.Equal(t, []byte{1, 2, 3, 4, 5, 0, 0, 0}, PadOrTrim([]byte{1, 2, 3, 4, 5}, 8), "Should pad with zeros on the right.")
+
+	// trim: input longer than size
+	assert.Equal(t, []byte{1, 2, 3}, PadOrTrim([]byte{1, 2, 3, 4, 5}, 3), "Should trim to size.")
+
+	// exact: input equals size
+	assert.Equal(t, []byte{1, 2, 3}, PadOrTrim([]byte{1, 2, 3}, 3), "Should return unchanged when exact fit.")
+}
+
 func TestArrayContainsTrue(t *testing.T) {
 	allTrue := ArrayContainsTrue([]bool{true, true, true})
 	assert.Equal(t, true, allTrue, "Should be true.")

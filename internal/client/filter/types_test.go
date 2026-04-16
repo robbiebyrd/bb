@@ -8,6 +8,30 @@ import (
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
+func TestCanDataFilter_AndOperator(t *testing.T) {
+	msgAllMatch := canModels.CanMessageTimestamped{
+		Data: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+	}
+	msgOneMismatch := canModels.CanMessageTimestamped{
+		Data: []byte{0x01, 0xFF, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
+	}
+
+	andFilter := CanDataFilter{
+		Operator: canModels.FilterAnd,
+		Filters: []struct {
+			Byte     uint8
+			Operator canModels.CanDataFilterOperator
+			Target   uint8
+		}{
+			{Byte: 0, Operator: canModels.DataEquals, Target: 0x01},
+			{Byte: 1, Operator: canModels.DataEquals, Target: 0x02},
+		},
+	}
+
+	assert.Equal(t, true, andFilter.Filter(msgAllMatch), "AND: all conditions match should return true")
+	assert.Equal(t, false, andFilter.Filter(msgOneMismatch), "AND: one mismatch should return false")
+}
+
 func TestCanInterfaceFilter(t *testing.T) {
 	testMessage1 := canModels.CanMessageTimestamped{
 		Timestamp: 0,

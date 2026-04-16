@@ -20,6 +20,7 @@ type InfluxDBClient struct {
 	measurementName string
 	messageBlock    []canModels.CanMessageTimestamped
 	wg              sync.WaitGroup
+	mu              sync.Mutex
 	maxBlocks       int
 	maxConnections  int
 	internalChannel chan []canModels.CanMessageTimestamped
@@ -68,8 +69,11 @@ func (c *InfluxDBClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	}
 
 	c.messageBlock = append(c.messageBlock, canMsg)
-	c.l.Warn(fmt.Sprintf("current count %v", len(c.messageBlock)))
-	if len(c.messageBlock) >= c.maxBlocks || time.Since(c.workerLastRan) >= time.Duration(c.flushTime)*time.Millisecond {
+	c.l.Debug("message block count", "count", len(c.messageBlock))
+	c.mu.Lock()
+	lastRan := c.workerLastRan
+	c.mu.Unlock()
+	if len(c.messageBlock) >= c.maxBlocks || time.Since(lastRan) >= time.Duration(c.flushTime)*time.Millisecond {
 		c.internalChannel <- c.messageBlock
 		c.messageBlock = []canModels.CanMessageTimestamped{}
 	}
@@ -105,11 +109,13 @@ func (c *InfluxDBClient) worker(i int) {
 	for msgChunk := range c.internalChannel {
 		c.l.Debug(fmt.Sprintf("influxdb3 chunk worker %v handling chunk", i))
 		if err := c.write(c.convertMany(msgChunk)); err != nil {
-			panic(err)
+			c.l.Error("influxdb3 write failed", "error", err)
 		} else {
 			now := time.Now()
+			c.mu.Lock()
 			c.workerLastRan = now
 			c.count += len(msgChunk)
+			c.mu.Unlock()
 		}
 		c.l.Debug(fmt.Sprintf("influxdb3 chunk worker %v finished handling chunk", i))
 	}
@@ -122,8 +128,9 @@ func (c *InfluxDBClient) Run() error {
 		guard <- struct{}{}
 		c.wg.Add(1)
 		go func(id int) {
+			defer c.wg.Done()
 			defer func() { <-guard }()
-			c.worker(i)
+			c.worker(id)
 		}(i)
 	}
 
@@ -164,9 +171,7 @@ func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) error {
 		data[i] = m
 	}
 
-	go c.client.WriteData(c.ctx, data)
-
-	return nil
+	return c.client.WriteData(c.ctx, data)
 }
 
 func boolToInt(b bool) uint8 {

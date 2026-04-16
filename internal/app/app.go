@@ -53,9 +53,10 @@ func NewApp() canModels.AppInterface {
 	}
 
 	if cfg.InfluxDB.Token == "" && cfg.InfluxDB.TokenFile != "" {
-		jsonFile, err := os.Open("./config/influxdb/token.json")
+		jsonFile, err := os.Open(cfg.InfluxDB.TokenFile)
 		if err != nil {
-			fmt.Println(err)
+			l.Error("could not open influxdb token file", "path", cfg.InfluxDB.TokenFile, "error", err)
+			panic(err)
 		}
 		defer jsonFile.Close()
 
@@ -66,6 +67,7 @@ func NewApp() canModels.AppInterface {
 		err = json.NewDecoder(jsonFile).Decode(&creds)
 		if err != nil {
 			l.Error("could not decode influxdb token json file", "error", err)
+			panic(err)
 		}
 
 		cfg.InfluxDB.Token = creds.Token

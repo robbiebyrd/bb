@@ -26,7 +26,6 @@ func NewConnectionManager(
 	logger *slog.Logger,
 ) canModels.ConnectionManager {
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 	return &CanConnectionManager{
 		ctx:            ctx,
 		MessageChannel: msgChan,

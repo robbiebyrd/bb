@@ -79,7 +79,11 @@ func (scc *BroadcastClient) Broadcast() error {
 				broadcastMsg = scc.testFilterGroup(c, canMsg)
 			}
 			if broadcastMsg {
-				c.Channel <- canMsg
+				select {
+				case c.Channel <- canMsg:
+				default:
+					fmt.Printf("broadcast: dropped message for listener %q: channel full\n", c.Name)
+				}
 			}
 		}
 	}

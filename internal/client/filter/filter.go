@@ -30,7 +30,7 @@ func (fc *FilterClient) Filter(canMsg canModels.CanMessageTimestamped) bool {
 	case canModels.FilterOr:
 		return common.ArrayContainsTrue(filterResults)
 	default:
-		return common.ArrayContainsFalse(filterResults)
+		return common.ArrayAllTrue(filterResults)
 	}
 }
 
