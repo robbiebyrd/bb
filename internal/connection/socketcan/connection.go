@@ -19,20 +19,27 @@ type ReceiverInterface interface {
 }
 
 type SocketCanConnectionClient struct {
-	ctx        context.Context
-	id         int
-	name       string
-	network    string
-	uri        string
-	channel    chan canModels.CanMessageTimestamped
-	connection net.Conn
-	receiver   ReceiverInterface
-	opened     bool
-	streaming  bool
-	cfg        *canModels.Config
+	ctx         context.Context
+	id          int
+	name        string
+	network     string
+	uri         string
+	channel     chan canModels.CanMessageTimestamped
+	connection  net.Conn
+	receiver    ReceiverInterface
+	opened      bool
+	streaming   bool
+	cfg         *canModels.Config
+	dbcFilePath *string
 }
 
-func NewSocketCanConnection(ctx context.Context, cfg *canModels.Config, name string, channel chan canModels.CanMessageTimestamped, network, uri *string) *SocketCanConnectionClient {
+func NewSocketCanConnection(
+	ctx context.Context,
+	cfg *canModels.Config,
+	name string,
+	channel chan canModels.CanMessageTimestamped,
+	network, uri, dbcFilePath *string,
+) *SocketCanConnectionClient {
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {
@@ -49,12 +56,13 @@ func NewSocketCanConnection(ctx context.Context, cfg *canModels.Config, name str
 	}
 
 	return &SocketCanConnectionClient{
-		ctx:     ctx,
-		name:    name,
-		channel: channel,
-		network: *network,
-		uri:     *uri,
-		cfg:     cfg,
+		ctx:         ctx,
+		name:        name,
+		channel:     channel,
+		network:     *network,
+		uri:         *uri,
+		cfg:         cfg,
+		dbcFilePath: dbcFilePath,
 	}
 }
 
@@ -68,6 +76,14 @@ func (scc *SocketCanConnectionClient) SetID(id int) {
 
 func (scc *SocketCanConnectionClient) GetURI() string {
 	return scc.uri
+}
+
+func (scc *SocketCanConnectionClient) GetDBCFilePath() *string {
+	return scc.dbcFilePath
+}
+
+func (scc *SocketCanConnectionClient) SetDBCFilePath(filePath *string) {
+	scc.dbcFilePath = filePath
 }
 
 func (scc *SocketCanConnectionClient) SetURI(uri string) {

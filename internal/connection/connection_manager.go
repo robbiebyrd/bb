@@ -77,9 +77,30 @@ func (cm *CanConnectionManager) Add(conn canModels.CanConnection) int {
 func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 	switch options.Network {
 	case "sim":
-		cm.Add(simulate.NewSimulationCanClient(cm.ctx, cm.cfg, options.Name, cm.MessageChannel, cm.l, &options.Network, &options.URI, nil))
+		cm.Add(
+			simulate.NewSimulationCanClient(
+				cm.ctx,
+				cm.cfg,
+				options.Name,
+				cm.MessageChannel,
+				cm.l,
+				&options.Network,
+				&options.URI,
+				nil,
+			),
+		)
 	default:
-		cm.Add(socketcan.NewSocketCanConnection(cm.ctx, cm.cfg, options.Name, cm.MessageChannel, &options.Network, &options.URI))
+		cm.Add(
+			socketcan.NewSocketCanConnection(
+				cm.ctx,
+				cm.cfg,
+				options.Name,
+				cm.MessageChannel,
+				&options.Network,
+				&options.URI,
+				&options.DBCFile,
+			),
+		)
 	}
 }
 

@@ -30,11 +30,14 @@ type CanInterfaceOption struct {
 	Name    string `env:"NAME,required"`
 	URI     string `env:"URI"           envDefault:""`
 	Network string `env:"NET"           envDefault:"can"`
+	DBCFile string `env:"DBC"           envDefault:""`
 }
 
 type CanConnection interface {
 	GetID() int
 	SetID(id int)
+	GetDBCFilePath() *string
+	SetDBCFilePath(filePath *string)
 	GetName() string
 	GetInterfaceName() string
 	SetName(name string)

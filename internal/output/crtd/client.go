@@ -12,11 +12,12 @@ import (
 )
 
 type CRTDLoggerClient struct {
-	w       *bufio.Writer
-	l       *slog.Logger
-	c       chan canModels.CanMessageTimestamped
-	file    *os.File
-	filters map[string]canModels.FilterInterface
+	dbcParser canModels.ParserInterface
+	filters   map[string]canModels.FilterInterface
+	file      *os.File
+	c         chan canModels.CanMessageTimestamped
+	w         *bufio.Writer
+	l         *slog.Logger
 }
 
 func NewClient(
@@ -32,6 +33,19 @@ func NewClient(
 
 	writer := bufio.NewWriter(file)
 	_, err = fmt.Fprintln(writer, "0.000000 CXX CRTD file created by bb")
+
+	for index, canInterface := range cfg.CanInterfaces {
+		_, err = fmt.Fprintf(
+			writer,
+			"0.000000 CXX Info Type:'interface'; ID:'%d'; Name:'%s'; URI:'%s'; Network:'%s'; DBC:'%s';\n",
+			index,
+			canInterface.Name,
+			canInterface.URI,
+			canInterface.Network,
+			canInterface.DBCFile,
+		)
+	}
+
 	if err != nil {
 		logger.Error("Could not write header to CRTD file", "error", err)
 	}

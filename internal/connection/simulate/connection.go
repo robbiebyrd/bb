@@ -14,19 +14,20 @@ import (
 )
 
 type SimulationCanClient struct {
-	ctx        context.Context
-	id         int
-	Name       string
-	Network    string
-	URI        string
-	Channel    chan canModels.CanMessageTimestamped
-	Connection net.Conn
-	Opened     bool
-	Streaming  bool
-	l          *slog.Logger
-	rate  int // nanoseconds
-	count int
-	cfg        *canModels.Config
+	ctx         context.Context
+	id          int
+	Name        string
+	Network     string
+	URI         string
+	Channel     chan canModels.CanMessageTimestamped
+	Connection  net.Conn
+	Opened      bool
+	Streaming   bool
+	l           *slog.Logger
+	rate        int // nanoseconds
+	count       int
+	cfg         *canModels.Config
+	dbcFilePath *string
 }
 
 const CAN_MESSAGE_MAX_DATA_LENGTH = 8 // bytes
@@ -86,6 +87,12 @@ func (scc *SimulationCanClient) GetURI() string {
 func (scc *SimulationCanClient) SetURI(uri string) {
 	scc.URI = uri
 }
+
+func (scc *SimulationCanClient) GetDBCFilePath() *string {
+	return scc.dbcFilePath
+}
+
+func (scc *SimulationCanClient) SetDBCFilePath(uri *string) {}
 
 func (scc *SimulationCanClient) GetNetwork() string {
 	return scc.Network
