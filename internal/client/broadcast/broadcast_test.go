@@ -14,7 +14,7 @@ func newTestClient() (*BroadcastClient, chan canModels.CanMessageTimestamped) {
 	incoming := make(chan canModels.CanMessageTimestamped, 16)
 	ctx := context.Background()
 	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	return NewBroadcastClient(&ctx, incoming, l), incoming
+	return NewBroadcastClient(ctx, incoming, l), incoming
 }
 
 func testMsg(id uint32) canModels.CanMessageTimestamped {

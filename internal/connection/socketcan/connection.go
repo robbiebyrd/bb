@@ -19,7 +19,7 @@ type ReceiverInterface interface {
 }
 
 type SocketCanConnectionClient struct {
-	ctx        *context.Context
+	ctx        context.Context
 	name       string
 	network    string
 	uri        string
@@ -31,7 +31,7 @@ type SocketCanConnectionClient struct {
 	cfg        *canModels.Config
 }
 
-func NewSocketCanConnection(ctx *context.Context, cfg *canModels.Config, name string, channel chan canModels.CanMessageTimestamped, network, uri *string) *SocketCanConnectionClient {
+func NewSocketCanConnection(ctx context.Context, cfg *canModels.Config, name string, channel chan canModels.CanMessageTimestamped, network, uri *string) *SocketCanConnectionClient {
 	if name == "" {
 		panic(fmt.Errorf("connection name cannot be empty"))
 	} else if channel == nil {
@@ -94,19 +94,18 @@ func (scc *SocketCanConnectionClient) SetConnection(conn net.Conn) {
 }
 
 func (scc *SocketCanConnectionClient) Open() error {
-	if conn, err := goSocketCan.DialContext(*scc.ctx, scc.network, scc.name); err == nil {
-		scc.connection = conn
-		scc.opened = true
-		return nil
-	} else {
-		panic(err)
+	conn, err := goSocketCan.DialContext(scc.ctx, scc.network, scc.name)
+	if err != nil {
+		return fmt.Errorf("connecting to %s: %w", scc.network, err)
 	}
+	scc.connection = conn
+	scc.opened = true
+	return nil
 }
 
 func (scc *SocketCanConnectionClient) Close() error {
-	err := scc.connection.Close()
-	if err != nil {
-		panic(err)
+	if err := scc.connection.Close(); err != nil {
+		return fmt.Errorf("closing %s: %w", scc.name, err)
 	}
 	scc.opened = false
 	return nil

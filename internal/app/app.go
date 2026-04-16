@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -20,7 +19,6 @@ type AppData struct {
 	config          *canModels.Config
 	wgClients       *errgroup.Group
 	broadcastClient *broadcast.BroadcastClient
-	OutputClients   []canModels.OutputClient
 	connections     canModels.ConnectionManager
 	logger          *slog.Logger
 	logLevel        *slog.LevelVar
@@ -40,7 +38,7 @@ func NewApp() canModels.AppInterface {
 
 	l.Debug("loading config")
 	cfg, cfgJson := config.Load(l)
-	l.Debug(fmt.Sprintf("loaded config: %v", cfgJson))
+	l.Debug("loaded config", "config", cfgJson)
 
 	l.Info("setting log level from config", "level", cfg.LogLevel)
 	switch cfg.LogLevel {
@@ -80,12 +78,12 @@ func NewApp() canModels.AppInterface {
 	canMsgChannel := make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize)
 
 	l.Debug("creating broadcast client")
-	broadcastClient := broadcast.NewBroadcastClient(&ctx, canMsgChannel, l)
+	broadcastClient := broadcast.NewBroadcastClient(ctx, canMsgChannel, l)
 
 	l.Debug("creating connection manager")
-	connections := cm.NewConnectionManager(&ctx, &cfg, canMsgChannel, l)
+	connections := cm.NewConnectionManager(ctx, &cfg, canMsgChannel, l)
 
-	l.Info(fmt.Sprintf("creating %v can interfaces from config", len(cfg.CanInterfaces)))
+	l.Info("creating can interfaces from config", "count", len(cfg.CanInterfaces))
 	connections.ConnectMultiple(cfg.CanInterfaces)
 
 	l.Info("application started")
@@ -94,7 +92,6 @@ func NewApp() canModels.AppInterface {
 		config:          &cfg,
 		wgClients:       wgClients,
 		broadcastClient: broadcastClient,
-		OutputClients:   []canModels.OutputClient{},
 		connections:     connections,
 		logger:          l,
 		logLevel:        lvl,
@@ -104,41 +101,25 @@ func NewApp() canModels.AppInterface {
 }
 
 func (b *AppData) AddOutput(c canModels.OutputClient) {
-	b.logger.Debug(fmt.Sprintf("running database client %v", c.GetName()))
+	b.logger.Debug("running output client", "name", c.GetName())
 	b.wgClients.Go(c.Run)
 
-	b.logger.Debug(fmt.Sprintf("starting internal handler for database client %v", c.GetName()))
+	b.logger.Debug("starting internal handler for output client", "name", c.GetName())
 	b.wgClients.Go(c.HandleChannel)
 
-	b.logger.Debug(fmt.Sprintf("adding broadcast listener for database client %v", c.GetName()))
+	b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
 	b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
 }
 
-func (b *AppData) RemoveOutput(name string) {
-	b.logger.Debug(fmt.Sprintf("removing output client %v", name))
-	for i, c := range b.OutputClients {
-		if name == c.GetName() {
-			b.OutputClients = append(b.OutputClients[:i], b.OutputClients[i+1:]...)
-		}
-	}
-}
-
-func (b *AppData) RemoveOutputs(names []string) {
-	b.logger.Info(fmt.Sprintf("removing %v output clients", len(names)))
-	for _, n := range names {
-		b.RemoveOutput(n)
-	}
-}
-
 func (b *AppData) AddOutputs(cs []canModels.OutputClient) {
-	b.logger.Info(fmt.Sprintf("creating %v output clients", len(cs)))
+	b.logger.Info("creating output clients", "count", len(cs))
 	for _, c := range cs {
 		b.AddOutput(c)
 	}
-	b.logger.Debug(fmt.Sprintf("created %v output clients", len(cs)))
+	b.logger.Debug("created output clients", "count", len(cs))
 }
 
-func (b *AppData) Run() {
+func (b *AppData) Run() error {
 	b.logger.Info("starting broadcasts")
 	b.wgClients.Go(b.broadcastClient.Broadcast)
 
@@ -146,15 +127,15 @@ func (b *AppData) Run() {
 	b.wgClients.Go(b.connections.ReceiveAll)
 
 	b.logger.Info("services running, waiting for messages")
-	b.wgClients.Wait()
+	return b.wgClients.Wait()
 }
 
 func (b *AppData) GetConnections() canModels.ConnectionManager {
 	return b.connections
 }
 
-func (b *AppData) GetContext() *context.Context {
-	return &b.ctx
+func (b *AppData) GetContext() context.Context {
+	return b.ctx
 }
 
 func (b *AppData) GetConfig() *canModels.Config {

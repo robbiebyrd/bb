@@ -19,7 +19,7 @@ type BroadcastClientListener struct {
 }
 
 type BroadcastClient struct {
-	ctx               *context.Context
+	ctx               context.Context
 	broadcastChannels []BroadcastClientListener
 	incomingChannel   chan canModels.CanMessageTimestamped
 	msgCount          atomic.Uint64
@@ -27,7 +27,7 @@ type BroadcastClient struct {
 }
 
 func NewBroadcastClient(
-	ctx *context.Context,
+	ctx context.Context,
 	incomingChannel chan canModels.CanMessageTimestamped,
 	l *slog.Logger,
 ) *BroadcastClient {

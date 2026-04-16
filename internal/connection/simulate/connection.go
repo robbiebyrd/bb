@@ -14,7 +14,7 @@ import (
 )
 
 type SimulationCanClient struct {
-	ctx        *context.Context
+	ctx        context.Context
 	Name       string
 	Network    string
 	URI        string
@@ -31,7 +31,7 @@ type SimulationCanClient struct {
 const CAN_MESSAGE_MAX_DATA_LENGTH = 8 // bytes
 
 func NewSimulationCanClient(
-	ctx *context.Context,
+	ctx context.Context,
 	cfg *canModels.Config,
 	name string,
 	channel chan canModels.CanMessageTimestamped,
@@ -157,7 +157,7 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 			}
 
 			scc.count++
-			scc.l.Debug(fmt.Sprintf("emitted simulated can message #%v", scc.count))
+			scc.l.Debug("emitted simulated can message", "count", scc.count)
 
 			time.Sleep(time.Duration(scc.rate) * time.Nanosecond)
 		}

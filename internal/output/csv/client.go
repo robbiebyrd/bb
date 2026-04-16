@@ -20,11 +20,10 @@ type CSVClient struct {
 	l               *slog.Logger
 }
 
-func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger) canModels.OutputClient {
+func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) (canModels.OutputClient, error) {
 	file, err := os.OpenFile(cfg.CSVLog.OutputFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		fmt.Printf("Error opening file %v\n", cfg.CSVLog.OutputFile)
-		panic(err)
+		return nil, fmt.Errorf("opening CSV output file: %w", err)
 	}
 
 	writer := csv.NewWriter(file)
@@ -39,7 +38,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		filters:         make(map[string]canModels.FilterInterface),
 		l:               logger,
-	}
+	}, nil
 }
 
 func (c *CSVClient) AddFilter(name string, filter canModels.FilterInterface) error {

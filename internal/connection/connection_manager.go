@@ -11,7 +11,7 @@ import (
 )
 
 type CanConnectionManager struct {
-	ctx            *context.Context
+	ctx            context.Context
 	connections    []canModels.CanConnection
 	MessageChannel chan canModels.CanMessageTimestamped
 	wg             *sync.WaitGroup
@@ -20,7 +20,7 @@ type CanConnectionManager struct {
 }
 
 func NewConnectionManager(
-	ctx *context.Context,
+	ctx context.Context,
 	cfg *canModels.Config,
 	msgChan chan canModels.CanMessageTimestamped,
 	logger *slog.Logger,

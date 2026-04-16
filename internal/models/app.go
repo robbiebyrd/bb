@@ -7,12 +7,10 @@ import (
 
 type AppInterface interface {
 	AddOutput(c OutputClient)
-	RemoveOutput(name string)
-	RemoveOutputs(names []string)
 	AddOutputs(cs []OutputClient)
-	Run()
+	Run() error
 	GetConnections() ConnectionManager
-	GetContext() *context.Context
+	GetContext() context.Context
 	GetConfig() *Config
 	GetLogger() *slog.Logger
 	GetLogLevel() *slog.LevelVar

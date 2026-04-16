@@ -32,7 +32,7 @@ type InfluxDBClient struct {
 	filters         map[string]canModels.FilterInterface
 }
 
-func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger) canModels.OutputClient {
+func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger) (canModels.OutputClient, error) {
 	logger.Debug("starting influxdb3 client")
 	client, err := influxdb3.New(influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,
@@ -40,7 +40,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 		Database: cfg.InfluxDB.Database,
 	})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("creating InfluxDB3 client: %w", err)
 	}
 
 	logger.Debug("started influxdb3 client")
@@ -48,7 +48,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 	now := time.Now()
 	return &InfluxDBClient{
 		client:          client,
-		ctx:             *ctx,
+		ctx:             ctx,
 		l:               logger,
 		workerLastRan:   now,
 		measurementName: cfg.InfluxDB.TableName,
@@ -59,7 +59,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger)
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		wg:              sync.WaitGroup{},
 		filters:         make(map[string]canModels.FilterInterface),
-	}
+	}, nil
 }
 
 func (c *InfluxDBClient) Handle(canMsg canModels.CanMessageTimestamped) {
@@ -105,9 +105,9 @@ func (c *InfluxDBClient) GetName() string {
 }
 
 func (c *InfluxDBClient) worker(i int) {
-	c.l.Debug(fmt.Sprintf("influxdb3 chunk worker %v started", i))
+	c.l.Debug("influxdb3 chunk worker started", "worker", i)
 	for msgChunk := range c.internalChannel {
-		c.l.Debug(fmt.Sprintf("influxdb3 chunk worker %v handling chunk", i))
+		c.l.Debug("influxdb3 chunk worker handling chunk", "worker", i)
 		if err := c.write(c.convertMany(msgChunk)); err != nil {
 			c.l.Error("influxdb3 write failed", "error", err)
 		} else {
@@ -117,7 +117,7 @@ func (c *InfluxDBClient) worker(i int) {
 			c.count += len(msgChunk)
 			c.mu.Unlock()
 		}
-		c.l.Debug(fmt.Sprintf("influxdb3 chunk worker %v finished handling chunk", i))
+		c.l.Debug("influxdb3 chunk worker finished handling chunk", "worker", i)
 	}
 }
 

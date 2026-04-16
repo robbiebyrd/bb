@@ -22,7 +22,7 @@ type MQTTClient struct {
 	filters         map[string]canModels.FilterInterface
 }
 
-func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger, filters ...canModels.FilterInput) canModels.OutputClient {
+func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, filters ...canModels.FilterInput) (canModels.OutputClient, error) {
 	logger.Debug("starting MQTT client")
 
 	opts := mqtt.NewClientOptions()
@@ -43,7 +43,7 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger,
 	logger.Debug("connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		logger.Error("error connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId, "error", token.Error())
-		panic(token.Error())
+		return nil, fmt.Errorf("connecting to MQTT broker: %w", token.Error())
 	}
 
 	logger.Debug("started MQTT client")
@@ -56,13 +56,13 @@ func NewClient(ctx *context.Context, cfg *canModels.Config, logger *slog.Logger,
 
 	return &MQTTClient{
 		client:          client,
-		ctx:             *ctx,
+		ctx:             ctx,
 		l:               logger,
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		topic:           cfg.MQTTConfig.Topic,
 		cfg:             cfg,
 		filters:         newFilters,
-	}
+	}, nil
 }
 
 func (c *MQTTClient) AddFilter(name string, filter canModels.FilterInterface) error {

@@ -35,3 +35,5 @@ go.work.sum
 /.roomodes
 data
 .lh/
+/.vscode
+/.claude
