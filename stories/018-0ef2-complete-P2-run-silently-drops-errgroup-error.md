@@ -1,9 +1,10 @@
 ---
-id: "018-0ef2"
-status: ready
+id: 018-0ef2
+status: complete
 priority: P2
 created: "2026-04-16T00:00:00Z"
 source: code-review
+updated: "2026-04-16T21:07:12.140Z"
 ---
 # AppInterface.Run() returns nothing, silently drops errgroup errors
 
@@ -19,3 +20,8 @@ source: code-review
 - `internal/models/app.go:13` — interface declaration
 - `internal/app/app.go:139-148` — concrete Run()
 - `cmd/server/main.go` — caller to update
+
+## Work Log
+
+### 2026-04-16T21:07:12.091Z - Fixed: cross-cutting refactor in wave 2
+

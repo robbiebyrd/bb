@@ -1,9 +1,10 @@
 ---
-id: "019-7249"
-status: ready
+id: 019-7249
+status: complete
 priority: P2
 created: "2026-04-16T00:00:00Z"
 source: code-review
+updated: "2026-04-16T21:07:12.255Z"
 ---
 # panic() used for recoverable I/O errors across multiple components
 
@@ -25,3 +26,8 @@ source: code-review
 - `internal/output/mqtt/client.go:24-55`
 - `internal/output/csv/client.go:24-44`
 - `internal/models/repo.go` — OutputClient interface
+
+## Work Log
+
+### 2026-04-16T21:07:12.209Z - Fixed: cross-cutting refactor in wave 2
+
