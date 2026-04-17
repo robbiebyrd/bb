@@ -53,6 +53,9 @@ func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 	f.StringVar(&cfg.LogLevel, "log-level", cfg.LogLevel, "Log level (debug, info, warn, error)")
 	f.StringVar(&cfg.CanInterfaceSeparator, "interface-separator", cfg.CanInterfaceSeparator, "Separator for interface name components in env vars")
 
+	// Signal
+	f.StringVar(&cfg.Signal.DBCFile, "signal-dbc-file", cfg.Signal.DBCFile, "DBC file path for signal decoding (empty = disabled)")
+
 	// Complex types: stored in local vars, applied by the returned function.
 	dedupeIDsStr := formatUint32Slice(cfg.MQTTConfig.DedupeIDs)
 	f.StringVar(&dedupeIDsStr, "mqtt-dedupe-ids", dedupeIDsStr, "Comma-separated list of CAN IDs to deduplicate (empty = all)")
