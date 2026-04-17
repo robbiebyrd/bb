@@ -72,7 +72,7 @@ func (c *CRTDLoggerClient) AddFilter(name string, filter canModels.FilterInterfa
 	return nil
 }
 
-func (c *CRTDLoggerClient) Handle(canMsg canModels.CanMessageTimestamped) {
+func (c *CRTDLoggerClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	seconds := canMsg.Timestamp / 1e9
 	microseconds := (canMsg.Timestamp % 1e9) / 1e3
 
@@ -110,9 +110,9 @@ func (c *CRTDLoggerClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	}
 }
 
-func (c *CRTDLoggerClient) HandleChannel() error {
+func (c *CRTDLoggerClient) HandleCanMessageChannel() error {
 	for canMsg := range c.c {
-		c.Handle(canMsg)
+		c.HandleCanMessage(canMsg)
 	}
 	return nil
 }

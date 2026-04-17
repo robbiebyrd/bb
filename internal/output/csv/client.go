@@ -53,7 +53,7 @@ func (c *CSVClient) AddFilter(name string, filter canModels.FilterInterface) err
 	return nil
 }
 
-func (c *CSVClient) Handle(canMsg canModels.CanMessageTimestamped) {
+func (c *CSVClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	interfaceName := ""
 	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 		interfaceName = conn.GetInterfaceName()
@@ -72,9 +72,9 @@ func (c *CSVClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	c.w.Flush()
 }
 
-func (c *CSVClient) HandleChannel() error {
+func (c *CSVClient) HandleCanMessageChannel() error {
 	for canMsg := range c.incomingChannel {
-		c.Handle(canMsg)
+		c.HandleCanMessage(canMsg)
 	}
 	c.w.Flush()
 	if err := c.w.Error(); err != nil {

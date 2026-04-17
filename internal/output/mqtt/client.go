@@ -82,7 +82,7 @@ func (c *MQTTClient) AddFilter(name string, filter canModels.FilterInterface) er
 	return nil
 }
 
-func (c *MQTTClient) Handle(canMsg canModels.CanMessageTimestamped) {
+func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if !c.client.IsConnectionOpen() {
 		c.l.Error("MQTT client not connected, dropping message")
 		return
@@ -117,10 +117,10 @@ func (c *MQTTClient) GetChannel() chan canModels.CanMessageTimestamped {
 	return c.incomingChannel
 }
 
-func (c *MQTTClient) HandleChannel() error {
+func (c *MQTTClient) HandleCanMessageChannel() error {
 	c.l.Debug("starting MQTT channel handler")
 	for canMsg := range c.incomingChannel {
-		c.Handle(canMsg)
+		c.HandleCanMessage(canMsg)
 	}
 	return nil
 }

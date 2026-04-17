@@ -135,7 +135,7 @@ func TestCSVClient_Handle_RowFormat(t *testing.T) {
 		Length:    4,
 		Data:      []byte{0xDE, 0xAD, 0xBE, 0xEF},
 	}
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	rows := readRows(t, f)
 	require.Len(t, rows, 1)
@@ -158,7 +158,7 @@ func TestCSVClient_Handle_UnknownInterface(t *testing.T) {
 		ID:        0x001,
 		Data:      []byte{0x01},
 	}
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	rows := readRows(t, f)
 	require.Len(t, rows, 1)
@@ -184,7 +184,7 @@ func TestCSVClient_HandleChannel(t *testing.T) {
 		close(client.incomingChannel)
 	}()
 
-	err := client.HandleChannel()
+	err := client.HandleCanMessageChannel()
 	assert.NoError(t, err)
 
 	rows := readRows(t, f)

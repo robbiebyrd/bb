@@ -60,7 +60,7 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 	b.wgClients.Go(c.Run)
 
 	b.logger.Debug("starting internal handler for output client", "name", c.GetName())
-	b.wgClients.Go(c.HandleChannel)
+	b.wgClients.Go(c.HandleCanMessageChannel)
 
 	b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
 	b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
