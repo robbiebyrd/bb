@@ -19,6 +19,7 @@ type CanSignalTimestamped struct {
 	Timestamp int64
 	Interface int
 	ID        uint32
+	Message   string
 	Signal    string
 	Value     float64
 	Unit      string

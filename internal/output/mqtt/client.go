@@ -177,7 +177,7 @@ func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped)
 	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 		name = conn.GetName()
 	}
-	return "/" + c.topic + "/" + name + "/0x" + fmt.Sprintf("%X", canMsg.ID) + "/messages"
+	return fmt.Sprintf("/%s/%s/%d/messages/0x%X", c.topic, name, canMsg.Interface, canMsg.ID)
 }
 
 func (c *MQTTClient) getTopicFromSignal(sig canModels.CanSignalTimestamped) string {
@@ -185,7 +185,7 @@ func (c *MQTTClient) getTopicFromSignal(sig canModels.CanSignalTimestamped) stri
 	if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
 		name = conn.GetName()
 	}
-	return "/" + c.topic + "/" + name + "/0x" + fmt.Sprintf("%X", sig.ID) + "/signals"
+	return fmt.Sprintf("/%s/%s/%d/signals/%s/%s", c.topic, name, sig.Interface, sig.Message, sig.Signal)
 }
 
 func (c *MQTTClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped) (bool, *string) {

@@ -155,7 +155,7 @@ func TestGetTopicFromMessage_UsesConnectionName(t *testing.T) {
 	msg := canModels.CanMessageTimestamped{Interface: 0, ID: 0x123}
 	topic := c.getTopicFromMessage(msg)
 
-	assert.Equal(t, "/bb_app/jeep0/0x123/messages", topic)
+	assert.Equal(t, "/bb_app/jeep0/0/messages/0x123", topic)
 	assert.NotContains(t, topic, "/Users/robbie", "topic must not contain the file path")
 }
 
@@ -169,7 +169,7 @@ func TestGetTopicFromMessage_UnknownInterface(t *testing.T) {
 	msg := canModels.CanMessageTimestamped{Interface: 99, ID: 0xABC}
 	topic := c.getTopicFromMessage(msg)
 
-	assert.Equal(t, "/bb_app/unknown/0xABC/messages", topic)
+	assert.Equal(t, "/bb_app/unknown/99/messages/0xABC", topic)
 }
 
 func TestGetTopicFromSignal_UsesConnectionName(t *testing.T) {
@@ -184,10 +184,10 @@ func TestGetTopicFromSignal_UsesConnectionName(t *testing.T) {
 		cfg:      &canModels.Config{},
 	}
 
-	sig := canModels.CanSignalTimestamped{Interface: 0, ID: 0x141}
+	sig := canModels.CanSignalTimestamped{Interface: 0, ID: 0x141, Message: "MSG_ENGINE", Signal: "EngineSpeed"}
 	topic := c.getTopicFromSignal(sig)
 
-	assert.Equal(t, "/bb_app/jeep0/0x141/signals", topic)
+	assert.Equal(t, "/bb_app/jeep0/0/signals/MSG_ENGINE/EngineSpeed", topic)
 	assert.NotContains(t, topic, "/Users/robbie", "topic must not contain the file path")
 }
 
@@ -198,10 +198,10 @@ func TestGetTopicFromSignal_UnknownInterface(t *testing.T) {
 		cfg:      &canModels.Config{},
 	}
 
-	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0xABC}
+	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0xABC, Message: "MSG_TEST", Signal: "TestSig"}
 	topic := c.getTopicFromSignal(sig)
 
-	assert.Equal(t, "/bb_app/unknown/0xABC/signals", topic)
+	assert.Equal(t, "/bb_app/unknown/99/signals/MSG_TEST/TestSig", topic)
 }
 
 func TestSignalToJSON_FieldValues(t *testing.T) {
