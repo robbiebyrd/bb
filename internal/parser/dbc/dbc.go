@@ -1,7 +1,6 @@
 package dbc
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -45,45 +44,6 @@ func (dc *DBCParserClient) Load() error {
 	dc.db = compile(dc.dbcFilePath, p.Defs())
 	dc.l.Info("loaded DBC file", "path", dc.dbcFilePath, "messages", len(dc.db.Messages))
 	return nil
-}
-
-type parseResult struct {
-	Message string         `json:"message"`
-	Signals map[string]any `json:"signals"`
-}
-
-// Parse accepts a CAN message, looks up its definition in the loaded DBC database,
-// decodes all signals, and returns a JSON string.
-func (dc *DBCParserClient) Parse(msg canModels.CanMessageData) any {
-	if dc.db == nil {
-		return nil
-	}
-	message, ok := dc.db.Message(msg.ID)
-	if !ok {
-		return nil
-	}
-	var canData can.Data
-	copy(canData[:], msg.Data)
-
-	signals := make(map[string]any, len(message.Signals))
-	for _, sig := range message.Signals {
-		if desc, ok := sig.UnmarshalValueDescription(canData); ok {
-			signals[sig.Name] = desc
-		} else {
-			signals[sig.Name] = sig.UnmarshalPhysical(canData)
-		}
-	}
-
-	result := parseResult{
-		Message: message.Name,
-		Signals: signals,
-	}
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		dc.l.Error("failed to marshal parse result", "error", err)
-		return nil
-	}
-	return string(jsonBytes)
 }
 
 // ParseSignals decodes all signals in msg and returns one CanSignalTimestamped
