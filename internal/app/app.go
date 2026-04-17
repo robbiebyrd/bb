@@ -2,25 +2,27 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/robbiebyrd/bb/internal/client/broadcast"
+	"github.com/robbiebyrd/bb/internal/client/filter"
 	cm "github.com/robbiebyrd/bb/internal/connection"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 type AppData struct {
-	config           *canModels.Config
-	wgClients        *errgroup.Group
-	broadcastClient  *broadcast.BroadcastClient
-	connections      canModels.ConnectionManager
-	logger           *slog.Logger
-	logLevel         *slog.LevelVar
-	canMsgChannel    chan canModels.CanMessageTimestamped
-	ctx              context.Context
-	signalDispatcher canModels.SignalDispatcherRegistrar
+	config            *canModels.Config
+	wgClients         *errgroup.Group
+	broadcastClient   *broadcast.BroadcastClient
+	connections       canModels.ConnectionManager
+	logger            *slog.Logger
+	logLevel          *slog.LevelVar
+	canMsgChannel     chan canModels.CanMessageTimestamped
+	ctx               context.Context
+	signalDispatchers []canModels.SignalDispatcherRegistrar
 }
 
 // NewApp creates the application with the given config, logger, and log level.
@@ -66,20 +68,26 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 	b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
 	b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
 
-	if sc, ok := c.(canModels.SignalOutputClient); ok && b.signalDispatcher != nil {
+	if sc, ok := c.(canModels.SignalOutputClient); ok && len(b.signalDispatchers) > 0 {
 		b.logger.Debug("wiring signal handler for output client", "name", c.GetName())
 		b.wgClients.Go(sc.HandleSignalChannel)
-		b.signalDispatcher.AddListener(sc.GetSignalChannel())
+		for _, d := range b.signalDispatchers {
+			d.AddListener(sc.GetSignalChannel())
+		}
 	}
 }
 
-func (b *AppData) SetSignalDispatcher(d canModels.SignalDispatcherRegistrar) {
-	b.signalDispatcher = d
+func (b *AppData) AddSignalDispatcher(d canModels.SignalDispatcherRegistrar, interfaceID int) {
+	b.signalDispatchers = append(b.signalDispatchers, d)
 	if err := b.broadcastClient.Add(broadcast.BroadcastClientListener{
-		Name:    "signal-dispatcher",
+		Name:    fmt.Sprintf("signal-dispatcher-%d", interfaceID),
 		Channel: d.GetChannel(),
+		Filter: &canModels.CanMessageFilterGroup{
+			Filters:  []canModels.CanMessageFilter{filter.CanInterfaceFilter{Value: interfaceID}},
+			Operator: canModels.FilterAnd,
+		},
 	}); err != nil {
-		b.logger.Error("failed to register signal dispatcher with broadcast client", "error", err)
+		b.logger.Error("failed to register signal dispatcher with broadcast client", "error", err, "interface", interfaceID)
 		return
 	}
 	b.wgClients.Go(d.Dispatch)

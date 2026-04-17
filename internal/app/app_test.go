@@ -68,7 +68,7 @@ func TestAddOutput_SignalClientWiredWhenDispatcherSet(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	dispatcher := signaldispatch.New(&mockParser{}, 16, logger)
-	a.SetSignalDispatcher(dispatcher)
+	a.AddSignalDispatcher(dispatcher, 0)
 
 	client := newMockSignalClient()
 	a.AddOutput(client)

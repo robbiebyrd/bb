@@ -58,10 +58,13 @@ func main() {
 		b := app.NewApp(&cfg, logger, lvl)
 		ctx, connections := b.GetContext(), b.GetConnections()
 
-		if cfg.Signal.DBCFile != "" {
-			parser := dbc.NewDBCParserClient(logger, cfg.Signal.DBCFile)
+		for i, iface := range cfg.CanInterfaces {
+			if iface.DBCFile == "" {
+				continue
+			}
+			parser := dbc.NewDBCParserClient(logger, iface.DBCFile)
 			dispatcher := signaldispatch.New(parser, cfg.MessageBufferSize, logger)
-			b.SetSignalDispatcher(dispatcher)
+			b.AddSignalDispatcher(dispatcher, i)
 		}
 
 		var outputs []canModels.OutputClient

@@ -43,11 +43,3 @@ func TestInfluxDBConfig_OptionalWhenHostAbsent(t *testing.T) {
 	require.NoError(t, err, "config parsing must not error when INFLUX_HOST is absent")
 	assert.Equal(t, "", cfg.Host)
 }
-
-func TestSignalConfig_OptionalWhenDBCFileAbsent(t *testing.T) {
-	os.Unsetenv("SIGNAL_DBC_FILE")
-
-	cfg, err := env.ParseAs[canModels.SignalConfig]()
-	require.NoError(t, err, "config parsing must not error when SIGNAL_DBC_FILE is absent")
-	assert.Equal(t, "", cfg.DBCFile)
-}

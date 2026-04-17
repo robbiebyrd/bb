@@ -24,5 +24,5 @@ type AppInterface interface {
 	GetLogger() *slog.Logger
 	GetLogLevel() *slog.LevelVar
 	SetLogLevel(logLevel slog.Level)
-	SetSignalDispatcher(d SignalDispatcherRegistrar)
+	AddSignalDispatcher(d SignalDispatcherRegistrar, interfaceID int)
 }
