@@ -155,7 +155,7 @@ func TestGetTopicFromMessage_UsesConnectionName(t *testing.T) {
 	msg := canModels.CanMessageTimestamped{Interface: 0, ID: 0x123}
 	topic := c.getTopicFromMessage(msg)
 
-	assert.Equal(t, "/bb_app/jeep0/0x123", topic)
+	assert.Equal(t, "/bb_app/jeep0/0/messages/0x123", topic)
 	assert.NotContains(t, topic, "/Users/robbie", "topic must not contain the file path")
 }
 
@@ -169,7 +169,92 @@ func TestGetTopicFromMessage_UnknownInterface(t *testing.T) {
 	msg := canModels.CanMessageTimestamped{Interface: 99, ID: 0xABC}
 	topic := c.getTopicFromMessage(msg)
 
-	assert.Equal(t, "/bb_app/unknown/0xABC", topic)
+	assert.Equal(t, "/bb_app/unknown/99/messages/0xABC", topic)
+}
+
+func TestGetTopicFromSignal_UsesConnectionName(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {name: "jeep0", uri: "/Users/robbie/Documents/Jeep/Static Remote Start.log"},
+		},
+	}
+	c := &MQTTClient{
+		resolver: resolver,
+		topic:    "bb_app",
+		cfg:      &canModels.Config{},
+	}
+
+	sig := canModels.CanSignalTimestamped{Interface: 0, ID: 0x141, Message: "MSG_ENGINE", Signal: "EngineSpeed"}
+	topic := c.getTopicFromSignal(sig)
+
+	assert.Equal(t, "/bb_app/jeep0/0/signals/MSG_ENGINE/EngineSpeed", topic)
+	assert.NotContains(t, topic, "/Users/robbie", "topic must not contain the file path")
+}
+
+func TestGetTopicFromSignal_UnknownInterface(t *testing.T) {
+	c := &MQTTClient{
+		resolver: &mockResolver{conns: map[int]*mockCanConn{}},
+		topic:    "bb_app",
+		cfg:      &canModels.Config{},
+	}
+
+	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0xABC, Message: "MSG_TEST", Signal: "TestSig"}
+	topic := c.getTopicFromSignal(sig)
+
+	assert.Equal(t, "/bb_app/unknown/99/signals/MSG_TEST/TestSig", topic)
+}
+
+func TestSignalToJSON_FieldValues(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {name: "jeep0"},
+		},
+	}
+	c := newTestMQTTClient(resolver)
+
+	sig := canModels.CanSignalTimestamped{
+		Timestamp: 1_000_000_000,
+		Interface: 0,
+		ID:        0x141,
+		Signal:    "EngineSpeed",
+		Value:     3500.0,
+		Unit:      "rpm",
+	}
+
+	jsonStr, err := c.SignalToJSON(sig)
+	require.NoError(t, err)
+
+	var out struct {
+		Timestamp int64   `json:"timestamp"`
+		Interface string  `json:"interface"`
+		ID        string  `json:"id"`
+		Signal    string  `json:"signal"`
+		Value     float64 `json:"value"`
+		Unit      string  `json:"unit"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
+
+	assert.Equal(t, int64(1_000_000_000), out.Timestamp)
+	assert.Equal(t, "jeep0", out.Interface)
+	assert.Equal(t, "0x141", out.ID)
+	assert.Equal(t, "EngineSpeed", out.Signal)
+	assert.Equal(t, 3500.0, out.Value)
+	assert.Equal(t, "rpm", out.Unit)
+}
+
+func TestSignalToJSON_UnknownInterface(t *testing.T) {
+	c := newTestMQTTClient(&mockResolver{conns: map[int]*mockCanConn{}})
+
+	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0x001}
+
+	jsonStr, err := c.SignalToJSON(sig)
+	require.NoError(t, err)
+
+	var out struct {
+		Interface string `json:"interface"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
+	assert.Equal(t, "", out.Interface, "unknown interface should produce empty string")
 }
 
 func TestToJSON_EmptyData(t *testing.T) {

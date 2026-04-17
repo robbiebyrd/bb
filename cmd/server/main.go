@@ -9,12 +9,14 @@ import (
 	"github.com/robbiebyrd/bb/internal/app"
 	"github.com/robbiebyrd/bb/internal/client/dedupe"
 	"github.com/robbiebyrd/bb/internal/client/logging"
+	"github.com/robbiebyrd/bb/internal/client/signaldispatch"
 	"github.com/robbiebyrd/bb/internal/config"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 	"github.com/robbiebyrd/bb/internal/output/crtd"
 	"github.com/robbiebyrd/bb/internal/output/csv"
 	"github.com/robbiebyrd/bb/internal/output/influxdb"
 	"github.com/robbiebyrd/bb/internal/output/mqtt"
+	"github.com/robbiebyrd/bb/internal/parser/dbc"
 )
 
 func main() {
@@ -55,6 +57,15 @@ func main() {
 
 		b := app.NewApp(&cfg, logger, lvl)
 		ctx, connections := b.GetContext(), b.GetConnections()
+
+		for i, iface := range cfg.CanInterfaces {
+			if iface.DBCFile == "" {
+				continue
+			}
+			parser := dbc.NewDBCParserClient(logger, iface.DBCFile)
+			dispatcher := signaldispatch.New(parser, cfg.MessageBufferSize, logger)
+			b.AddSignalDispatcher(dispatcher, i)
+		}
 
 		var outputs []canModels.OutputClient
 

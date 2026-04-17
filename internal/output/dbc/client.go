@@ -25,7 +25,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 	}
 }
 
-func (c *DBCOutputClient) Handle(canMsg canModels.CanMessageTimestamped) {
+func (c *DBCOutputClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
 		c.l.Debug("message filtered, dropping message", "message", canMsg, "filterName", *filterName)
 		return
@@ -44,9 +44,9 @@ func (c *DBCOutputClient) Handle(canMsg canModels.CanMessageTimestamped) {
 	}
 }
 
-func (c *DBCOutputClient) HandleChannel() error {
+func (c *DBCOutputClient) HandleCanMessageChannel() error {
 	for canMsg := range c.incomingChannel {
-		c.Handle(canMsg)
+		c.HandleCanMessage(canMsg)
 	}
 	return nil
 }
