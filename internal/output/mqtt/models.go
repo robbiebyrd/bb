@@ -22,7 +22,7 @@ func (c *MQTTClient) ToJSON(canMsg canModels.CanMessageTimestamped) (string, err
 		Timestamp: canMsg.Timestamp,
 		Interface: func() string {
 			if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
-				return conn.GetInterfaceName()
+				return conn.GetName()
 			}
 			return ""
 		}(),

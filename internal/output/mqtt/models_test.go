@@ -14,13 +14,14 @@ import (
 
 // mockCanConn implements canModels.CanConnection for testing.
 type mockCanConn struct {
+	name          string
 	interfaceName string
 	uri           string
 }
 
 func (m *mockCanConn) GetID() int                  { return 0 }
 func (m *mockCanConn) SetID(_ int)                 {}
-func (m *mockCanConn) GetName() string             { return "" }
+func (m *mockCanConn) GetName() string             { return m.name }
 func (m *mockCanConn) GetInterfaceName() string    { return m.interfaceName }
 func (m *mockCanConn) SetName(_ string)            {}
 func (m *mockCanConn) GetDBCFilePath() *string     { return nil }
@@ -59,7 +60,7 @@ func newTestMQTTClient(resolver canModels.InterfaceResolver) *MQTTClient {
 func TestToJSON_FieldValues(t *testing.T) {
 	resolver := &mockResolver{
 		conns: map[int]*mockCanConn{
-			0: {interfaceName: "can0-can-vcan0"},
+			0: {name: "can0", interfaceName: "can0-can-vcan0"},
 		},
 	}
 	c := newTestMQTTClient(resolver)
@@ -89,7 +90,7 @@ func TestToJSON_FieldValues(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
 
 	assert.Equal(t, int64(1_000_000_000), out.Timestamp)
-	assert.Equal(t, "can0-can-vcan0", out.Interface)
+	assert.Equal(t, "can0", out.Interface)
 	assert.Equal(t, "0x1ab", out.ID)
 	assert.True(t, out.Transmit)
 	assert.False(t, out.Remote)
@@ -114,6 +115,61 @@ func TestToJSON_UnknownInterface(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
 	assert.Equal(t, "", out.Interface, "unknown interface should produce empty string")
+}
+
+func TestToJSON_InterfaceUsesConnectionName(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {
+				name:          "jeep0",
+				interfaceName: "jeep0-playback-/Users/robbie.byrd/Documents/Jeep/Static Remote Start.log",
+				uri:           "/Users/robbie.byrd/Documents/Jeep/Static Remote Start.log",
+			},
+		},
+	}
+	c := newTestMQTTClient(resolver)
+
+	jsonStr, err := c.ToJSON(canModels.CanMessageTimestamped{Interface: 0, ID: 0x141})
+	require.NoError(t, err)
+
+	var out struct {
+		Interface string `json:"interface"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
+	assert.Equal(t, "jeep0", out.Interface)
+	assert.NotContains(t, out.Interface, "/Users/robbie.byrd", "interface must not contain the file path")
+}
+
+func TestGetTopicFromMessage_UsesConnectionName(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {name: "jeep0", uri: "/Users/robbie/Documents/Jeep/Static Remote Start.log"},
+		},
+	}
+	c := &MQTTClient{
+		resolver: resolver,
+		topic:    "bb_app",
+		cfg:      &canModels.Config{},
+	}
+
+	msg := canModels.CanMessageTimestamped{Interface: 0, ID: 0x123}
+	topic := c.getTopicFromMessage(msg)
+
+	assert.Equal(t, "/bb_app/jeep0/0x123", topic)
+	assert.NotContains(t, topic, "/Users/robbie", "topic must not contain the file path")
+}
+
+func TestGetTopicFromMessage_UnknownInterface(t *testing.T) {
+	c := &MQTTClient{
+		resolver: &mockResolver{conns: map[int]*mockCanConn{}},
+		topic:    "bb_app",
+		cfg:      &canModels.Config{},
+	}
+
+	msg := canModels.CanMessageTimestamped{Interface: 99, ID: 0xABC}
+	topic := c.getTopicFromMessage(msg)
+
+	assert.Equal(t, "/bb_app/unknown/0xABC", topic)
 }
 
 func TestToJSON_EmptyData(t *testing.T) {

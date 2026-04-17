@@ -134,14 +134,11 @@ func (c *MQTTClient) Run() error {
 }
 
 func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped) string {
-	uri := "unknown"
+	name := "unknown"
 	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
-		uri = conn.GetURI()
+		name = conn.GetName()
 	}
-	return "/" + c.topic + "/" + uri + "/0x" + fmt.Sprintf(
-		"%X",
-		canMsg.ID,
-	)
+	return "/" + c.topic + "/" + name + "/0x" + fmt.Sprintf("%X", canMsg.ID)
 }
 
 func (c *MQTTClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped) (bool, *string) {

@@ -2,15 +2,11 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"os"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/robbiebyrd/bb/internal/client/broadcast"
-	"github.com/robbiebyrd/bb/internal/client/logging"
-	"github.com/robbiebyrd/bb/internal/config"
 	cm "github.com/robbiebyrd/bb/internal/connection"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
@@ -26,75 +22,34 @@ type AppData struct {
 	ctx             context.Context
 }
 
-func NewApp() canModels.AppInterface {
-	// Set the log level variable, so we can use it at startup in Info mode, but allow
-	// changing it later based on config.
-	lvl := new(slog.LevelVar)
-	lvl.Set(slog.LevelInfo)
-
-	// Create the logger with the initial log level.
-	l := logging.NewJSONLogger(lvl)
-	l.Info("starting application")
-
-	l.Debug("loading config")
-	cfg, cfgJson := config.Load(l)
-	l.Debug("loaded config", "config", cfgJson)
-
-	l.Info("setting log level from config", "level", cfg.LogLevel)
-	switch cfg.LogLevel {
-	case "debug", "DEBUG":
-		lvl.Set(slog.LevelDebug)
-	case "error", "ERROR":
-		lvl.Set(slog.LevelError)
-	case "warn", "WARN":
-		lvl.Set(slog.LevelWarn)
-	}
-
-	if cfg.InfluxDB.Token == "" && cfg.InfluxDB.TokenFile != "" {
-		jsonFile, err := os.Open(cfg.InfluxDB.TokenFile)
-		if err != nil {
-			l.Error("could not open influxdb token file", "path", cfg.InfluxDB.TokenFile, "error", err)
-			panic(err)
-		}
-		defer jsonFile.Close()
-
-		creds := struct {
-			Token string `json:"token"`
-		}{}
-
-		err = json.NewDecoder(jsonFile).Decode(&creds)
-		if err != nil {
-			l.Error("could not decode influxdb token json file", "error", err)
-			panic(err)
-		}
-
-		cfg.InfluxDB.Token = creds.Token
-	}
-
-	l.Debug("creating process context and wait group")
+// NewApp creates the application with the given config, logger, and log level.
+// Config loading, log level setup, and token resolution must be done by the caller
+// before invoking NewApp.
+func NewApp(cfg *canModels.Config, logger *slog.Logger, logLevel *slog.LevelVar) canModels.AppInterface {
+	logger.Debug("creating process context and wait group")
 	wgClients, ctx := errgroup.WithContext(context.Background())
 
-	l.Debug("creating channel for incoming CAN messages")
+	logger.Debug("creating channel for incoming CAN messages")
 	canMsgChannel := make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize)
 
-	l.Debug("creating broadcast client")
-	broadcastClient := broadcast.NewBroadcastClient(ctx, canMsgChannel, l)
+	logger.Debug("creating broadcast client")
+	broadcastClient := broadcast.NewBroadcastClient(ctx, canMsgChannel, logger)
 
-	l.Debug("creating connection manager")
-	connections := cm.NewConnectionManager(ctx, &cfg, canMsgChannel, l)
+	logger.Debug("creating connection manager")
+	connections := cm.NewConnectionManager(ctx, cfg, canMsgChannel, logger)
 
-	l.Info("creating can interfaces from config", "count", len(cfg.CanInterfaces))
+	logger.Info("creating can interfaces from config", "count", len(cfg.CanInterfaces))
 	connections.ConnectMultiple(cfg.CanInterfaces)
 
-	l.Info("application started")
+	logger.Info("application started")
 
 	return &AppData{
-		config:          &cfg,
+		config:          cfg,
 		wgClients:       wgClients,
 		broadcastClient: broadcastClient,
 		connections:     connections,
-		logger:          l,
-		logLevel:        lvl,
+		logger:          logger,
+		logLevel:        logLevel,
 		canMsgChannel:   canMsgChannel,
 		ctx:             ctx,
 	}

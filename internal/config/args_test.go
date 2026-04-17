@@ -5,11 +5,26 @@ import (
 	"testing"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/robbiebyrd/bb/internal/config"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
+
+// runFlags creates a minimal cobra command, binds flags, parses args, and calls apply.
+func runFlags(t *testing.T, args []string, cfg *canModels.Config) {
+	t.Helper()
+	cmd := &cobra.Command{
+		Use:  "test",
+		RunE: func(cmd *cobra.Command, args []string) error { return nil },
+	}
+	apply := config.BindFlags(cmd, cfg)
+	cmd.SetArgs(args)
+	require.NoError(t, cmd.Execute())
+	require.NoError(t, apply())
+}
 
 func TestMQTTConfig_OptionalWhenHostAbsent(t *testing.T) {
 	os.Unsetenv("MQTT_HOST")

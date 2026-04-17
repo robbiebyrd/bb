@@ -54,4 +54,3 @@ type CanConnection interface {
 	Discontinue() error
 	Receive(wg *sync.WaitGroup)
 }
-
