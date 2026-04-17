@@ -75,18 +75,23 @@ func (scc *BroadcastClient) Broadcast() error {
 	}()
 
 	for {
-		canMsg := <-scc.incomingChannel
-		scc.msgCount.Add(1)
-		for _, c := range scc.broadcastChannels {
-			broadcastMsg := true
-			if c.Filter != nil {
-				broadcastMsg = scc.testFilterGroup(c, canMsg)
-			}
-			if broadcastMsg {
-				select {
-				case c.Channel <- canMsg:
-				default:
-					fmt.Printf("broadcast: dropped message for listener %q: channel full\n", c.Name)
+		select {
+		case <-scc.ctx.Done():
+			return scc.ctx.Err()
+		case canMsg := <-scc.incomingChannel:
+			scc.msgCount.Add(1)
+			for _, c := range scc.broadcastChannels {
+				broadcastMsg := true
+				if c.Filter != nil {
+					broadcastMsg = scc.testFilterGroup(c, canMsg)
+				}
+				if broadcastMsg {
+					select {
+					case c.Channel <- canMsg:
+					default:
+						scc.l.Warn("broadcast: dropped message, listener channel full",
+							"listener", c.Name)
+					}
 				}
 			}
 		}

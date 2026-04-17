@@ -75,6 +75,28 @@ func TestRemove_UnknownNameReturnsError(t *testing.T) {
 	}
 }
 
+// Broadcast — exits when the context is cancelled (no goroutine leak).
+func TestBroadcast_ExitsOnContextCancel(t *testing.T) {
+	incoming := make(chan canModels.CanMessageTimestamped, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	bc := NewBroadcastClient(ctx, incoming, l)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- bc.Broadcast()
+	}()
+
+	cancel()
+
+	select {
+	case <-done:
+		// good — Broadcast returned after context cancel
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Broadcast did not exit after context cancellation — goroutine leak")
+	}
+}
+
 // Broadcast — messages are fanned out to all registered listeners.
 func TestBroadcast_FansOutToAllListeners(t *testing.T) {
 	bc, incoming := newTestClient()
