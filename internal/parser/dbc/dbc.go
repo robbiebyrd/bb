@@ -107,6 +107,7 @@ func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageData, timestamp 
 			Timestamp: timestamp,
 			Interface: iface,
 			ID:        msg.ID,
+			Message:   message.Name,
 			Signal:    sig.Name,
 			Value:     sig.UnmarshalPhysical(canData),
 			Unit:      sig.Unit,

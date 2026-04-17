@@ -162,6 +162,9 @@ func TestParseSignals_KnownMessage(t *testing.T) {
 	if coolant.ID != 464 {
 		t.Errorf("expected ID 464, got %d", coolant.ID)
 	}
+	if coolant.Message != "MOTOR_1D0" {
+		t.Errorf("expected message MOTOR_1D0, got %q", coolant.Message)
+	}
 	if coolant.Unit != "degC" {
 		t.Errorf("expected unit degC, got %q", coolant.Unit)
 	}
