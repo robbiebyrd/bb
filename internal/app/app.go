@@ -78,7 +78,6 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 }
 
 func (b *AppData) AddSignalDispatcher(d canModels.SignalDispatcherRegistrar, interfaceID int) {
-	b.signalDispatchers = append(b.signalDispatchers, d)
 	if err := b.broadcastClient.Add(broadcast.BroadcastClientListener{
 		Name:    fmt.Sprintf("signal-dispatcher-%d", interfaceID),
 		Channel: d.GetChannel(),
@@ -90,7 +89,9 @@ func (b *AppData) AddSignalDispatcher(d canModels.SignalDispatcherRegistrar, int
 		b.logger.Error("failed to register signal dispatcher with broadcast client", "error", err, "interface", interfaceID)
 		return
 	}
-	b.wgClients.Go(d.Dispatch)
+	// Dispatch is started in Run() after all outputs have registered listeners,
+	// preventing a data race between Dispatch reading listeners and AddOutput writing them.
+	b.signalDispatchers = append(b.signalDispatchers, d)
 }
 
 func (b *AppData) AddOutputs(cs []canModels.OutputClient) {
@@ -102,6 +103,11 @@ func (b *AppData) AddOutputs(cs []canModels.OutputClient) {
 }
 
 func (b *AppData) Run() error {
+	b.logger.Info("starting signal dispatchers", "count", len(b.signalDispatchers))
+	for _, d := range b.signalDispatchers {
+		b.wgClients.Go(d.Dispatch)
+	}
+
 	b.logger.Info("starting broadcasts")
 	b.wgClients.Go(b.broadcastClient.Broadcast)
 

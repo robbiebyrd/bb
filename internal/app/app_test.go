@@ -112,3 +112,22 @@ func TestAddOutput_SignalClientNotWiredWithoutDispatcher(t *testing.T) {
 		// Correct — only one goroutine started.
 	}
 }
+
+// TestAddSignalDispatcher_NoRaceWithAddOutput verifies that AddSignalDispatcher
+// does not start the Dispatch goroutine immediately, which would race with the
+// AddListener write performed by AddOutput. Before the fix, Dispatch was started
+// inside AddSignalDispatcher; AddOutput's AddListener call then wrote to
+// d.listeners concurrently, causing a data race detectable with -race.
+func TestAddSignalDispatcher_NoRaceWithAddOutput(t *testing.T) {
+	a := newTestApp(t)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	dispatcher := signaldispatch.New(&mockParser{}, 16, logger)
+
+	// Register the dispatcher — before the fix this immediately starts Dispatch.
+	a.AddSignalDispatcher(dispatcher, 0)
+
+	// AddOutput calls d.AddListener, which writes to listeners slice.
+	// If Dispatch is already running (reading listeners), this is a data race.
+	client := newMockSignalClient()
+	a.AddOutput(client)
+}
