@@ -11,6 +11,34 @@ import (
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
+func TestFilter_SweepEvictsExpiredEntries(t *testing.T) {
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelInfo)
+	l := logging.NewJSONLogger(lvl)
+
+	// 1ms timeout
+	dc := NewDedupeFilterClient(l, 1, []uint32{}).(*DedupeFilterClient)
+
+	// Insert 5 unique messages — each creates a new storage entry
+	for i := 0; i < 5; i++ {
+		msg := canModels.CanMessageTimestamped{
+			ID:   uint32(i),
+			Data: []byte{byte(i)},
+		}
+		dc.Filter(msg)
+	}
+	assert.Equal(t, 5, len(dc.storage), "should have 5 entries before expiry")
+
+	// Wait for all entries to expire
+	time.Sleep(10 * time.Millisecond)
+
+	// Insert one new unique message — sweep triggered on new addition should evict all 5 expired entries
+	newMsg := canModels.CanMessageTimestamped{ID: 99, Data: []byte{0x99}}
+	dc.Filter(newMsg)
+
+	assert.Equal(t, 1, len(dc.storage), "storage should contain only the new entry after sweep evicts expired ones")
+}
+
 func TestCanInterfaceFilter(t *testing.T) {
 	lvl := new(slog.LevelVar)
 	lvl.Set(slog.LevelInfo)
@@ -87,6 +115,20 @@ func TestFilterNonWatchedID(t *testing.T) {
 
 	result := a.Filter(msg)
 	assert.Equal(t, false, result, "Message with non-watched ID should not be filtered (returned false).")
+}
+
+func TestHashCanMessageData_Deterministic(t *testing.T) {
+	msg := canModels.CanMessageTimestamped{
+		Timestamp: 999, // should NOT affect hash
+		Interface: 1, ID: 42, Transmit: true, Remote: false, Length: 4,
+		Data: []byte{0x01, 0x02, 0x03, 0x04},
+	}
+	h1, err1 := hashCanMessageData(msg)
+	msg.Timestamp = 12345 // different timestamp, same content
+	h2, err2 := hashCanMessageData(msg)
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.Equal(t, h1, h2, "same content with different timestamp must hash identically")
 }
 
 func TestFilterTimeoutExpiry(t *testing.T) {
