@@ -1,10 +1,10 @@
 package dedupe
 
 import (
+	"encoding/binary"
+	"hash/fnv"
 	"log/slog"
 	"time"
-
-	hc "github.com/mitchellh/hashstructure/v2"
 
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
@@ -84,12 +84,23 @@ func stripTimestampFromMessage(canMsg canModels.CanMessageTimestamped) *canModel
 }
 
 func hashCanMessageData(canMsg canModels.CanMessageTimestamped) (uint64, error) {
-	updatedMsg := stripTimestampFromMessage(canMsg)
-
-	hashed, err := hc.Hash(updatedMsg, hc.FormatV2, nil)
-	if err != nil {
-		return 0, err
+	h := fnv.New64a()
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], uint32(canMsg.Interface))
+	h.Write(buf[:])
+	binary.LittleEndian.PutUint32(buf[:], canMsg.ID)
+	h.Write(buf[:])
+	if canMsg.Transmit {
+		h.Write([]byte{1})
+	} else {
+		h.Write([]byte{0})
 	}
-
-	return hashed, nil
+	if canMsg.Remote {
+		h.Write([]byte{1})
+	} else {
+		h.Write([]byte{0})
+	}
+	h.Write([]byte{canMsg.Length})
+	h.Write(canMsg.Data)
+	return h.Sum64(), nil
 }
