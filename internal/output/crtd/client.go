@@ -24,11 +24,10 @@ func NewClient(
 	ctx context.Context,
 	cfg *canModels.Config,
 	logger *slog.Logger,
-) canModels.OutputClient {
+) (canModels.OutputClient, error) {
 	file, err := os.OpenFile(cfg.CRTDLogger.OutputFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		fmt.Printf("Error opening file %v\n", cfg.CRTDLogger.OutputFile)
-		panic(err)
+		return nil, fmt.Errorf("opening CRTD output file: %w", err)
 	}
 
 	writer := bufio.NewWriter(file)
@@ -60,7 +59,7 @@ func NewClient(
 		c:       make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		filters: make(map[string]canModels.FilterInterface),
 		l:       logger,
-	}
+	}, nil
 }
 
 func (c *CRTDLoggerClient) AddFilter(name string, filter canModels.FilterInterface) error {

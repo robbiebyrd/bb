@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
@@ -79,7 +80,8 @@ func TestNewClient(t *testing.T) {
 		MessageBufferSize: 16,
 	}
 
-	client := NewClient(ctx, cfg, silentLogger())
+	client, err := NewClient(ctx, cfg, silentLogger())
+	require.NoError(t, err)
 	assert.NotNil(t, client, "NewClient should return a non-nil client")
 
 	data, err := os.ReadFile(name)
@@ -90,6 +92,16 @@ func TestNewClient(t *testing.T) {
 		"0.000000 CXX CRTD file created by bb",
 		"File should contain CRTD header",
 	)
+}
+
+func TestNewClient_BadPath_ReturnsError(t *testing.T) {
+	ctx := context.Background()
+	cfg := &canModels.Config{
+		CRTDLogger:        canModels.CRTDLogConfig{OutputFile: "/nonexistent/path/to/file.crtd"},
+		MessageBufferSize: 16,
+	}
+	_, err := NewClient(ctx, cfg, silentLogger())
+	assert.Error(t, err, "NewClient must return an error when the file cannot be opened")
 }
 
 func TestHandle_StandardMessage(t *testing.T) {

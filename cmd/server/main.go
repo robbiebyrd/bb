@@ -70,7 +70,12 @@ func main() {
 		var outputs []canModels.OutputClient
 
 		if cfg.CRTDLogger.OutputFile != "" {
-			outputs = append(outputs, crtd.NewClient(ctx, &cfg, logger))
+			crtdClient, err := crtd.NewClient(ctx, &cfg, logger)
+			if err != nil {
+				logger.Error("failed to create CRTD client", "error", err)
+				os.Exit(1)
+			}
+			outputs = append(outputs, crtdClient)
 		}
 
 		if cfg.CSVLog.OutputFile != "" {
