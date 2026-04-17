@@ -9,6 +9,8 @@ type InfluxDBConfig struct {
 	FlushTime      int    `env:"FLUSH_TIME"      envDefault:"100"`
 	MaxWriteLines  int    `env:"MAX_WRITE_LINES" envDefault:"1000"`
 	MaxConnections int    `env:"MAX_CONNECTIONS" envDefault:"5"`
+	TLS            bool   `env:"TLS"             envDefault:"false"`
+	TLSCACertFile  string `env:"TLS_CA_FILE"     envDefault:""`
 }
 
 type MQTTConfig struct {

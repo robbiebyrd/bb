@@ -2,8 +2,11 @@ package influxdb
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,11 +35,32 @@ type InfluxDBClient struct {
 
 func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, resolver canModels.InterfaceResolver) (canModels.OutputClient, error) {
 	logger.Debug("starting influxdb3 client")
-	client, err := influxdb3.New(influxdb3.ClientConfig{
+
+	clientCfg := influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,
 		Token:    cfg.InfluxDB.Token,
 		Database: cfg.InfluxDB.Database,
-	})
+	}
+
+	if cfg.InfluxDB.TLS {
+		if cfg.InfluxDB.TLSCACertFile != "" {
+			// Use SSLRootsFilePath to load a custom CA certificate.
+			clientCfg.SSLRootsFilePath = cfg.InfluxDB.TLSCACertFile
+		} else {
+			// Verify the CA cert pool from the system roots via a custom http.Client.
+			pool, err := x509.SystemCertPool()
+			if err != nil {
+				return nil, fmt.Errorf("loading system cert pool for InfluxDB TLS: %w", err)
+			}
+			clientCfg.HTTPClient = &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{RootCAs: pool},
+				},
+			}
+		}
+	}
+
+	client, err := influxdb3.New(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("creating InfluxDB3 client: %w", err)
 	}
@@ -102,6 +126,8 @@ func (c *InfluxDBClient) HandleCanMessageChannel() error {
 		case canMsg, ok := <-c.incomingChannel:
 			if !ok {
 				flush()
+				close(c.internalChannel)
+				c.wg.Wait()
 				return nil
 			}
 			if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
