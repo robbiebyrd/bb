@@ -84,7 +84,12 @@ func (c *InfluxDBClient) HandleChannel() error {
 		if len(c.messageBlock) == 0 {
 			return
 		}
-		c.internalChannel <- c.messageBlock
+		select {
+		case c.internalChannel <- c.messageBlock:
+		default:
+			c.l.Warn("influxdb: workers at capacity, dropping batch",
+				"batch_size", len(c.messageBlock))
+		}
 		c.messageBlock = make([]canModels.CanMessageTimestamped, 0, c.maxBlocks)
 	}
 

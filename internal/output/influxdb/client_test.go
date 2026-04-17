@@ -107,6 +107,37 @@ func TestHandleChannel_FlushesRemainingOnClose(t *testing.T) {
 	<-done
 }
 
+// TestHandleChannel_DropsWhenWorkerQueueFull verifies that HandleChannel does
+// not block when internalChannel has no capacity (all workers busy, buffer full).
+// The batch must be dropped with a log warning rather than stalling the consumer.
+func TestHandleChannel_DropsWhenWorkerQueueFull(t *testing.T) {
+	// size=0: unbuffered and no workers — any blocking send would deadlock.
+	c := newHandleClient(1, 4, 5000, 0)
+
+	c.incomingChannel <- testMsg(0x100) // maxBlocks=1, so this triggers a flush
+	close(c.incomingChannel)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- c.HandleChannel()
+	}()
+
+	select {
+	case <-done:
+		// good — returned without blocking
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("HandleChannel blocked on full internalChannel — should drop batch instead")
+	}
+
+	// The batch must have been dropped, not sent.
+	select {
+	case <-c.internalChannel:
+		t.Error("expected batch to be dropped, but it was queued in internalChannel")
+	default:
+		// correct — nothing queued
+	}
+}
+
 // TestHandleChannel_DoesNotBlockWhenWorkersAreBusy verifies that HandleChannel
 // does not block when no workers are reading from internalChannel. This
 // requires internalChannel to be buffered with at least maxConnections slots.
