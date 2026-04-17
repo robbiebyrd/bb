@@ -128,6 +128,88 @@ func TestParse_UnknownMessage(t *testing.T) {
 	}
 }
 
+func TestParseSignals_KnownMessage(t *testing.T) {
+	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	client := NewDBCParserClient(l, "example.dbc")
+
+	// MOTOR_1D0 (ID=464): EngineCoolantTemp = scale 1, offset -48, unit "degC"
+	// byte 0 = 88 → 88 - 48 = 40 degC
+	data := make([]byte, 8)
+	data[0] = 88
+	msg := canModels.CanMessageData{ID: 464, Length: 8, Data: data}
+
+	signals := client.ParseSignals(msg, 1_000_000_000, 3)
+
+	if len(signals) == 0 {
+		t.Fatal("expected signals, got none")
+	}
+
+	var coolant *canModels.CanSignalTimestamped
+	for i := range signals {
+		if signals[i].Signal == "EngineCoolantTemp" {
+			coolant = &signals[i]
+		}
+	}
+	if coolant == nil {
+		t.Fatal("expected EngineCoolantTemp signal")
+	}
+	if coolant.Timestamp != 1_000_000_000 {
+		t.Errorf("expected timestamp 1000000000, got %d", coolant.Timestamp)
+	}
+	if coolant.Interface != 3 {
+		t.Errorf("expected interface 3, got %d", coolant.Interface)
+	}
+	if coolant.ID != 464 {
+		t.Errorf("expected ID 464, got %d", coolant.ID)
+	}
+	if coolant.Unit != "degC" {
+		t.Errorf("expected unit degC, got %q", coolant.Unit)
+	}
+	if coolant.Value != 40.0 {
+		t.Errorf("expected value 40.0, got %v", coolant.Value)
+	}
+}
+
+func TestParseSignals_UnitsPopulated(t *testing.T) {
+	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	client := NewDBCParserClient(l, "example.dbc")
+
+	// STEER_0C4 (ID=196): SteeringPosition unit="deg", SteeringSpeed unit="deg/s"
+	msg := canModels.CanMessageData{ID: 196, Length: 7, Data: make([]byte, 7)}
+	signals := client.ParseSignals(msg, 0, 0)
+
+	units := make(map[string]string)
+	for _, s := range signals {
+		units[s.Signal] = s.Unit
+	}
+	if units["SteeringPosition"] != "deg" {
+		t.Errorf("expected SteeringPosition unit deg, got %q", units["SteeringPosition"])
+	}
+	if units["SteeringSpeed"] != "deg/s" {
+		t.Errorf("expected SteeringSpeed unit deg/s, got %q", units["SteeringSpeed"])
+	}
+}
+
+func TestParseSignals_UnknownMessage(t *testing.T) {
+	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	client := NewDBCParserClient(l, "example.dbc")
+
+	signals := client.ParseSignals(canModels.CanMessageData{ID: 99999, Length: 8, Data: make([]byte, 8)}, 0, 0)
+	if signals != nil {
+		t.Fatalf("expected nil for unknown message, got %v", signals)
+	}
+}
+
+func TestParseSignals_NilDatabase(t *testing.T) {
+	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	client := NewDBCParserClient(l, "nonexistent.dbc")
+
+	signals := client.ParseSignals(canModels.CanMessageData{ID: 464, Length: 8, Data: make([]byte, 8)}, 0, 0)
+	if signals != nil {
+		t.Fatalf("expected nil for nil database, got %v", signals)
+	}
+}
+
 func TestParse_NilDatabase(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	client := NewDBCParserClient(l,"nonexistent.dbc")
