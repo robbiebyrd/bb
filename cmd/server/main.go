@@ -62,7 +62,11 @@ func main() {
 			if iface.DBCFile == "" {
 				continue
 			}
-			parser := dbc.NewDBCParserClient(logger, iface.DBCFile)
+			parser, err := dbc.NewDBCParserClient(logger, iface.DBCFile)
+			if err != nil {
+				logger.Error("failed to load DBC file", "interface", iface.Name, "path", iface.DBCFile, "error", err)
+				os.Exit(1)
+			}
 			dispatcher := signaldispatch.New(parser, cfg.MessageBufferSize, logger)
 			b.AddSignalDispatcher(dispatcher, i)
 		}

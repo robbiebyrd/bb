@@ -23,12 +23,12 @@ type DBCParserClient struct {
 func NewDBCParserClient(
 	l *slog.Logger,
 	dbcFilePath string,
-) canModels.ParserInterface {
+) (canModels.ParserInterface, error) {
 	dc := &DBCParserClient{l: l, dbcFilePath: dbcFilePath}
 	if err := dc.Load(); err != nil {
-		l.Error("failed to load DBC file", "path", dbcFilePath, "error", err)
+		return nil, fmt.Errorf("loading DBC file %s: %w", dbcFilePath, err)
 	}
-	return dc
+	return dc, nil
 }
 
 // Load reads and parses the DBC file into an in-memory descriptor.Database.

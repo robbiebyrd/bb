@@ -5,12 +5,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
 func TestLoad(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l,"example.dbc")
+	client, err := NewDBCParserClient(l, "example.dbc")
+	require.NoError(t, err)
 	dc := client.(*DBCParserClient)
 
 	if dc.db == nil {
@@ -32,19 +36,16 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-func TestLoad_FileNotFound(t *testing.T) {
+func TestLoad_FileNotFound_ReturnsError(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l,"nonexistent.dbc")
-	dc := client.(*DBCParserClient)
-
-	if dc.db != nil {
-		t.Fatal("expected database to be nil for missing file")
-	}
+	_, err := NewDBCParserClient(l, "nonexistent.dbc")
+	assert.Error(t, err)
 }
 
 func TestParseSignals_KnownMessage(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l, "example.dbc")
+	client, err := NewDBCParserClient(l, "example.dbc")
+	require.NoError(t, err)
 
 	// MOTOR_1D0 (ID=464): EngineCoolantTemp = scale 1, offset -48, unit "degC"
 	// byte 0 = 88 → 88 - 48 = 40 degC
@@ -89,7 +90,8 @@ func TestParseSignals_KnownMessage(t *testing.T) {
 
 func TestParseSignals_UnitsPopulated(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l, "example.dbc")
+	client, err := NewDBCParserClient(l, "example.dbc")
+	require.NoError(t, err)
 
 	// STEER_0C4 (ID=196): SteeringPosition unit="deg", SteeringSpeed unit="deg/s"
 	msg := canModels.CanMessageData{ID: 196, Length: 7, Data: make([]byte, 7)}
@@ -109,7 +111,8 @@ func TestParseSignals_UnitsPopulated(t *testing.T) {
 
 func TestParseSignals_UnknownMessage(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l, "example.dbc")
+	client, err := NewDBCParserClient(l, "example.dbc")
+	require.NoError(t, err)
 
 	signals := client.ParseSignals(canModels.CanMessageData{ID: 99999, Length: 8, Data: make([]byte, 8)}, 0, 0)
 	if signals != nil {
@@ -117,13 +120,9 @@ func TestParseSignals_UnknownMessage(t *testing.T) {
 	}
 }
 
-func TestParseSignals_NilDatabase(t *testing.T) {
+func TestNewDBCParserClient_MissingFile_ReturnsError(t *testing.T) {
 	l := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := NewDBCParserClient(l, "nonexistent.dbc")
-
-	signals := client.ParseSignals(canModels.CanMessageData{ID: 464, Length: 8, Data: make([]byte, 8)}, 0, 0)
-	if signals != nil {
-		t.Fatalf("expected nil for nil database, got %v", signals)
-	}
+	_, err := NewDBCParserClient(l, "nonexistent.dbc")
+	assert.Error(t, err, "NewDBCParserClient must return an error when the DBC file cannot be loaded")
 }
 
