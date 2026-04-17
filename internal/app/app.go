@@ -12,14 +12,15 @@ import (
 )
 
 type AppData struct {
-	config          *canModels.Config
-	wgClients       *errgroup.Group
-	broadcastClient *broadcast.BroadcastClient
-	connections     canModels.ConnectionManager
-	logger          *slog.Logger
-	logLevel        *slog.LevelVar
-	canMsgChannel   chan canModels.CanMessageTimestamped
-	ctx             context.Context
+	config           *canModels.Config
+	wgClients        *errgroup.Group
+	broadcastClient  *broadcast.BroadcastClient
+	connections      canModels.ConnectionManager
+	logger           *slog.Logger
+	logLevel         *slog.LevelVar
+	canMsgChannel    chan canModels.CanMessageTimestamped
+	ctx              context.Context
+	signalDispatcher canModels.SignalDispatcherRegistrar
 }
 
 // NewApp creates the application with the given config, logger, and log level.
@@ -64,6 +65,16 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 
 	b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
 	b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
+
+	if sc, ok := c.(canModels.SignalOutputClient); ok && b.signalDispatcher != nil {
+		b.logger.Debug("wiring signal handler for output client", "name", c.GetName())
+		b.wgClients.Go(sc.HandleSignalChannel)
+		b.signalDispatcher.AddListener(sc.GetSignalChannel())
+	}
+}
+
+func (b *AppData) SetSignalDispatcher(d canModels.SignalDispatcherRegistrar) {
+	b.signalDispatcher = d
 }
 
 func (b *AppData) AddOutputs(cs []canModels.OutputClient) {
