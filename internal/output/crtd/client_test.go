@@ -103,7 +103,7 @@ func TestHandle_StandardMessage(t *testing.T) {
 		Data:      []byte{0xDE, 0xAD, 0xBE, 0xEF},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	assert.Contains(
@@ -124,7 +124,7 @@ func TestHandle_TransmitMessage(t *testing.T) {
 		Data:      []byte{0x01},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "T11", "Transmit message should have record type starting with T")
@@ -140,7 +140,7 @@ func TestHandle_Extended29BitID(t *testing.T) {
 		Data:      []byte{0xAA},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "R29", "Extended ID message should have record type R29")
@@ -156,7 +156,7 @@ func TestHandle_TransmitExtended(t *testing.T) {
 		Data:      []byte{0xFF},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "T29", "Transmit extended message should have record type T29")
@@ -172,7 +172,7 @@ func TestHandle_TimestampConversion(t *testing.T) {
 		Data:      []byte{0x00},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	assert.Contains(
@@ -192,7 +192,7 @@ func TestHandle_EmptyData(t *testing.T) {
 		Data:      []byte{},
 	}
 
-	client.Handle(msg)
+	client.HandleCanMessage(msg)
 
 	contents := readFileContents(t, f)
 	lines := strings.Split(strings.TrimSpace(contents), "\n")
@@ -252,7 +252,7 @@ func TestHandleChannel(t *testing.T) {
 		close(client.c)
 	}()
 
-	err := client.HandleChannel()
+	err := client.HandleCanMessageChannel()
 	assert.Nil(t, err, "HandleChannel should return nil after channel is closed")
 
 	contents := readFileContents(t, f)

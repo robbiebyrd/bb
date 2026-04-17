@@ -88,7 +88,7 @@ func TestHandleChannel_FlushesOnMaxBlocks(t *testing.T) {
 	maxBlocks := 3
 	c := newHandleClient(maxBlocks, 4, 5000, 4) // long ticker — only count flush fires
 
-	go c.HandleChannel() //nolint:errcheck
+	go c.HandleCanMessageChannel() //nolint:errcheck
 
 	for i := 0; i < maxBlocks; i++ {
 		c.incomingChannel <- testMsg(uint32(i))
@@ -112,7 +112,7 @@ func TestHandleChannel_FlushesOnTicker(t *testing.T) {
 	flushMs := 50
 	c := newHandleClient(100, 4, flushMs, 4) // high maxBlocks — only ticker fires
 
-	go c.HandleChannel() //nolint:errcheck
+	go c.HandleCanMessageChannel() //nolint:errcheck
 
 	c.incomingChannel <- testMsg(0x001)
 
@@ -140,7 +140,7 @@ func TestHandleChannel_FlushesRemainingOnClose(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- c.HandleChannel()
+		done <- c.HandleCanMessageChannel()
 	}()
 
 	select {
@@ -167,7 +167,7 @@ func TestHandleChannel_DropsWhenWorkerQueueFull(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- c.HandleChannel()
+		done <- c.HandleCanMessageChannel()
 	}()
 
 	select {
@@ -201,7 +201,7 @@ func TestHandleChannel_DoesNotBlockWhenWorkersAreBusy(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- c.HandleChannel()
+		done <- c.HandleCanMessageChannel()
 	}()
 
 	select {

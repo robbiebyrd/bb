@@ -86,6 +86,36 @@ func (dc *DBCParserClient) Parse(msg canModels.CanMessageData) any {
 	return string(jsonBytes)
 }
 
+// ParseSignals decodes all signals in msg and returns one CanSignalTimestamped
+// per decoded signal. timestamp and iface are passed through from the
+// originating CanMessageTimestamped so callers don't need to re-attach them.
+// Returns nil if the message ID is not in the database.
+func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageData, timestamp int64, iface int) []canModels.CanSignalTimestamped {
+	if dc.db == nil {
+		return nil
+	}
+	message, ok := dc.db.Message(msg.ID)
+	if !ok {
+		return nil
+	}
+	var canData can.Data
+	copy(canData[:], msg.Data)
+
+	signals := make([]canModels.CanSignalTimestamped, 0, len(message.Signals))
+	for _, sig := range message.Signals {
+		signals = append(signals, canModels.CanSignalTimestamped{
+			Timestamp: timestamp,
+			Interface: iface,
+			ID:        msg.ID,
+			Message:   message.Name,
+			Signal:    sig.Name,
+			Value:     sig.UnmarshalPhysical(canData),
+			Unit:      sig.Unit,
+		})
+	}
+	return signals
+}
+
 // compile converts parsed DBC definitions into a descriptor.Database.
 // This replicates the logic from go.einride.tech/can/internal/generate.Compile
 // which is inaccessible due to being in an internal package.

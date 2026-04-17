@@ -74,7 +74,11 @@ func (c *InfluxDBClient) GetChannel() chan canModels.CanMessageTimestamped {
 	return c.incomingChannel
 }
 
-func (c *InfluxDBClient) HandleChannel() error {
+// HandleCanMessage is a no-op for InfluxDB. Batching is done entirely inside
+// HandleCanMessageChannel via a ticker; per-message handling is not used.
+func (c *InfluxDBClient) HandleCanMessage(_ canModels.CanMessageTimestamped) {}
+
+func (c *InfluxDBClient) HandleCanMessageChannel() error {
 	c.l.Debug("starting channel handler")
 
 	ticker := time.NewTicker(time.Duration(c.flushTime) * time.Millisecond)

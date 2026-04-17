@@ -16,6 +16,7 @@ type MQTTClient struct {
 	ctx             context.Context
 	l               *slog.Logger
 	incomingChannel chan canModels.CanMessageTimestamped
+	signalChannel   chan canModels.CanSignalTimestamped
 	topic           string
 	cfg             *canModels.Config
 	filters         map[string]canModels.FilterInterface
@@ -65,6 +66,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 		ctx:             ctx,
 		l:               logger,
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
+		signalChannel:   make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
 		topic:           cfg.MQTTConfig.Topic,
 		cfg:             cfg,
 		filters:         newFilters,
@@ -82,7 +84,7 @@ func (c *MQTTClient) AddFilter(name string, filter canModels.FilterInterface) er
 	return nil
 }
 
-func (c *MQTTClient) Handle(canMsg canModels.CanMessageTimestamped) {
+func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if !c.client.IsConnectionOpen() {
 		c.l.Error("MQTT client not connected, dropping message")
 		return
@@ -117,10 +119,47 @@ func (c *MQTTClient) GetChannel() chan canModels.CanMessageTimestamped {
 	return c.incomingChannel
 }
 
-func (c *MQTTClient) HandleChannel() error {
+func (c *MQTTClient) HandleCanMessageChannel() error {
 	c.l.Debug("starting MQTT channel handler")
 	for canMsg := range c.incomingChannel {
-		c.Handle(canMsg)
+		c.HandleCanMessage(canMsg)
+	}
+	return nil
+}
+
+func (c *MQTTClient) GetSignalChannel() chan canModels.CanSignalTimestamped {
+	return c.signalChannel
+}
+
+func (c *MQTTClient) HandleSignal(sig canModels.CanSignalTimestamped) {
+	if !c.client.IsConnectionOpen() {
+		c.l.Error("MQTT client not connected, dropping signal")
+		return
+	}
+
+	topic := c.getTopicFromSignal(sig)
+	msgString, err := c.SignalToJSON(sig)
+	if err != nil {
+		c.l.Error("MQTT failed to serialize signal", "error", err)
+		return
+	}
+
+	token := c.client.Publish(topic, c.cfg.MQTTConfig.Qos, c.cfg.MQTTConfig.ShadowCopy, msgString)
+
+	go func(t mqtt.Token) {
+		t.Wait()
+		if t.Error() != nil {
+			c.l.Error("MQTT publish signal failed", "error", t.Error())
+		}
+	}(token)
+
+	c.l.Debug("MQTT published signal", "topic", topic, "signal", sig.Signal)
+}
+
+func (c *MQTTClient) HandleSignalChannel() error {
+	c.l.Debug("starting MQTT signal channel handler")
+	for sig := range c.signalChannel {
+		c.HandleSignal(sig)
 	}
 	return nil
 }
@@ -138,7 +177,15 @@ func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped)
 	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 		name = conn.GetName()
 	}
-	return "/" + c.topic + "/" + name + "/0x" + fmt.Sprintf("%X", canMsg.ID)
+	return fmt.Sprintf("/%s/%s/%d/messages/0x%X", c.topic, name, canMsg.Interface, canMsg.ID)
+}
+
+func (c *MQTTClient) getTopicFromSignal(sig canModels.CanSignalTimestamped) string {
+	name := "unknown"
+	if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
+		name = conn.GetName()
+	}
+	return fmt.Sprintf("/%s/%s/%d/signals/%s/%s", c.topic, name, sig.Interface, sig.Message, sig.Signal)
 }
 
 func (c *MQTTClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped) (bool, *string) {
