@@ -4,11 +4,59 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"net"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
+
+// mockCanConn implements canModels.CanConnection for testing.
+type mockCanConn struct {
+	interfaceName string
+}
+
+func (m *mockCanConn) GetID() int                  { return 0 }
+func (m *mockCanConn) SetID(_ int)                 {}
+func (m *mockCanConn) GetName() string             { return "" }
+func (m *mockCanConn) GetInterfaceName() string    { return m.interfaceName }
+func (m *mockCanConn) SetName(_ string)            {}
+func (m *mockCanConn) GetDBCFilePath() *string     { return nil }
+func (m *mockCanConn) SetDBCFilePath(_ *string)    {}
+func (m *mockCanConn) GetConnection() net.Conn     { return nil }
+func (m *mockCanConn) SetConnection(_ net.Conn)    {}
+func (m *mockCanConn) GetNetwork() string          { return "" }
+func (m *mockCanConn) SetNetwork(_ string)         {}
+func (m *mockCanConn) GetURI() string              { return "" }
+func (m *mockCanConn) SetURI(_ string)             {}
+func (m *mockCanConn) Open() error                 { return nil }
+func (m *mockCanConn) Close() error                { return nil }
+func (m *mockCanConn) IsOpen() bool                { return false }
+func (m *mockCanConn) Discontinue() error          { return nil }
+func (m *mockCanConn) Receive(_ *sync.WaitGroup)   {}
+
+// mockResolver implements canModels.InterfaceResolver for testing.
+type mockResolver struct {
+	conns map[int]*mockCanConn
+}
+
+func (r *mockResolver) ConnectionByID(id int) canModels.CanConnection {
+	if c, ok := r.conns[id]; ok {
+		return c
+	}
+	return nil
+}
+
+// mockFilterAlwaysTrue returns true (filter/drop) for every message.
+type mockFilterAlwaysTrue struct{}
+
+func (m *mockFilterAlwaysTrue) Add(_ canModels.CanMessageFilter) error    { return nil }
+func (m *mockFilterAlwaysTrue) Filter(_ canModels.CanMessageTimestamped) bool { return true }
+func (m *mockFilterAlwaysTrue) Mode(_ canModels.CanFilterGroupOperator)   {}
 
 func silentLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -162,4 +210,114 @@ func TestHandleChannel_DoesNotBlockWhenWorkersAreBusy(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("HandleChannel blocked: internalChannel is unbuffered and no workers were reading")
 	}
+}
+
+func TestBoolToInt(t *testing.T) {
+	assert.Equal(t, uint8(1), boolToInt(true))
+	assert.Equal(t, uint8(0), boolToInt(false))
+}
+
+func TestAddFilter(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	f := &mockFilterAlwaysTrue{}
+
+	err := c.AddFilter("my-filter", f)
+	require.NoError(t, err)
+
+	err = c.AddFilter("my-filter", f)
+	assert.Error(t, err, "duplicate filter name should return an error")
+	assert.Contains(t, err.Error(), "filter group already exists")
+
+	err = c.AddFilter("another-filter", f)
+	require.NoError(t, err)
+}
+
+func TestGetChannelAndName(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	assert.NotNil(t, c.GetChannel())
+	assert.Equal(t, "output-influxdb3", c.GetName())
+}
+
+func TestShouldFilterMessage_NoFilters(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	msg := testMsg(0x100)
+
+	shouldFilter, name := c.shouldFilterMessage(msg)
+	assert.False(t, shouldFilter)
+	assert.Nil(t, name)
+}
+
+func TestShouldFilterMessage_MatchingFilter(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	_ = c.AddFilter("drop-all", &mockFilterAlwaysTrue{})
+
+	msg := testMsg(0x100)
+	shouldFilter, name := c.shouldFilterMessage(msg)
+	assert.True(t, shouldFilter)
+	require.NotNil(t, name)
+	assert.Equal(t, "drop-all", *name)
+}
+
+func TestConvertMsg(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {interfaceName: "can0-can-vcan0"},
+		},
+	}
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = resolver
+	c.measurementName = "can_message"
+
+	msg := canModels.CanMessageTimestamped{
+		Timestamp: 1_000_000_000, // 1 second in nanoseconds
+		Interface: 0,
+		ID:        0x1AB,
+		Length:    2,
+		Data:      []byte{0xDE, 0xAD},
+		Remote:    false,
+		Transmit:  true,
+	}
+
+	result := c.convertMsg(msg)
+
+	assert.Equal(t, time.Unix(0, 1_000_000_000), result.Timestamp)
+	assert.Equal(t, "1ab", result.ID)
+	assert.Equal(t, uint8(2), result.Length)
+	assert.Equal(t, "222,173", result.Data)
+	assert.Equal(t, uint8(0), result.Remote)
+	assert.Equal(t, uint8(1), result.Transmit)
+	assert.Equal(t, "can0-can-vcan0", result.Interface)
+	assert.Equal(t, "can_message", result.Measurement)
+}
+
+func TestConvertMsg_UnknownInterface(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = &mockResolver{conns: map[int]*mockCanConn{}}
+
+	msg := canModels.CanMessageTimestamped{
+		Interface: 99,
+		ID:        0x001,
+		Length:    1,
+		Data:      []byte{0x00},
+	}
+
+	result := c.convertMsg(msg)
+	assert.Equal(t, "", result.Interface, "unknown interface should produce empty interface name")
+}
+
+func TestConvertMany(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = &mockResolver{conns: map[int]*mockCanConn{}}
+
+	msgs := []canModels.CanMessageTimestamped{
+		testMsg(0x100),
+		testMsg(0x200),
+		testMsg(0x300),
+	}
+
+	results := c.convertMany(msgs)
+	require.Len(t, results, 3)
+	assert.Equal(t, "100", results[0].ID)
+	assert.Equal(t, "200", results[1].ID)
+	assert.Equal(t, "300", results[2].ID)
 }

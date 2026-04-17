@@ -32,26 +32,30 @@ func main() {
 		outputs = append(outputs, csvClient)
 	}
 
-	influxClient, err := influxdb.NewClient(ctx, cfg, log, connections)
-	if err != nil {
-		log.Error("failed to create InfluxDB client", "error", err)
-		os.Exit(1)
+	if cfg.InfluxDB.Host != "" {
+		influxClient, err := influxdb.NewClient(ctx, cfg, log, connections)
+		if err != nil {
+			log.Error("failed to create InfluxDB client", "error", err)
+			os.Exit(1)
+		}
+		outputs = append(outputs, influxClient)
 	}
-	outputs = append(outputs, influxClient)
 
-	var mqttFilters []canModels.FilterInput
-	if cfg.MQTTConfig.Dedupe {
-		mqttFilters = append(mqttFilters, canModels.FilterInput{
-			Name:   "deduper",
-			Filter: dedupe.NewDedupeFilterClient(log, cfg.MQTTConfig.DedupeTimeout, cfg.MQTTConfig.DedupeIDs),
-		})
+	if cfg.MQTTConfig.Host != "" {
+		var mqttFilters []canModels.FilterInput
+		if cfg.MQTTConfig.Dedupe {
+			mqttFilters = append(mqttFilters, canModels.FilterInput{
+				Name:   "deduper",
+				Filter: dedupe.NewDedupeFilterClient(log, cfg.MQTTConfig.DedupeTimeout, cfg.MQTTConfig.DedupeIDs),
+			})
+		}
+		mqttClient, err := mqtt.NewClient(ctx, cfg, log, connections, mqttFilters...)
+		if err != nil {
+			log.Error("failed to create MQTT client", "error", err)
+			os.Exit(1)
+		}
+		outputs = append(outputs, mqttClient)
 	}
-	mqttClient, err := mqtt.NewClient(ctx, cfg, log, connections, mqttFilters...)
-	if err != nil {
-		log.Error("failed to create MQTT client", "error", err)
-		os.Exit(1)
-	}
-	outputs = append(outputs, mqttClient)
 
 	b.AddOutputs(outputs)
 

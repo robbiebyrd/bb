@@ -1,0 +1,714 @@
+VERSION "JEEP-WRANGLER-4XE-IHS_2024.1.0"
+
+NS_ :
+
+BS_:
+
+BU_: VEHICLE
+
+BO_ 35 MSG_023_STEERING: 8 VEHICLE
+ SG_ Steering_wheel_angle : 7|16@0+ (0.5,-2048.0) [-2048.0|30719.5] "deg" VEHICLE
+ SG_ Steering_wheel_force : 23|16@0+ (1,-4096) [-4096|61439] "" VEHICLE
+
+BO_ 37 MSG_025_ENGINE_VARIABLES_x: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 38 MSG_026_ENGINE_Readiness: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 39 MSG_027_UNKNOWN_VEHICLE_PARA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 40 MSG_028__0_1_unknown_2_3_unk: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 43 MSG_02B_ROLL_PITCH_YAW_xxx: 8 VEHICLE
+ SG_ Forward_Back : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ Left_Right : 39|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 47 MSG_02F_UNKNOWN_VARIABLE_BR: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 53 MSG_035_AUTOMATIC_TRANSMISSI: 8 VEHICLE
+ SG_ SIG_B0 : 7|16@0+ (1,0) [0|65535] "" VEHICLE
+ SG_ SIG_B2 : 23|16@0+ (1,0) [0|65535] "" VEHICLE
+ SG_ SIG_B4 : 39|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B5 : 47|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SOME_SORT_OF_CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 55 MSG_037_UNKNOWN_xxxx0000: 8 VEHICLE
+ SG_ Unknown_bitmap : 7|16@0+ (1,0) [0|65535] "" VEHICLE
+ SG_ UNUSED : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ UNUSED_2 : 31|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B4 : 39|16@0+ (1,0) [0|65535] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SOME_SORT_OF_CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 113 MSG_071_UNKNOWN_xxxx0000: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 119 MSG_077_VEHICLE_IGNITION_STA: 2 VEHICLE
+ SG_ RAW : 7|16@0+ (1,0) [0|65535] "" VEHICLE
+
+BO_ 121 MSG_079_BRAKING_SYSTEM_x: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 123 MSG_07B_GAS_PEDAL_THROTTLE: 7 VEHICLE
+ SG_ RAW : 7|56@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 124 MSG_07C__4xe_electric_power_0: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 125 MSG_07D_UNKNOWN_xx_00: 6 VEHICLE
+ SG_ RAW : 7|48@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 127 MSG_07F_ROTATION_OF_INDIVIDU: 8 VEHICLE
+ SG_ SIG_B0 : 7|8@0- (1,0) [-128|127] "" VEHICLE
+ SG_ SIG_B1 : 15|8@0- (1,0) [-128|127] "" VEHICLE
+ SG_ SIG_B2 : 23|8@0- (1,0) [-128|127] "" VEHICLE
+ SG_ Wheel_travel_or : 31|8@0- (1,0) [-128|127] "" VEHICLE
+
+BO_ 129 MSG_081_UNKNOWN_VARIABLES: 8 VEHICLE
+ SG_ Gas_pedal_position : 7|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 131 MSG_083_UNKNOWN_xx0400: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 133 MSG_085_CURRENT_GEAR_UNKNO: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 135 MSG_087_UNKNOWN_NOT_Braki: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 137 MSG_089_UNKNOWN_AIR_FUEL_VAL: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 139 MSG_08B_INDIVIDUAL_TIRE_SPEE: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 141 MSG_08D_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 145 MSG_091_UNKNOWN_0xxxxx: 8 VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 147 MSG_093_Manual_Auto_TRANSM: 8 VEHICLE
+ SG_ SIG_B0 : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ N_A : 15|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B2 : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 149 MSG_095_ENGINE_LOAD_OR: 7 VEHICLE
+ SG_ SIG_B0 : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ N_A : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ N_A_2 : 31|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ N_A_3 : 39|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ N_A_4 : 47|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 155 MSG_09B_UNKNOWN_xx_00: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 157 MSG_09D_UNKNOWN_Throttle_p: 8 VEHICLE
+ SG_ Gas_pedal_position : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SOME_SORT_OF_CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 167 MSG_0A7_UNKNOWN_BRAKING_VARI: 8 VEHICLE
+ SG_ Unused : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ Unused_2 : 15|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B2 : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B3 : 31|4@0+ (1,0) [0|15] "" VEHICLE
+ SG_ N_A : 39|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B5 : 47|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SOME_SORT_OF_CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 171 MSG_0AB_AUTOMATIC_TRANSMISSI: 8 VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 173 MSG_0AD_UNKNOWN_xx_bitma: 5 VEHICLE
+ SG_ SIG_B0 : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SOME_SORT_OF_CHECKSUM : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 177 MSG_0B1_CENTER: 3 VEHICLE
+ SG_ Button_bitmap : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B1 : 15|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ Counter : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 179 MSG_0B3_UNKNOWN_0000xxxx: 8 VEHICLE
+ SG_ COUNTER : 55|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 181 MSG_0B5_ENGINE_RPMs_0000xx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 221 MSG_0DD_DISTANCE_TRAVELLED_P: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 289 MSG_121_UNKNOWN_Air_Fuel: 5 VEHICLE
+ SG_ RAW : 7|40@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 293 MSG_125_UNKNOWN_00xx00_u: 3 VEHICLE
+ SG_ RAW : 7|24@0+ (1,0) [0|16777215] "" VEHICLE
+
+BO_ 295 MSG_127_TEMPERATURES_OTHER: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 296 MSG_128_POWER_STEERING_PUMP: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 297 MSG_129_UNKNOWN_xx000000: 4 VEHICLE
+ SG_ RAW : 7|32@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 299 MSG_12B_UNKNOWN_xx1: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 301 MSG_12D_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 305 MSG_131_UNKNOWN_REMOTE_STA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 307 MSG_133_REMOTE_DOOR_LOCK_STA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 311 MSG_137_UNKNOWN_xx_0000000: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 315 MSG_13B__4xe_Power_Modes_0: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 317 MSG_13D_Engine_Oil_Temp_Pr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 319 MSG_13F_UNKNOWN_Battery: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 321 MSG_141__4xe_Power_battery: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 323 MSG_143_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 333 MSG_14D_UNKNOWN_xx00_00: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 334 MSG_14E_UNKNOWN_xxxxxxxxxx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 343 MSG_157_UNKNOWN_a0000000x0: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 347 MSG_15B_UNKNOWN_0A0B0C0D0F: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 417 MSG_1A1_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 448 MSG_1C0_REMOTE_CONTROL_COMMA: 6 VEHICLE
+ SG_ RAW : 7|48@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 456 MSG_1C8_UNKNOWN_KEYFOB_REL: 8 VEHICLE
+ SG_ Remote_Status : 7|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 462 MSG_1CE_UNKNOWN_xx00_var: 4 VEHICLE
+ SG_ RAW : 7|32@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 464 MSG_1D0_UNKNOWN_xxxxxxxx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 469 MSG_1D5_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 503 MSG_1F7_UNKNOWN_AND_VEHICLE: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 505 MSG_1F9__4xe_battery_Power: 8 VEHICLE
+ SG_ SIG_B0 : 7|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 516 MSG_204_UNKNOWN_The_locatio: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 517 MSG_205_MSG_205: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 524 MSG_20C_MSG_20C: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 526 MSG_20E_MSG_20E: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 557 MSG_22D_UNKNOWN_VEHICLE_STAT: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 560 MSG_230_HVAC_CONTROLS_READ: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 562 MSG_232_TCM: 8 VEHICLE
+ SG_ A : 15|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ Distance_assumed_1_100th_of_a_mile : 39|16@0+ (1,0) [0|65535] "" VEHICLE
+ SG_ Distance_assumed_1_100th_of_a_mile_2 : 55|16@0+ (1,0) [0|65535] "" VEHICLE
+
+BO_ 584 MSG_248_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 599 MSG_257_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 601 MSG_259_FRONT_SEAT_OCCUPANT: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 605 MSG_25D_AUDIO_STATUS_LOCKE: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 607 MSG_25F_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 609 MSG_261_UNKNOWN_ENCODED_TIME: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 611 MSG_263_UNKNOWN_4xe_1_c: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 613 MSG_265_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 621 MSG_26D__4xe_ECH_0_power: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 623 MSG_26F_SWAY_BAR_REQUEST_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 631 MSG_277__4X4_STATUS_AND_AXLE: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 633 MSG_279_UNKNOWN_ENCODED_TIME: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 634 MSG_27A_UNKNOWN_DECREASING_A: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 635 MSG_27B_UNKNOWN_NUMBER_A0x: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 641 MSG_281_UNKNOWN_NUMBERS_xx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 643 MSG_283_UNKNOWN_NUMBERS_00: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 649 MSG_289_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 650 MSG_28A_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 651 MSG_28B_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 656 MSG_290_UNKNOWN_RARE_NUMBER: 4 VEHICLE
+ SG_ RAW : 7|32@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 657 MSG_291_BODY_CONTROL_MODULE: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 662 MSG_296_TIRE_PRESSURE_xx0: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 663 MSG_297_UNKNOWN_F0FF030000: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 673 MSG_2A1_UNKNOWN_BITMAP_Wran: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 676 MSG_2A4_UNKNOWN_00xx00_00: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 679 MSG_2A7_UNKNOWN_BITMAP_00: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 685 MSG_2AD_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 689 MSG_2B1_HVAC_FAN_SPEED_TEM: 5 VEHICLE
+ SG_ Fan_knob_buttons : 7|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B1 : 15|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B2 : 23|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B3 : 31|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B4 : 39|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B5 : 47|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B6 : 55|8@0+ (1,0) [0|255] "" VEHICLE
+ SG_ SIG_B7 : 63|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 706 MSG_2C2_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 709 MSG_2C5_RADIO_CONNECTIVITY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 710 MSG_2C6_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 711 MSG_2C7_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 754 MSG_2F2_possibly_Oil_Temp: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 788 MSG_314_RADIO: 3 VEHICLE
+ SG_ RAW : 7|24@0+ (1,0) [0|16777215] "" VEHICLE
+
+BO_ 792 MSG_318_STEERING: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 793 MSG_319_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 794 MSG_31A_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 795 MSG_31B_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 808 MSG_328_EVIC_MUSIC_INFO_DISP: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 818 MSG_332_UNKNOWN_Other_proje: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 848 MSG_350_RADIO: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 856 MSG_358_RADIO: 8 VEHICLE
+ SG_ HEADING : 15|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 860 MSG_35C_UNKNOWN_CONSTANT_Wr: 6 VEHICLE
+ SG_ RAW : 7|48@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 881 MSG_371_SWAY_BAR_CONNECT_STA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 897 MSG_381_VEHICLE_CONFIG_BITMA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 906 MSG_38A_VEHICLE_CONFIG_BITMA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 910 MSG_38E_UNKNOWN_Counters_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 926 MSG_39E_UNKNOWN_CONSTANT_W: 3 VEHICLE
+ SG_ RAW : 7|24@0+ (1,0) [0|16777215] "" VEHICLE
+
+BO_ 940 MSG_3AC_UNKNOWN_000000xxxx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 943 MSG_3AF_UNKNOWN_000000xxxx: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 947 MSG_3B3_BCM: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 948 MSG_3B4_CUSTOMER_SETTINGS_ME: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 956 MSG_3BC_UTF_8_ADDRESS_INFORM: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 958 MSG_3BE_UNKNOWN_CONSTANT_W: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 959 MSG_3BF_UNKNOWN_CONSTANT_W: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 962 MSG_3C2_CUSTOMER_SETTINGS_ME: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 967 MSG_3C7_UNKNOWN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 969 MSG_3C9_UNKNOWN: 4 VEHICLE
+ SG_ RAW : 7|32@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 973 MSG_3CD_UNKNOWN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 976 MSG_3D0_UNKNOWN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 979 MSG_3D3_UNKNOWN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 983 MSG_3D7_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 992 MSG_3E0_BODY: 8 VEHICLE
+ SG_ SIG_B0 : 7|8@0+ (1,0) [0|255] "" VEHICLE
+
+BO_ 993 MSG_3E1_UNKNOWN_CONSTANT_Wr: 7 VEHICLE
+ SG_ RAW : 7|56@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 995 MSG_3E3_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 996 MSG_3E4_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1000 MSG_3E8_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1001 MSG_3E9_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1002 MSG_3EA_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1003 MSG_3EB_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1008 MSG_3F0_ECU_CONFIG_BITMAP_3: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1009 MSG_3F1_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1010 MSG_3F2_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1011 MSG_3F3_BCM_Location_0133: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1012 MSG_3F4_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1013 MSG_3F5_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1014 MSG_3F6_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1015 MSG_3F7_UNKNOWN_CONSTANT_Wr: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1024 MSG_400_TTCAN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1025 MSG_401_CAN_BUS_CONTROLLER: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1026 MSG_402_TTCAN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1027 MSG_403_CAN_BUS_CONTROLLER: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1031 MSG_407_TTCAN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1033 MSG_409_TTCAN: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1059 MSG_423_UNKNOWN_TTCAN_Ca: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1098 MSG_44A_BODY: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1100 MSG_44C_VEHICLE_CONFIG_BITMA: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1152 MSG_480_Mostly_bitmap_4: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1153 MSG_481_Mostly_bitmap_1: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1154 MSG_482_Power_0_1_Power: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1155 MSG_483_Power_0_1_Power: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1156 MSG_484_Power_1_Power_ce: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1157 MSG_485_Power_1_Power_ce: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1184 MSG_4A0_Battery_Temperatures: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1185 MSG_4A1_Battery_Temperatures: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+BO_ 1186 MSG_4A2_Battery_Temperatures: 8 VEHICLE
+ SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
+
+CM_ BO_ 35 "STEERING WHEEL ANGLE  $xxxx????0000 - steering wheel angle*0.5  Each increment or decrement represents 0.5 degrees. One complete turn of the wheel would be $2D0 (720) units of change.   typical range of values: $14FF – extreme left $1000 – center $0AFF – extreme right $3FFF – offline (uninitialized) As a vehicle develops alignment issues, be aware that center may move away from $1000.  STEERING WHEEL DRIVER TORQUE  $????xxxx0000 – turning force by driver -- OR rate of turn  A measurement of how ";
+CM_ BO_ 37 "ENGINE VARIABLES  $xxxx???????? – mass air flow sensor?  Unsigned word (values $0000-$1540) Typical idle value: $62A low at idle and while braking goes higher when accelerating  $????xxxx???? – manifold air pressure?  Signed word ($06FE-$0EAD) (zero at $07ff, most typical value is $0763)  $????????xxxx – engine torque?  Signed word (zero at $07ff, most typical value near $07ff) Increases with engine torque  Numbers appear to be analog values which clearly respond while driving, but their purpose";
+CM_ BO_ 38 "ENGINE / Readiness $xxxx???????? - Engine output power ? $?????x?????? - Ready to Drive State ? $???????x???? - Engine Status ?";
+CM_ BO_ 39 "UNKNOWN VEHICLE PARAMETERS  $xxxx????0000 – unknown  Number centered around $8B7F  $????xxxx0000 – unknown  Signed word (zero at $07ff) Values seen: $0744 - $0910  Numbers appear to be analog values which clearly respond while driving, but their purpose is unknown. The final two bytes contain a counter and checksum.";
+CM_ BO_ 40 " 0,1 unknown 2,3 unknown 4,5 unknown";
+CM_ BO_ 43 "ROLL/PITCH/YAW  $xxxx???????? – vehicle roll (tilt left/right) $????xxxx???? – vehicle pitch (nose up/down) $????????xxxx – vehicle yaw (rate of turn)  See notes column (to the right) for usage information and experimental values.";
+CM_ BO_ 47 "UNKNOWN VARIABLE (BRAKING?)  $000000000xxx???? – value $000000000???xx?? – unknown $000000000?????xx – unknown   The first variable might be a signed number with $11A representing a zero or neutral value.";
+CM_ BO_ 53 "AUTOMATIC TRANSMISSION  $x??????????? -- transmission status bitmap $?xxx???????? – transmission speed 1 $????x??????? -- transmission status bitmap $?????xxx???? – transmission speed 2 $????????xxxx – transmission status bitmap  Units of measurement are unknown. Subtract 2004 from both speeds values. The last two bytes contain a counter and checksum.";
+CM_ BO_ 55 "UNKNOWN  $xxxx0000???? – unknown, word $????0000xxxx – unknown, word  Both variables may be signed numbers where $1FFF represents zero.   The last two bytes contain a counter and checksum.";
+CM_ BO_ 113 "UNKNOWN  $xxxx0000??00 – value, word $????0000xx00 – bitmap, byte  The first variable has a zero point of $7D4. Last two bytes contain a counter and checksum.";
+CM_ BO_ 119 "VEHICLE IGNITION STATUS  $xxxx – bitmap: ignition status  This ID stores the current state of the vehicle’s ignition system, not to be confused with $122 which stores the command given by the (virtual) ignition switch. Location $22F also contains current vehicle state, stored in a different format which may be more usable.  * this location is highly useful in many different applications *";
+CM_ BO_ 121 "BRAKING SYSTEM  $x???0??????? – Vehicle is stopped? bitmap $?xxx0??????? – Brake System pressure  $????0xxx???? – Brake Pedal pressure $????0???xxxx – Vehicle speed (MPH x 200)  Three values, and the last two bytes contain a counter and checksum.";
+CM_ BO_ 123 "GAS PEDAL / THROTTLE VALVE  $xxx???0??? – gas pedal $???x??0??? – unknown, nibble $????xx0??? – unknown, byte $??????0xxx – throttle valve motor  The first value contains the position of the driver’s gas pedal. The fourth value contains the position of the computer-controlled throttle valve motor.  Before using the first value, subtract $c80. Before using the fourth value, subtract $800.";
+CM_ BO_ 124 "4xe electric power 0 - 8 bit driving power used 1 - driving status 2 - driving status 4,5 - 16 bit power used / charged";
+CM_ BO_ 125 "UNKNOWN  $xx????00???? – bitmap, byte $??xx??00???? – bitmap, byte $????xx00???? – unknown, byte $??????00xxxx – value, word  The last value might have a zero-point at or near $02F8.";
+CM_ BO_ 127 "ROTATION OF INDIVIDUAL TIRES  $xx?????? – front driver tire $??xx???? – front passenger tire $????xx?? – rear driver tire $??????xx – rear passenger tire  Units of rotation are unknown. Each value will wrap-around upon hitting $ff.";
+CM_ BO_ 129 "UNKNOWN VARIABLES  $xxxx??62????00ff – bitmap, word $????xx62????00ff – value, byte $??????62xx??00ff – value, byte $??????62??xx00ff – value, byte  guess: transmission torque?";
+CM_ BO_ 131 "UNKNOWN  $xx0400?????? – unknown, byte $??0400xxxx?? – bitmap, word $??04000000xx – value, byte  Last two bytes are counter and checksum.";
+CM_ BO_ 133 "CURRENT GEAR / UNKNOWN VALUES  [0] - Binary - Wet Clutch Status [1] - Gear 4 bit Command - Current [2] - Binary - Status? [3,4] - Torque ? [5,6] - Input RPM";
+CM_ BO_ 135 "UNKNOWN  - NOT Braking - Gas Engine ONLY  $xxxx00000??? – value, word $????00000x?? – unknown, nibble $????00000?xx – value, byte  The last two bytes are a counter and a checksum.";
+CM_ BO_ 137 "UNKNOWN AIR/FUEL VALUES?  $xxxx???????????? – commanded value $????xxxx???????? – complex bitmap $????????xxxx???? – commanded value $????????????xxxx -- unknown";
+CM_ BO_ 139 "INDIVIDUAL TIRE SPEED (MPH)  $xxxx???????????? – Frnt Drvr tire $????xxxx???????? – Frnt Psgr tire $????????xxxx???? – Rear Drvr tire $????????????xxxx – Rear Psgr tir  UNITS: 0.05 MPH, divide by (decimal) 20 to arrive at actual Miles Per Hour";
+CM_ BO_ 141 "UNKNOWN CONSTANT  Wrangler 1: $C6C0FFFFFFFFFFFF Wrangler 2: $C6C0FFFFFFFFFFFF Wrangler 3: $C6C0FFFFFFFFFFFF";
+CM_ BO_ 145 "UNKNOWN  $0xxxxx?????? - bitmap $0?????xxxxxx – unclear format  Last two bytes are counter and checksum.";
+CM_ BO_ 147 "Manual / Auto TRANSMISSION   $xx????0000?? – bitmap, byte $??xx??0000?? – bitmap, byte $????xx0000?? – Gear Selection (see notes)";
+CM_ BO_ 149 "ENGINE LOAD OR … ?  $xxxx000000 - analog value, word  Last two bytes contain a counter and checksum.";
+CM_ BO_ 155 "UNKNOWN  $xx??????00??00FF – bitmap $??xx????00??00FF – value $????xx??00??00FF – bitmap $??????xx00??00FF – bitmap $????????00xx00FF – bitmap  The third byte is a bitmap which occasionally changes to $04 for a while and then it goes back to it's original value of $00.";
+CM_ BO_ 157 "UNKNOWN - Throttle position?  $xx – analog value, byte";
+CM_ BO_ 167 "UNKNOWN BRAKING VARIABLE  $00000xxx4??? – analog value $00000???4xxx – analog value";
+CM_ BO_ 171 "AUTOMATIC TRANSMISSION GEAR  $????xx?? -- previous gear $???????x -- current/active gear  Assumed to be the internal state of a double-clutched automatic transmission.";
+CM_ BO_ 173 "UNKNOWN  $xx – bitmap ($01,$02, or $04), byte";
+CM_ BO_ 177 "CRUISE CONTROL BUTTONS  $xx=cruise control buttons (0=none pressed)  value & 0x40 = center Cruise button value & 0x10 = right Resume button value & 0x08 = bottom Set- button value & 0x04 = top Set+ button value & 0x01 = left Cancel button  The final two bytes are counter and checksum.";
+CM_ BO_ 179 "UNKNOWN  $0000xxxx???? – analog val, word $0000????xxxx – bitmap, word";
+CM_ BO_ 181 "ENGINE RPMs  $0000xxxx00000000 – engine RPMs, word";
+CM_ BO_ 221 "DISTANCE TRAVELLED PER AXLE  $xxxx????00000000 – front axle distance? $????xxxx00000000 – rear axle distance?  two variables, both words, when increase in near-unison as the vehicle moves. With each mile driven, their values become slightly more and more out-of-sync.";
+CM_ BO_ 289 "UNKNOWN - Air / Fuel / Etc ?  $xx00????00 – bitmap, byte $??00xx??00 – value,byte $??00??xx00 – bitmap?, byte";
+CM_ BO_ 293 "UNKNOWN  $00xx00 – unknown, byte - Temperature?";
+CM_ BO_ 295 "TEMPERATURES / OTHER  $xx????00??????00 – Intake Air Temperature  $??xx??00??????00 –  Engine Coolant Temperature  $????xx00??????00 – Barometric Pressure  $??????00xx????00 –  rapid rise to $Ex where it stays  $??????00??xx??00 – likely bitmap, either $00 or $80 $80 causes next value to rise $00 causes next value to fall  $??????00????xx00 – falls to starting value Rises as high as $a2 (162 decimal)";
+CM_ BO_ 296 "POWER STEERING PUMP  $00xx???????????? – Fluid Temp in C $00??xx?????????? – Pressure? or...                                       Flow Rate? Current? $00????xx???????? -- Unknown Variable 1 $00??????xxxx???? -- Unknown Variable 2 $00??????????xxxx -- Unknown Variable 3";
+CM_ BO_ 297 "UNKNOWN  $xx000000 – unknown bitmap, byte";
+CM_ BO_ 299 "UNKNOWN -  $xx1???????ff?? – unknown $??1xxxxxxxff?? – unknown $??1???????ffxx – unknown, byte  You can use this presence of this message (ID 12B with 8 bytes of data) to confirm that you’re reading data from the CAN-C bus.";
+CM_ BO_ 301 "UNKNOWN CONSTANT  Wrangler 1: $000F000000FF0000 Wrangler 2: $000F000000FF0000 Wrangler 3: (none)";
+CM_ BO_ 305 "UNKNOWN – REMOTE START?  A series of 10 values appearing only at the time of a remote start, lasts .1 seconds";
+CM_ BO_ 307 "REMOTE DOOR LOCK STATUS READ-ONLY (no writes)  ????????xx??????  00=last used to lock some/all doors 20=locking some/all doors NOW 40=last used to unlock driver door 50=unlocking driver door NOW 80=last used to unlock all doors 90=unlocking all doors NOW  It shows if it is actively being used to lock/unlock doors. It also reports how this feature was last used (and not what the current door lock status actually is).";
+CM_ BO_ 311 "UNKNOWN  $xx?0000000?????? – unknown $??x0000000?????? – unknown $???0000000xxx??? – unknown $???0000000???xxx – unknown";
+CM_ BO_ 315 "4xe Power & Modes  0 - Binary status 1 - unknown 2 - unknown 3 - unknown 4 - 8 bit power used with charging 5 - unknown";
+CM_ BO_ 317 "Engine Oil Temp / Pressure / Unknown  $xxxx???????????? – unknown $????xx?????????? – Oil Pressure  (($value * 4) * 0.145038) to PSI $??????xx???????? – Oil Temperature ((($value - 40) * (9 / 5)) + 32) to F $????????xxxx???? – unknown $????????????xxxx – unknown";
+CM_ BO_ 319 "UNKNOWN - Battery / Charging / IBS ?  $xxxx???????????? – unknown $????xxxx???????? – unknown $????????xxxx???? – unknown $????????????xxxx – unknown  Interesting numbers, but I cannot place what they’re for.";
+CM_ BO_ 321 "4xe Power / battery / Modes  [0] - binary status [2] - binary 4xe modes [4] - 8 bit power used with charging and HVAC [5] - something decending, low res [6] - binary status [7] - unknown";
+CM_ BO_ 323 "UNKNOWN CONSTANT  Wrangler 1: $0000000000000000 Wrangler 2: $0000000000000000 Wrangler 3: $0000000000000000";
+CM_ BO_ 333 "UNKNOWN  $xx00??00??????00 – unkwn, byte $??00xx00??????00 – unkwn, byte $??00??00xxxxxx00 – unknown";
+CM_ BO_ 334 "UNKNOWN  $xxxxxxxxxxxxxxxx – complex,data?";
+CM_ BO_ 343 "UNKNOWN  $a0000000x0000000  – nibble";
+CM_ BO_ 347 "UNKNOWN  $0A0B0C0D0Fxxxxxx – runtime?";
+CM_ BO_ 417 "UNKNOWN CONSTANT  Wrangler 1: (none) Wrangler 2: (none) Wrangler 3: $0000800000000000";
+CM_ BO_ 448 "REMOTE CONTROL COMMANDS  $000000800000 – none (idle) $210000900000 – keyfob lock $230000900000 - 1st press fob unlock $240000900000 - 2nd press fob unlock $2E0000900000 – keyfob panic button $410000800000 – unknown $430000800000 – driver keyless entry $5B0000800000 – unknown $6A0000800000 – (any) cancel rem start $690000800000 – keyfob remote start $810000880000 – app lock doors $830000880000 – app unlock doors $830000880000 – app panic button  can-c should be used to send vehicle commands. stat";
+CM_ BO_ 456 "UNKNOWN – KEYFOB RELATED  Personal keyfob id? Keyless Entry / Remote Start";
+CM_ BO_ 462 "UNKNOWN  $xx00 – variable, byte  The last two bytes contain a counter and checksum values.";
+CM_ BO_ 464 "UNKNOWN  $xxxxxxxx – apparent bitmap  First byte toggles every second between $40 and $C2. The remaining bytes are typically stable, with occasional bit flips.";
+CM_ BO_ 469 "UNKNOWN CONSTANT  Wrangler 1: $0000800000000000 Wrangler 2: $0000800000000000 Wrangler 3: (none)";
+CM_ BO_ 503 "UNKNOWN AND VEHICLE SPEED  $ffffxxxx0080???? – variable, word $ffff????xx?????? [4] - 4xe battery? $ffff????0080xxxx – speed, word";
+CM_ BO_ 505 "4xe battery / Power  [0] - power , mid center [1] - power , mid center, combined loads [2] - power, mid center, Starter/Generator [3] - power, HVAC, 0 base [4] - Battery Percent [5] - power , mid center, low res [7] - power , 0 base, gas engine";
+CM_ BO_ 516 "UNKNOWN  The locations appear to team up, sending data once or twice per drive. Activates each time with a cluster of three to five messages which spans (or reuses) this group of IDs.";
+CM_ BO_ 557 "UNKNOWN VEHICLE STATUS  $xx???????? – variable, byte $??xxxxxxxx – bitmap";
+CM_ BO_ 560 "HVAC CONTROLS (READ-ONLY)  $xx??????00000000 – maintains and holds a single digit number, usually (decimal) 8 or 9. Will be 0 when vehicle first turns on.  $??xx????00000000 – Unknown maintains and holds a single digit number, usually (decimal) 3 to 0.  $????xx??00000000 – a value seen smoothly floating up and down in a range between (decimal) 46 and 131  $??????xx00000000 – a number typically centered around (decimal) 50 that makes an occasional jump up or down in a narrow range (usually but no";
+CM_ BO_ 562 "AXLE DISTANCE TRAVELED UNKNOWN TEMPERATURE,  $??xx???????? – unknown, temp? $????xxxx???? -- distance 1 $????????xxxx – distance 2  Similar values found at id $0DD";
+CM_ BO_ 584 "UNKNOWN CONSTANT  Wrangler 1: $0000FFFFFF03FFFF Wrangler 2: $0000FFFFFF03FFFF Wrangler 3: $0000FFFFFF03FFFF";
+CM_ BO_ 599 "UNKNOWN CONSTANT  Wrangler 1: $FF0F003636360000 Wrangler 2: $FF0F003636360000 Wrangler 3: $FF0F003636360000";
+CM_ BO_ 601 "FRONT SEAT OCCUPANT SENSORS?  $xxxx00000000 – bitmap, word  Last two bytes contain counter and checksum values.";
+CM_ BO_ 605 "AUDIO STATUS / LOCKER REQUEST  ??????xx???????? – 03=mute 00=normal  additional functions possible";
+CM_ BO_ 607 "UNKNOWN CONSTANT  Wrangler 1: $000002000100003f Wrangler 2: $0000020000000000 Wrangler 3: $0000000100000246";
+CM_ BO_ 609 "UNKNOWN ENCODED TIME  $xxxxxxxxxxxx00?? – unknown $????????????00xx – unknown  Appears to count time (perhaps also date) in a slightly encoded (but decipherable) format. The value changes every other update (two seconds).";
+CM_ BO_ 611 "UNKNOWN 4xe  [1] - counting up while driving [2] - binary [3] - counting up while driving, extra bit on [2] [4] - possible temperature [6] - binary status [7] - binary status";
+CM_ BO_ 613 "UNKNOWN CONSTANT  Wrangler 1: $00000000003F0600 Wrangler 2: $00000000003F0600 Wrangler 3: $0000000000000600";
+CM_ BO_ 621 "4xe ECH  [0] - power for something % PID loop [2] - binary constant [3] - Power Use, 0 base, Coolant Heater [4] - temperature";
+CM_ BO_ 623 "SWAY BAR REQUEST  Wrangler 3: $0040FFFFFF7F7F7F - sway Gladiator 1: $0040FF16447F7F7F - sway  Second byte: \"40\" is seen as the Sway Bar button is pressed, returned to $00 when released.  Fifth byte: Appears to increase/decrease from $40 to $5A after hitting the traction control button.  Also noticed some changes similar to what is seen in location $261. Message rate varied from one to four times per second.";
+CM_ BO_ 631 "4X4 STATUS AND AXLE DISCONNECT  $xx????000000??00 - 4x4 transfer case status 0x00 - 2x4 HI 0x10 - 4x4 HI 0x20 - Neutral 0x40 - 4x4 LO 0x80 - 4x4 in transition  $??xx??000000??00 - transfer case neutral selected 0x00 - in gear 0x02 - in neutral  $??00xx000000??00 - front axle disconnect status 0x4C - axle disconnected 0x0C - axle connected  $??00??000000xx00 – vehicle init 0xC0 - vehicle init 0x00 - vehicle on  Returns a constant value, with only a slight variation for one or two seconds while th";
+CM_ BO_ 633 "UNKNOWN ENCODED TIME  $xxxxxxxxxx000000 – unknown  The second byte increases every 91 seconds. Also saw an increase on the fifth byte after an unknown interval.";
+CM_ BO_ 634 "UNKNOWN DECREASING AND INCREASING NUMBERS.  $00xx0000??????07 – slowly decs FUEL level? $00??0000xxxxxx07 – increases  The first number is small and decreases slowly. Mileage remaining? The second number is big and may be something like a tripometer.";
+CM_ BO_ 635 "UNKNOWN NUMBER  $A0xx000000000000 – floating num";
+CM_ BO_ 641 "UNKNOWN NUMBERS  $xx??001E0001007C – unknown $??xx001E0001007C – unknown";
+CM_ BO_ 643 "UNKNOWN NUMBERS  $000800xx00??0000 – unknown $000800??00xx0000 – unknown";
+CM_ BO_ 649 "UNKNOWN CONSTANT  Wrangler 1: $3000071ED0218000 Wrangler 1: $3000071ED0158000 Wrangler 2: $3000071EC0150000 Wrangler 3: $3000071ED0218000";
+CM_ BO_ 650 "UNKNOWN CONSTANT  Wrangler 1: $00000000003f0000 Wrangler 2: (none) Wrangler 3: (none)";
+CM_ BO_ 651 "UNKNOWN CONSTANT  Wrangler 1: $00000000001E0000 Wrangler 2: $00000000001E0000 Wrangler 3: $00000000001E0000";
+CM_ BO_ 656 "UNKNOWN RARE NUMBER  $xxxxxxxx – unknown  An unknown number that appears twice during a drive, and may be increasing with each drive.";
+CM_ BO_ 657 "VEHICLE LIGHTS  $?x?????????????? value&0x4=fogs on $?????x?????????? value&0x1=running lghts $??????x????????? value&0x4=left blinker                                    value&0x8=right blinker $???????????x???? value&0x1=cabin lights $????????????xx?? interior dimmer value $???????????????x value&0x2 headlights on $???????????????x value&0x4 brights on  Some updates (brights) are reported as they happen. Others (fog lights) are updated in their regular 1 second interval.  Values for the interio";
+CM_ BO_ 662 "TIRE PRESSURE?  $xx0083????????ff – unknown ive seen 0x20 and 0x40  $??0083xx??????ff - Tire pressure Left Front PSI $??0083??xx????ff - Tire pressure Right Front PSI $??0083????xx??ff - Tire pressure Left Rear PSI $??0083??????xxff - Tire pressure Right Rear PSI  The first value seems like a bitmap. The second value is actually a collection of four individual bytes.  Every now and then, one of them will flip up or down to the next number, and soon after, the other three bytes usually follow the";
+CM_ BO_ 663 "UNKNOWN  $F0FF0300000C24FF – startup $F0FF0300000C00FF – otherwise  Aside from a quick blip when the vehicle wakes up, this acts like a constant.";
+CM_ BO_ 673 "UNKNOWN BITMAP  Wrangler 1: $8008FCF329FE7DFE Wrangler 1: $0008FCF321FE71FE Wrangler 1: $8008FCF029FE7DFE Wrangler 1: $0008FCF311FE21FE Wrangler 2: $8008FCF329FE7DFE Wrangler 3: $8008FCF0A9FE7DFE";
+CM_ BO_ 676 "UNKNOWN  $00xx00??0000 – changing val $00??00xx0000 – bitmap?  Last two bytes are a counter and checksum.";
+CM_ BO_ 679 "UNKNOWN BITMAP?  $00xx??0000000000 – bitmap $00??xx0000000000 – bitmap";
+CM_ BO_ 685 "UNKNOWN CONSTANT  Wrangler 1: $003C03000000FFFF Wrangler 2: $000000000000FFFF Wrangler 3: $C00103000000FFFF";
+CM_ BO_ 689 "HVAC FAN SPEED / TEMP BLEND DOORS (READ-ONLY)  $xx8F????7F – 01-07 HVAC fan speed $??8F????7F – constant \"8F\" $??8Fxx??7F – driver HVAC temp blend door $??8F??xx7F – passgr HVAC temp blend door $??8F????7F – constant \"7F\"  Values are actual position, not desired position. They change as driver and passenger heat levels increased/decreased. Signed byte. $80=COOL, $E4=HOT. NOTE: the listed \"constants\" may temporarily change while vehicle initializes.";
+CM_ BO_ 706 "UNKNOWN CONSTANT  Wrangler 1: $49943F03E3DA0C00 Wrangler 2: $41943F03E3DA0000 Wrangler 3: $41943F03E3DA0C00";
+CM_ BO_ 709 "RADIO & CONNECTIVITY BITMAP Also see: Read by ID $0148 on the BCM  Wrangler 1: $01EEEE1C05000000 Wrangler 2: $01EEEE0C05000000 Wrangler 3: $01EEEE1805000000 ";
+CM_ BO_ 710 "UNKNOWN CONSTANT  Wrangler 1: $4123062300000000 Wrangler 2: $4113010300000000 Wrangler 3: $4123051200000002";
+CM_ BO_ 711 "UNKNOWN CONSTANT  Wrangler 1: $8108000000000000 Wrangler 2: (none) Wrangler 3: (none)";
+CM_ BO_ 754 "possibly Oil Temp / Fuel Economy -or- unknown  $0000000000xx???? -- Unknown $0000000000??xxxx -- Fuel Economy ($value / 10)";
+CM_ BO_ 788 "WRITE-ONLY RADIO SETTINGS  This CAN ID is used to permanently store the user configuration settings that are only available through uConnect radio.  Configuration data is written using a method that is different from other CAN IDs. For a list of settings, please scroll right and read the comments field.  Currently, there is no known method of reading the current value of these same settings.  Use caution writing to these variables, as it may be difficult to undo any changes without knowing what ";
+CM_ BO_ 792 "STEERING WHEEL CONTROLS  $x????? -- right steering wheel stalk 1=momentary front wiper active 2=momentary front windshield mist sprayer  $?x???? -- left steering wheel stalk 1=left turn signal active 2=right turn signal active 4=high beams toggled on 8=momentary high beams on  $???x?? -- rear windshield wiper 1=slow rear windshield wiper 2=momentary rear windshield mist sprayer 3=fast rear windshield wiper  $?????x -- front windshield wiper 1,2,3,4,D,E=windshield wiper speed settings  STEERING W";
+CM_ BO_ 793 "UNKNOWN CONSTANT  Wrangler 1: $0000000000000000 Wrangler 2: (none) Wrangler 3: (none)";
+CM_ BO_ 794 "UNKNOWN CONSTANT  Wrangler 1: $0000000000000000 Wrangler 2: (none) Wrangler 3: (none)";
+CM_ BO_ 795 "UNKNOWN CONSTANT  Wrangler 1: $0000000000000000 Wrangler 2: (none) Wrangler 3: (none)";
+CM_ BO_ 808 "EVIC MUSIC INFO DISPLAY  Controls the artist, album, and title which is displayed on the EVIC's screen for music info";
+CM_ BO_ 818 "UNKNOWN  Other project: brake info?";
+CM_ BO_ 848 "DEPENDABLE TIME, DATE AND BUS ID  xx?????????????? -- seconds ??xx???????????? -- minutes ????xx?????????? -- hours ??????xxxx?????? -- year ??????????xx???? -- month ????????????xx?? -- day ??????????????39 -- can-c bus identifier  the last byte is different from this same message on the other bus.";
+CM_ BO_ 856 "COMPASS HEADING “A”  $?x -- compass heading  0=n 1=ne 2=e 3=se 4=s 5=se 6=w 7=nw f=offline   note: compass was slow on a 2020 5” uConnect radio, fast on a 2021 8.4” uConnect radio, and not present on a 2018 7\" uConnect radio.";
+CM_ BO_ 860 "UNKNOWN CONSTANT  Wrangler 1: $000010400000 Wrangler 2: $000000000000 Wrangler 3: $000000000000";
+CM_ BO_ 881 "SWAY BAR CONNECT STATUS  $xx00000000000000 -- plunger sensor  $0200000000000000 -- Unlock in progress $0100000000000000 -- Unlocked $0200000000000000 -- Lock in progress $0000000000000000 -- Locked";
+CM_ BO_ 897 "VEHICLE CONFIG BITMAP #7 Also see: Read by ID $0145 on the BCM   Wrangler 1: $898D000808040000 Wrangler 2: $898D000008040000 Wrangler 3: $0102001800040000";
+CM_ BO_ 906 "VEHICLE CONFIG BITMAP #8 Also see: Read by ID $0128 on the BCM   Wrangler 1: $0500400000104001 Wrangler 2: $0100000000004001 Wrangler 3: $0100000000000000";
+CM_ BO_ 910 "UNKNOWN Counters  Wrangler 1: $000000273E25C7C9 Wrangler 2: $00000028332EC7C2 Wrangler 3: $000000143F9FC1C4";
+CM_ BO_ 926 "UNKNOWN CONSTANT:  Wrangler 1: $010000 Wrangler 2: $010000 Wrangler 3: $010000";
+CM_ BO_ 940 "UNKNOWN  $000000xxxx00???? – unknown temperature? $000000????00xxxx – unknown temperature?";
+CM_ BO_ 943 "UNKNOWN  $000000xxxx00???? – unknown temperature? $000000????00xxxx – unknown temperature?";
+CM_ BO_ 947 "CUSTOMER SETTINGS MENU  BITMAP #1 Also see: Read by ID $0146 on the BCM   Wrangler 1: $01307641E4A3C710 Wrangler 2: $01307201FCA10710 Wrangler 3: $01107501E4A30710  Nearly identical vehicle configuration values are found by using UDS on the BCM to read identifier $0146";
+CM_ BO_ 948 "CUSTOMER SETTINGS MENU  BITMAP #2 Also see: Read by ID $0147 on the BCM   Wrangler 1: $3580000000000400 Wrangler 2: $3580000000000400 Wrangler 3: $3580000000000400";
+CM_ BO_ 956 "UTF-8 ADDRESS INFORMATION FOR TURN-BY-TURN NAVIGATION  Address information which is sent similar to a format found at location $328. It is used by the 8.4\" uConnect radio for turn-by-turn navigation on the vehicle's dash display.";
+CM_ BO_ 958 "UNKNOWN CONSTANT:  Wrangler 1: $0000000000000000 Wrangler 2: $0000000000000000 Wrangler 3: (none)";
+CM_ BO_ 959 "UNKNOWN CONSTANT:  Wrangler 1: $0000000000000000 Wrangler 2: $0000000000000000 Wrangler 3: (none)";
+CM_ BO_ 962 "CUSTOMER SETTINGS MENU  BITMAP #3 Also see: Read by ID $0208 on the BCM?  Wrangler 1: $0100000000000000 Wrangler 2: $0100000000000000 Wrangler 3: $0100000000000000";
+CM_ BO_ 967 "UNKNOWN";
+CM_ BO_ 969 "UNKNOWN";
+CM_ BO_ 973 "UNKNOWN";
+CM_ BO_ 976 "UNKNOWN";
+CM_ BO_ 979 "UNKNOWN";
+CM_ BO_ 983 "UNKNOWN CONSTANT  Wrangler 1: $0100000000000000 Wrangler 2: $0100000000000000 Wrangler 3: $0100000000000000";
+CM_ BO_ 992 "VEHICLE VIN  When the ignition is in “run” mode, it regularly broadcasts the vehicle’s vin as a three-part message";
+CM_ BO_ 993 "UNKNOWN CONSTANT  Wrangler 1: $1434001C00FFFF Wrangler 2: $1434001C00FFFF Wrangler 3: $2416000C00FFFF";
+CM_ BO_ 995 "CAN-IHS ECU BITMAP Also see: Read by ID $F010 on the BCM   Wrangler 1: $3104120900000000 Wrangler 2: $3104100800000000 Wrangler 3: $3104100900000000  List of all modules (format unknown) that are installed and enabled on the CAN-IHS bus.";
+CM_ BO_ 996 "CAN-C ECU BITMAP Also see: Read by ID $F011 on the BCM   Wrangler 1: $81DF88460E000000 Wrangler 2: $81DF884606000004 Wrangler 3: $81D788440E000000  List of all modules (format unknown) that are installed and enabled on the CAN-C bus.";
+CM_ BO_ 1000 "VEHICLE CONFIG BITMAP #1 Also see: Read by ID $0122 on the BCM?  Wrangler 1: $5531A253B40E51B8 Wrangler 1: $5531A25B4C0E51B8 Wrangler 2: $5131A243500E505C Wrangler 3: $493122530000511C  Capability bits? Usually static, difference seen between vehicles in first, fourth through eighth bytes.";
+CM_ BO_ 1001 "VEHICLE CONFIG BITMAP #2 Also see: Read by ID $0123 on the BCM?  Wrangler 1: $0158660025250000 Wrangler 2: $0158640024240000 Wrangler 3: $0158660023230000  Capability bits from BCM identifier $0123 are regularly broadcast with this  ID for other modules to pick up and use.";
+CM_ BO_ 1002 "VEHICLE CONFIG BITMAP #3 Also see: Read by ID $0124 on the BCM?  Wrangler 1: $41572C09B53443E4 Wrangler 2: $41471E088A3041A4 Wrangler 3: $41572D08B5344184  Capability bits? Usually static, difference seen between vehicles in second, third, fifth through eighth bytes.  Bit flip seen in fourth byte on my own vehicle.";
+CM_ BO_ 1003 "VEHICLE CONFIG BITMAP #4 Also see: Read by ID $0125 on the BCM?  Wrangler 1: $43E810040FA009C4 Wrangler 2: $43E80D7A0AA0098D Wrangler 3: $43E810040FA00A40  Capability bits? Usually static, difference seen between vehicles in third, fourth, fifth, and eighth bytes.";
+CM_ BO_ 1008 "ECU CONFIG BITMAP #3 Also see: Read by ID $0132 on the BCM?  Wrangler 1: $7DCD05614FE8789F Wrangler 2: $3DCD040147E8009F Wrangler 3: $7DC50C714BC8789B";
+CM_ BO_ 1009 "UNKNOWN CONSTANT  Wrangler 1: $CDA96F0DFC076FC0 Wrangler 2: $0DB90F000C046FC0 Wrangler 3: $C9B967CDFF076FC0";
+CM_ BO_ 1010 "ECU CONFIG BITMAP #3 Also see: Read by ID $0132 on the BCM?  Wrangler 1: $5D02B62909201004 Wrangler 2: $4502B00109201004 Wrangler 3: $5D02B60109201006";
+CM_ BO_ 1011 "BCM Location $0133 - ECU Configuration 4 Also see: Read by ID $0133 on the BCM?  Wrangler 1: $8100200000000000 Wrangler 2: $8100200000020000 Wrangler 3: $0100000000020000  Capability bits from BCM identifier $0133 are regularly broadcast with this  ID for other modules to pick up and use.";
+CM_ BO_ 1012 "UNKNOWN CONSTANT  Wrangler 1: $1100F02002000084  Wrangler 2: $110FFF2002000084 Wrangler 3: $010FFF2002000084";
+CM_ BO_ 1013 "UNKNOWN CONSTANT  Wrangler 1: $010000080C001010 Wrangler 2: $010000000C001010 Wrangler 3: $010000000C001010";
+CM_ BO_ 1014 "UNKNOWN CONSTANT  Wrangler 1: $01A982CC88888844 Wrangler 2: $09A982CC88888844 Wrangler 3: $15A9823388888844";
+CM_ BO_ 1015 "UNKNOWN CONSTANT  Wrangler 1: $FD2E833CA1885800 Wrangler 2: $DD2E053CA188485A Wrangler 3: $DD2E933CA1884800";
+CM_ BO_ 1024 "TTCAN BUS CONTROLLER?";
+CM_ BO_ 1025 "CAN BUS CONTROLLER  Alternating messages will have a last byte of 00 or 01.";
+CM_ BO_ 1026 "TTCAN BUS CONTROLLER";
+CM_ BO_ 1027 "CAN BUS CONTROLLER";
+CM_ BO_ 1031 "TTCAN BUS CONTROLLER";
+CM_ BO_ 1033 "TTCAN BUS CONTROLLER";
+CM_ BO_ 1059 "UNKNOWN (TTCAN?)  Can bus status / control? Appears to command modules to wake or sleep.";
+CM_ BO_ 1098 "VEHICLE CONFIG BITMAP #5 Also see: Read by ID $0126 on the BCM?  Wrangler 1: $0100000000000030 Wrangler 2: $0100000000000020 Wrangler 3: $0100000000000020";
+CM_ BO_ 1100 "VEHICLE CONFIG BITMAP #6 Also see: Read by ID $0127 on the BCM?  Wrangler 1: $7D0000000000FFFF Wrangler 2: $790000000000FFFF Wrangler 3: $7D0000000000FFFF";
+CM_ BO_ 1152 "Mostly bitmap [4] - binary status";
+CM_ BO_ 1153 "Mostly bitmap [1] - binary status [2] - binary status [2,3] - power or voltage using extra bit from [2] [4] - binary status";
+CM_ BO_ 1154 "Power [0,1] - Power centered [2,3] - Power lower centered [4] - Temperature?";
+CM_ BO_ 1155 "Power [0,1] - Power centered [2,3] - Power lower centered [4] - Power low res";
+CM_ BO_ 1156 "Power [1] - Power centered, including ECH [3] - Power centered, including EVSE charging";
+CM_ BO_ 1157 "Power [1] - Power centered, including ECH";
+CM_ BO_ 1184 "Battery Temperatures [0] - [5] Temperatures";
+CM_ BO_ 1185 "Battery Temperatures [0] - [5] Temperatures";
+CM_ BO_ 1186 "Battery Temperatures / status [0] Temperature [1] Temperature [2] Binary Status [4] Temperature [5] Temperature [6] Temperature [7] Temperature";
