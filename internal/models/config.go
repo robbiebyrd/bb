@@ -34,12 +34,19 @@ type CRTDLogConfig struct {
 	OutputFile string `env:"OUTPUT_FILE" envDefault:""`
 }
 
+// SignalConfig configures DBC-based signal decoding. When DBCFile is empty
+// no SignalDispatcher is created and signal output clients are not wired.
+type SignalConfig struct {
+	DBCFile string `env:"DBC_FILE" envDefault:""`
+}
+
 type Config struct {
 	CanInterfaces []CanInterfaceOption `envPrefix:"INTERFACE"`
 	InfluxDB      InfluxDBConfig       `envPrefix:"INFLUX_"`
 	CSVLog        CSVLogConfig         `envPrefix:"CSV_"`
 	CRTDLogger    CRTDLogConfig        `envPrefix:"CRTD_"`
 	MQTTConfig    MQTTConfig           `envPrefix:"MQTT_"`
+	Signal        SignalConfig         `envPrefix:"SIGNAL_"`
 
 	MessageBufferSize     int    `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
 	SimEmitRate           int    `env:"SIM_RATE"                envDefault:"10"`
