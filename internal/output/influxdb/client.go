@@ -20,14 +20,11 @@ type InfluxDBClient struct {
 	measurementName string
 	messageBlock    []canModels.CanMessageTimestamped
 	wg              sync.WaitGroup
-	mu              sync.Mutex
 	maxBlocks       int
 	maxConnections  int
 	internalChannel chan []canModels.CanMessageTimestamped
 	flushTime       int // ms
 	l               *slog.Logger
-	workerLastRan   time.Time
-	count           int
 	incomingChannel chan canModels.CanMessageTimestamped
 	filters         map[string]canModels.FilterInterface
 	resolver        canModels.InterfaceResolver
@@ -46,40 +43,23 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 
 	logger.Debug("started influxdb3 client")
 
-	now := time.Now()
 	return &InfluxDBClient{
 		client:          client,
 		ctx:             ctx,
 		l:               logger,
-		workerLastRan:   now,
 		measurementName: cfg.InfluxDB.TableName,
 		maxBlocks:       cfg.InfluxDB.MaxWriteLines,
 		maxConnections:  cfg.InfluxDB.MaxConnections,
 		flushTime:       cfg.InfluxDB.FlushTime,
 		internalChannel: make(chan []canModels.CanMessageTimestamped, cfg.InfluxDB.MaxConnections),
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
+		messageBlock:    make([]canModels.CanMessageTimestamped, 0, cfg.InfluxDB.MaxWriteLines),
 		wg:              sync.WaitGroup{},
 		filters:         make(map[string]canModels.FilterInterface),
 		resolver:        resolver,
 	}, nil
 }
 
-func (c *InfluxDBClient) Handle(canMsg canModels.CanMessageTimestamped) {
-	if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
-		c.l.Debug("message filtered, dropping message", "message", canMsg, "filterName", *filterName)
-		return
-	}
-
-	c.messageBlock = append(c.messageBlock, canMsg)
-	c.l.Debug("message block count", "count", len(c.messageBlock))
-	c.mu.Lock()
-	lastRan := c.workerLastRan
-	c.mu.Unlock()
-	if len(c.messageBlock) >= c.maxBlocks || time.Since(lastRan) >= time.Duration(c.flushTime)*time.Millisecond {
-		c.internalChannel <- c.messageBlock
-		c.messageBlock = []canModels.CanMessageTimestamped{}
-	}
-}
 
 func (c *InfluxDBClient) AddFilter(name string, filter canModels.FilterInterface) error {
 	if _, ok := c.filters[name]; ok {
@@ -96,10 +76,38 @@ func (c *InfluxDBClient) GetChannel() chan canModels.CanMessageTimestamped {
 
 func (c *InfluxDBClient) HandleChannel() error {
 	c.l.Debug("starting channel handler")
-	for canMsg := range c.incomingChannel {
-		c.Handle(canMsg)
+
+	ticker := time.NewTicker(time.Duration(c.flushTime) * time.Millisecond)
+	defer ticker.Stop()
+
+	flush := func() {
+		if len(c.messageBlock) == 0 {
+			return
+		}
+		c.internalChannel <- c.messageBlock
+		c.messageBlock = make([]canModels.CanMessageTimestamped, 0, c.maxBlocks)
 	}
-	return nil
+
+	for {
+		select {
+		case canMsg, ok := <-c.incomingChannel:
+			if !ok {
+				flush()
+				return nil
+			}
+			if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
+				c.l.Debug("message filtered, dropping message", "message", canMsg, "filterName", *filterName)
+				continue
+			}
+			c.messageBlock = append(c.messageBlock, canMsg)
+			c.l.Debug("message block count", "count", len(c.messageBlock))
+			if len(c.messageBlock) >= c.maxBlocks {
+				flush()
+			}
+		case <-ticker.C:
+			flush()
+		}
+	}
 }
 
 func (c *InfluxDBClient) GetName() string {
@@ -112,12 +120,6 @@ func (c *InfluxDBClient) worker(i int) {
 		c.l.Debug("influxdb3 chunk worker handling chunk", "worker", i)
 		if err := c.write(c.convertMany(msgChunk)); err != nil {
 			c.l.Error("influxdb3 write failed", "error", err)
-		} else {
-			now := time.Now()
-			c.mu.Lock()
-			c.workerLastRan = now
-			c.count += len(msgChunk)
-			c.mu.Unlock()
 		}
 		c.l.Debug("influxdb3 chunk worker finished handling chunk", "worker", i)
 	}
