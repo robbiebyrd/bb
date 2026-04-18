@@ -66,17 +66,6 @@ func (dc *DedupeFilterClient) Filter(canMsg canModels.CanMessageTimestamped) boo
 	return true
 }
 
-func stripTimestampFromMessage(canMsg canModels.CanMessageTimestamped) *canModels.CanMessageData {
-	return &canModels.CanMessageData{
-		Interface: canMsg.Interface,
-		ID:        canMsg.ID,
-		Transmit:  canMsg.Transmit,
-		Remote:    canMsg.Remote,
-		Length:    canMsg.Length,
-		Data:      canMsg.Data,
-	}
-}
-
 func hashCanMessageData(canMsg canModels.CanMessageTimestamped) (uint64, error) {
 	h := fnv.New64a()
 	var buf [4]byte
