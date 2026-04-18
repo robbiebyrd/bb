@@ -147,10 +147,13 @@ func TestApp_GettersReturnExpectedValues(t *testing.T) {
 	lvl := new(slog.LevelVar)
 	cfg := &canModels.Config{MessageBufferSize: 16}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	a := app.NewApp(cfg, logger, lvl)
+	iface := app.NewApp(cfg, logger, lvl)
 
-	require.NotNil(t, a.GetConnections())
-	require.NotNil(t, a.GetContext())
+	require.NotNil(t, iface.GetConnections())
+	require.NotNil(t, iface.GetContext())
+
+	a, ok := iface.(*app.AppData)
+	require.True(t, ok, "NewApp must return *app.AppData")
 	assert.Equal(t, cfg, a.GetConfig())
 	assert.Equal(t, logger, a.GetLogger())
 	assert.Equal(t, lvl, a.GetLogLevel())
@@ -161,8 +164,10 @@ func TestApp_SetLogLevel(t *testing.T) {
 	lvl.Set(slog.LevelInfo)
 	cfg := &canModels.Config{MessageBufferSize: 16}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	a := app.NewApp(cfg, logger, lvl)
+	iface := app.NewApp(cfg, logger, lvl)
 
+	a, ok := iface.(*app.AppData)
+	require.True(t, ok, "NewApp must return *app.AppData")
 	a.SetLogLevel(slog.LevelDebug)
 	assert.Equal(t, slog.LevelDebug, a.GetLogLevel().Level())
 }

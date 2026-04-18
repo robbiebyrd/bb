@@ -1,9 +1,6 @@
 package models
 
-import (
-	"net"
-	"sync"
-)
+import "sync"
 
 type CanMessageTimestamped struct {
 	Timestamp int64
@@ -45,22 +42,10 @@ type CanInterfaceOption struct {
 }
 
 type CanConnection interface {
-	GetID() int
 	SetID(id int)
-	GetDBCFilePath() *string
-	SetDBCFilePath(filePath *string)
 	GetName() string
 	GetInterfaceName() string
-	SetName(name string)
-	GetConnection() net.Conn
-	SetConnection(conn net.Conn)
-	GetNetwork() string
-	SetNetwork(name string)
-	GetURI() string
-	SetURI(name string)
 	Open() error
 	Close() error
-	IsOpen() bool
-	Discontinue() error
 	Receive(wg *sync.WaitGroup)
 }
