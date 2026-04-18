@@ -16,13 +16,13 @@ import (
 type SimulationCanClient struct {
 	ctx         context.Context
 	id          int
-	Name        string
-	Network     string
-	URI         string
-	Channel     chan canModels.CanMessageTimestamped
-	Connection  net.Conn
-	Opened      bool
-	Streaming   bool
+	name        string
+	network     string
+	uri         string
+	channel     chan canModels.CanMessageTimestamped
+	connection  net.Conn
+	opened      bool
+	streaming   bool
 	l           *slog.Logger
 	rate        int // nanoseconds
 	count       int
@@ -62,13 +62,13 @@ func NewSimulationCanClient(
 
 	return &SimulationCanClient{
 		ctx:     ctx,
-		Name:    name,
-		Channel: channel,
-		Network: *network,
-		URI:     *uri,
+		name:    name,
+		channel: channel,
+		network: *network,
+		uri:     *uri,
 		l:       logger,
-		rate: *rate,
-		cfg:  cfg,
+		rate:    *rate,
+		cfg:     cfg,
 	}
 }
 
@@ -81,11 +81,11 @@ func (scc *SimulationCanClient) SetID(id int) {
 }
 
 func (scc *SimulationCanClient) GetURI() string {
-	return scc.URI
+	return scc.uri
 }
 
 func (scc *SimulationCanClient) SetURI(uri string) {
-	scc.URI = uri
+	scc.uri = uri
 }
 
 func (scc *SimulationCanClient) GetDBCFilePath() *string {
@@ -95,7 +95,7 @@ func (scc *SimulationCanClient) GetDBCFilePath() *string {
 func (scc *SimulationCanClient) SetDBCFilePath(uri *string) {}
 
 func (scc *SimulationCanClient) GetNetwork() string {
-	return scc.Network
+	return scc.network
 }
 
 func (scc *SimulationCanClient) GetInterfaceName() string {
@@ -103,46 +103,46 @@ func (scc *SimulationCanClient) GetInterfaceName() string {
 }
 
 func (scc *SimulationCanClient) SetNetwork(network string) {
-	scc.Network = network
+	scc.network = network
 }
 
 func (scc *SimulationCanClient) GetName() string {
-	return scc.Name
+	return scc.name
 }
 
 func (scc *SimulationCanClient) SetName(name string) {
-	scc.Name = name
+	scc.name = name
 }
 
 func (scc *SimulationCanClient) GetConnection() net.Conn {
-	return scc.Connection
+	return scc.connection
 }
 
 func (scc *SimulationCanClient) SetConnection(conn net.Conn) {
-	scc.Connection = conn
+	scc.connection = conn
 }
 
 func (scc *SimulationCanClient) Open() error {
-	scc.Opened = true
+	scc.opened = true
 	return nil
 }
 
 func (scc *SimulationCanClient) Close() error {
-	scc.Opened = false
+	scc.opened = false
 	return nil
 }
 
 func (scc *SimulationCanClient) IsOpen() bool {
-	return scc.Opened
+	return scc.opened
 }
 
 func (scc *SimulationCanClient) Discontinue() error {
-	scc.Streaming = false
+	scc.streaming = false
 	return nil
 }
 
 func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
-	scc.Streaming = true
+	scc.streaming = true
 
 	wg.Go(func() {
 		for {
@@ -162,7 +162,8 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 			}
 			randomLength := lengthOfDataPacket[mathRand.Intn(len(lengthOfDataPacket))]
 
-			scc.Channel <- canModels.CanMessageTimestamped{
+			select {
+			case scc.channel <- canModels.CanMessageTimestamped{
 				Timestamp: time.Now().UnixNano(),
 				Interface: scc.GetID(),
 				Transmit:  false,
@@ -170,12 +171,19 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 				Remote:    false,
 				Length:    randomLength,
 				Data:      commonUtils.PadOrTrim(randomBytes[:randomLength], int(CAN_MESSAGE_MAX_DATA_LENGTH)),
+			}:
+			case <-scc.ctx.Done():
+				return
 			}
 
 			scc.count++
 			scc.l.Debug("emitted simulated can message", "count", scc.count)
 
-			time.Sleep(time.Duration(scc.rate) * time.Nanosecond)
+			select {
+			case <-time.After(time.Duration(scc.rate) * time.Nanosecond):
+			case <-scc.ctx.Done():
+				return
+			}
 		}
 	})
 }

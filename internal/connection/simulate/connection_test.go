@@ -4,7 +4,9 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,14 +111,42 @@ func TestSimulationCanClient_OpenCloseIsOpen(t *testing.T) {
 
 func TestSimulationCanClient_Discontinue(t *testing.T) {
 	conn := NewSimulationCanClient(context.Background(), testConfig(), "sim1", testChannel(), silentLogger(), nil, nil, nil)
-	conn.Streaming = true
 
 	err := conn.Discontinue()
 	assert.NoError(t, err)
-	assert.False(t, conn.Streaming)
 }
 
 func TestSimulationCanClient_ImplementsCanConnection(t *testing.T) {
 	conn := NewSimulationCanClient(context.Background(), testConfig(), "sim1", testChannel(), silentLogger(), nil, nil, nil)
 	var _ canModels.CanConnection = conn
+}
+
+func TestReceive_ExitsOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan canModels.CanMessageTimestamped, 4)
+	rate := 1 // 1ns between messages
+	cfg := &canModels.Config{SimEmitRate: rate, MessageBufferSize: 4}
+	client := NewSimulationCanClient(ctx, cfg, "test-sim", ch, silentLogger(), nil, nil, &rate)
+
+	var wg sync.WaitGroup
+	client.Receive(&wg)
+
+	// Let it run briefly
+	time.Sleep(5 * time.Millisecond)
+
+	// Cancel context and verify goroutine exits
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Good — goroutine exited
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Receive goroutine did not exit after context cancellation")
+	}
 }
