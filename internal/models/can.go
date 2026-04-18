@@ -22,15 +22,6 @@ type CanSignalTimestamped struct {
 	Unit      string
 }
 
-type CanMessageData struct {
-	Interface int
-	ID        uint32
-	Transmit  bool
-	Remote    bool
-	Length    uint8
-	Data      []byte
-}
-
 type CanInterfaceOptions []CanInterfaceOption
 
 type CanInterfaceOption struct {

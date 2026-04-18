@@ -56,17 +56,6 @@ func TestCanInterfaceFilter(t *testing.T) {
 		Data:      []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
 	}
 
-	unstamped := stripTimestampFromMessage(stamped)
-	unstampedCheck := &canModels.CanMessageData{
-		Interface: 0,
-		ID:        42,
-		Transmit:  false,
-		Remote:    false,
-		Length:    8,
-		Data:      []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-	}
-	assert.Equal(t, unstamped, unstampedCheck, "Unstamped message should match expected value.")
-
 	hash1, err := hashCanMessageData(stamped)
 	assert.Nil(t, err, "Hashing should not return an error.")
 
