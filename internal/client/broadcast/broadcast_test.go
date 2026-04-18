@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/robbiebyrd/bb/internal/client/filter"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -120,6 +121,119 @@ func TestBroadcast_FansOutToAllListeners(t *testing.T) {
 		case <-timeout:
 			t.Fatal("timed out waiting for message on listener channel")
 		}
+	}
+}
+
+// Broadcast — AND filter blocks a message that does not match all conditions.
+func TestBroadcast_AndFilterBlocksNonMatchingMessage(t *testing.T) {
+	bc, incoming := newTestClient()
+
+	ch := make(chan canModels.CanMessageTimestamped, 4)
+	// Filter requires interface == 0 AND interface == 1 — impossible, so all messages are blocked.
+	filterGroup := &canModels.CanMessageFilterGroup{
+		Operator: canModels.FilterAnd,
+		Filters: []canModels.CanMessageFilter{
+			filter.CanInterfaceFilter{Value: 0},
+			filter.CanInterfaceFilter{Value: 1},
+		},
+	}
+	_ = bc.Add(BroadcastClientListener{Name: "filtered", Channel: ch, Filter: filterGroup})
+
+	go bc.Broadcast() //nolint:errcheck
+
+	// Message with Interface=0 satisfies only the first filter, not both.
+	msg := canModels.CanMessageTimestamped{ID: 0x100, Interface: 0, Data: []byte{0x01}}
+	incoming <- msg
+
+	select {
+	case <-ch:
+		t.Fatal("AND filter: message should have been blocked but was delivered")
+	case <-time.After(100 * time.Millisecond):
+		// expected — message was correctly blocked
+	}
+}
+
+// Broadcast — OR filter passes a message that matches at least one condition.
+func TestBroadcast_OrFilterAllowsPartiallyMatchingMessage(t *testing.T) {
+	bc, incoming := newTestClient()
+
+	ch := make(chan canModels.CanMessageTimestamped, 4)
+	// Filter passes if interface == 0 OR interface == 1.
+	filterGroup := &canModels.CanMessageFilterGroup{
+		Operator: canModels.FilterOr,
+		Filters: []canModels.CanMessageFilter{
+			filter.CanInterfaceFilter{Value: 0},
+			filter.CanInterfaceFilter{Value: 1},
+		},
+	}
+	_ = bc.Add(BroadcastClientListener{Name: "filtered", Channel: ch, Filter: filterGroup})
+
+	go bc.Broadcast() //nolint:errcheck
+
+	// Message with Interface=1 satisfies the second filter, so it should pass.
+	msg := canModels.CanMessageTimestamped{ID: 0x200, Interface: 1, Data: []byte{0x01}}
+	incoming <- msg
+
+	select {
+	case got := <-ch:
+		if got.ID != 0x200 {
+			t.Errorf("OR filter: expected ID 0x200, got 0x%X", got.ID)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("OR filter: timed out waiting for message that should have passed")
+	}
+}
+
+// testFilterGroup — AND requires all filters true; OR requires at least one true.
+func TestFilterGroup_AndVsOrOperatorBehavior(t *testing.T) {
+	bc, _ := newTestClient()
+
+	matchInterface0 := canModels.CanMessageTimestamped{Interface: 0, Data: []byte{0x01}}
+	matchInterface1 := canModels.CanMessageTimestamped{Interface: 1, Data: []byte{0x01}}
+
+	andListener := BroadcastClientListener{
+		Name:    "and",
+		Channel: make(chan canModels.CanMessageTimestamped, 1),
+		Filter: &canModels.CanMessageFilterGroup{
+			Operator: canModels.FilterAnd,
+			Filters: []canModels.CanMessageFilter{
+				filter.CanInterfaceFilter{Value: 0},
+				filter.CanInterfaceFilter{Value: 1},
+			},
+		},
+	}
+
+	orListener := BroadcastClientListener{
+		Name:    "or",
+		Channel: make(chan canModels.CanMessageTimestamped, 1),
+		Filter: &canModels.CanMessageFilterGroup{
+			Operator: canModels.FilterOr,
+			Filters: []canModels.CanMessageFilter{
+				filter.CanInterfaceFilter{Value: 0},
+				filter.CanInterfaceFilter{Value: 1},
+			},
+		},
+	}
+
+	// AND: interface 0 satisfies only first filter — should be blocked.
+	if bc.testFilterGroup(andListener, matchInterface0) {
+		t.Error("AND: message matching only one filter should not pass")
+	}
+
+	// OR: interface 0 satisfies the first filter — should pass.
+	if !bc.testFilterGroup(orListener, matchInterface0) {
+		t.Error("OR: message matching one filter should pass")
+	}
+
+	// OR: interface 1 satisfies the second filter — should pass.
+	if !bc.testFilterGroup(orListener, matchInterface1) {
+		t.Error("OR: message matching one filter should pass")
+	}
+
+	// AND: a message that matches neither filter.
+	matchInterface2 := canModels.CanMessageTimestamped{Interface: 2, Data: []byte{0x01}}
+	if bc.testFilterGroup(orListener, matchInterface2) {
+		t.Error("OR: message matching no filters should not pass")
 	}
 }
 

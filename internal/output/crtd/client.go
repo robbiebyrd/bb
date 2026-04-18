@@ -20,6 +20,31 @@ type CRTDLoggerClient struct {
 	l         *slog.Logger
 }
 
+// writeHeader writes the CRTD file header to w, logging each write error
+// individually so no error is silently overwritten by the next write.
+func writeHeader(w *bufio.Writer, cfg *canModels.Config, logger *slog.Logger) {
+	if _, err := fmt.Fprintln(w, "0.000000 CXX CRTD file created by bb"); err != nil {
+		logger.Error("Could not write header to CRTD file", "error", err)
+	}
+	for index, canInterface := range cfg.CanInterfaces {
+		_, err := fmt.Fprintf(
+			w,
+			"0.000000 CXX Info Type:'interface'; ID:'%d'; Name:'%s'; URI:'%s'; Network:'%s'; DBC:'%s';\n",
+			index,
+			canInterface.Name,
+			canInterface.URI,
+			canInterface.Network,
+			canInterface.DBCFile,
+		)
+		if err != nil {
+			logger.Error("Could not write interface header to CRTD file", "error", err)
+		}
+	}
+	if err := w.Flush(); err != nil {
+		logger.Error("Could not flush CRTD file when writing header", "error", err)
+	}
+}
+
 func NewClient(
 	ctx context.Context,
 	cfg *canModels.Config,
@@ -31,27 +56,7 @@ func NewClient(
 	}
 
 	writer := bufio.NewWriter(file)
-	_, err = fmt.Fprintln(writer, "0.000000 CXX CRTD file created by bb")
-
-	for index, canInterface := range cfg.CanInterfaces {
-		_, err = fmt.Fprintf(
-			writer,
-			"0.000000 CXX Info Type:'interface'; ID:'%d'; Name:'%s'; URI:'%s'; Network:'%s'; DBC:'%s';\n",
-			index,
-			canInterface.Name,
-			canInterface.URI,
-			canInterface.Network,
-			canInterface.DBCFile,
-		)
-	}
-
-	if err != nil {
-		logger.Error("Could not write header to CRTD file", "error", err)
-	}
-	err = writer.Flush()
-	if err != nil {
-		logger.Error("Could not flush CRTD file when writing header", "error", err)
-	}
+	writeHeader(writer, cfg, logger)
 
 	return &CRTDLoggerClient{
 		w:       writer,
@@ -99,19 +104,17 @@ func (c *CRTDLoggerClient) HandleCanMessage(canMsg canModels.CanMessageTimestamp
 		canMsg.Interface, recordType, canID,
 		strings.Join(dataBytes, " "))
 
-	_, err := fmt.Fprintln(c.w, line)
-	if err != nil {
+	if _, err := fmt.Fprintln(c.w, line); err != nil {
 		c.l.Error("Could not write record to CRTD file", "error", err)
-	}
-	err = c.w.Flush()
-	if err != nil {
-		c.l.Error("Could not flush CRTD file when writing header", "error", err)
 	}
 }
 
 func (c *CRTDLoggerClient) HandleCanMessageChannel() error {
 	for canMsg := range c.c {
 		c.HandleCanMessage(canMsg)
+	}
+	if err := c.w.Flush(); err != nil {
+		c.l.Error("Could not flush CRTD file on channel close", "error", err)
 	}
 	return nil
 }

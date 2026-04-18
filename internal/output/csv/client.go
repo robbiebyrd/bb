@@ -69,7 +69,6 @@ func (c *CSVClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if err := c.w.Write(row); err != nil {
 		c.l.Error("csv write error", "error", err)
 	}
-	c.w.Flush()
 }
 
 func (c *CSVClient) HandleCanMessageChannel() error {

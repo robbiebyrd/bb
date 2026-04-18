@@ -115,6 +115,73 @@ func TestCanDataFilter_OrOperator(t *testing.T) {
 	assert.Equal(t, false, orFilter.Filter(msgNoMatch), "OR: no conditions match should return false")
 }
 
+func TestCanDataFilter_GreaterThan(t *testing.T) {
+	filter := CanDataFilter{
+		Operator: canModels.FilterAnd,
+		Filters: []struct {
+			Byte     uint8
+			Operator canModels.CanDataFilterOperator
+			Target   uint8
+		}{
+			{Byte: 0, Operator: canModels.DataGreaterThan, Target: 3},
+		},
+	}
+
+	msgAbove := canModels.CanMessageTimestamped{Data: []byte{5}}
+	assert.Equal(t, true, filter.Filter(msgAbove), "GreaterThan: 5 > 3 should pass")
+
+	msgBelow := canModels.CanMessageTimestamped{Data: []byte{7}}
+	filterBelow := CanDataFilter{
+		Operator: canModels.FilterAnd,
+		Filters: []struct {
+			Byte     uint8
+			Operator canModels.CanDataFilterOperator
+			Target   uint8
+		}{
+			{Byte: 0, Operator: canModels.DataGreaterThan, Target: 7},
+		},
+	}
+	assert.Equal(t, false, filterBelow.Filter(msgBelow), "GreaterThan: 7 > 7 should not pass")
+}
+
+func TestCanDataFilter_LessThan(t *testing.T) {
+	filter := CanDataFilter{
+		Operator: canModels.FilterAnd,
+		Filters: []struct {
+			Byte     uint8
+			Operator canModels.CanDataFilterOperator
+			Target   uint8
+		}{
+			{Byte: 0, Operator: canModels.DataLessThan, Target: 7},
+		},
+	}
+
+	msgBelow := canModels.CanMessageTimestamped{Data: []byte{5}}
+	assert.Equal(t, true, filter.Filter(msgBelow), "LessThan: 5 < 7 should pass")
+
+	msgEqual := canModels.CanMessageTimestamped{Data: []byte{7}}
+	assert.Equal(t, false, filter.Filter(msgEqual), "LessThan: 7 < 7 should not pass")
+}
+
+func TestCanDataFilter_NotEquals(t *testing.T) {
+	filter := CanDataFilter{
+		Operator: canModels.FilterAnd,
+		Filters: []struct {
+			Byte     uint8
+			Operator canModels.CanDataFilterOperator
+			Target   uint8
+		}{
+			{Byte: 0, Operator: canModels.DataNotEquals, Target: 5},
+		},
+	}
+
+	msgDifferent := canModels.CanMessageTimestamped{Data: []byte{3}}
+	assert.Equal(t, true, filter.Filter(msgDifferent), "NotEquals: 3 != 5 should pass")
+
+	msgSame := canModels.CanMessageTimestamped{Data: []byte{5}}
+	assert.Equal(t, false, filter.Filter(msgSame), "NotEquals: 5 != 5 should not pass")
+}
+
 func TestCanInterfaceFilter(t *testing.T) {
 	testMessage1 := canModels.CanMessageTimestamped{
 		Timestamp: 0,

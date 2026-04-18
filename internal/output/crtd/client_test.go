@@ -116,6 +116,7 @@ func TestHandle_StandardMessage(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	assert.Contains(
@@ -137,6 +138,7 @@ func TestHandle_TransmitMessage(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "T11", "Transmit message should have record type starting with T")
@@ -153,6 +155,7 @@ func TestHandle_Extended29BitID(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "R29", "Extended ID message should have record type R29")
@@ -169,6 +172,7 @@ func TestHandle_TransmitExtended(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	assert.Contains(t, contents, "T29", "Transmit extended message should have record type T29")
@@ -185,6 +189,7 @@ func TestHandle_TimestampConversion(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	assert.Contains(
@@ -205,6 +210,7 @@ func TestHandle_EmptyData(t *testing.T) {
 	}
 
 	client.HandleCanMessage(msg)
+	_ = client.w.Flush()
 
 	contents := readFileContents(t, f)
 	lines := strings.Split(strings.TrimSpace(contents), "\n")
@@ -279,4 +285,56 @@ func TestRun(t *testing.T) {
 	client, _ := newTestClient(t)
 	err := client.Run()
 	assert.Nil(t, err, "Run should return nil")
+}
+
+// TestHandleChannel_DataWrittenAfterChannelClose verifies that all data is
+// flushed and readable after the channel is closed, without relying on
+// per-message flushes.
+func TestHandleChannel_DataWrittenAfterChannelClose(t *testing.T) {
+	client, f := newTestClient(t)
+
+	msgs := []canModels.CanMessageTimestamped{
+		{Timestamp: 1000000000, ID: 0x111, Data: []byte{0xAA}},
+		{Timestamp: 2000000000, ID: 0x222, Data: []byte{0xBB}},
+	}
+
+	go func() {
+		for _, msg := range msgs {
+			client.c <- msg
+		}
+		close(client.c)
+	}()
+
+	err := client.HandleCanMessageChannel()
+	assert.Nil(t, err)
+
+	contents := readFileContents(t, f)
+	assert.Contains(t, contents, "111", "First message ID should be written and flushed")
+	assert.Contains(t, contents, "222", "Second message ID should be written and flushed")
+}
+
+// alwaysFailWriter rejects every write with an error.
+type alwaysFailWriter struct{}
+
+func (alwaysFailWriter) Write(_ []byte) (int, error) {
+	return 0, io.ErrClosedPipe
+}
+
+// TestNewClient_HeaderFirstLineErrorLogged verifies that a write error on the
+// first header line is surfaced (not silently overwritten by a later write).
+func TestNewClient_HeaderFirstLineErrorLogged(t *testing.T) {
+	var buf strings.Builder
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})
+	logger := slog.New(handler)
+
+	cfg := &canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "can0"}},
+	}
+
+	// A 1-byte bufio.Writer backed by an always-failing writer forces the first
+	// multi-byte write to overflow into the underlying writer, surfacing the error.
+	w := bufio.NewWriterSize(alwaysFailWriter{}, 1)
+	writeHeader(w, cfg, logger)
+
+	assert.Contains(t, buf.String(), "Could not", "Header write error must be logged")
 }
