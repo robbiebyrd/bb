@@ -159,7 +159,87 @@ func TestBUSMASTERParser_Parse_SkipsUnparseable(t *testing.T) {
 	assert.Len(t, entries, 2, "garbage line should be silently skipped")
 }
 
+// --- CandumpParser -----------------------------------------------------------
+
+func TestCandumpParser_Parse_EmptyFile(t *testing.T) {
+	path := writeTempLog(t, "")
+	entries, err := (&CandumpParser{}).Parse(path)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestCandumpParser_Parse_SingleFrame(t *testing.T) {
+	content := "(1638323019.096233) can1 09B#26FF00F9007500FF R\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	e := entries[0]
+	assert.Equal(t, int64(0), e.OffsetNs)
+	assert.Equal(t, uint32(0x09B), e.ID)
+	assert.False(t, e.Transmit)
+	assert.False(t, e.Remote)
+	assert.Equal(t, uint8(8), e.Length)
+	assert.Equal(t, []byte{0x26, 0xFF, 0x00, 0xF9, 0x00, 0x75, 0x00, 0xFF}, e.Data)
+}
+
+func TestCandumpParser_Parse_ShortFrame(t *testing.T) {
+	content := "(1000.000000) can1 129#01000000 R\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	e := entries[0]
+	assert.Equal(t, uint32(0x129), e.ID)
+	assert.Equal(t, uint8(4), e.Length)
+	assert.Equal(t, []byte{0x01, 0x00, 0x00, 0x00}, e.Data)
+}
+
+func TestCandumpParser_Parse_OffsetRelativeToFirstFrame(t *testing.T) {
+	content := "" +
+		"(1000.000000) can1 001#AA R\n" +
+		"(1000.001000) can1 002#BB R\n" +
+		"(1000.101000) can1 003#CC R\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	require.Len(t, entries, 3)
+	assert.Equal(t, int64(0), entries[0].OffsetNs)
+	assert.Equal(t, int64(1*time.Millisecond), entries[1].OffsetNs)
+	assert.Equal(t, int64(101*time.Millisecond), entries[2].OffsetNs)
+}
+
+func TestCandumpParser_Parse_TxDirection(t *testing.T) {
+	content := "(1000.000000) can0 100#ABCD T\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.True(t, entries[0].Transmit)
+}
+
+func TestCandumpParser_Parse_NoDirectionField(t *testing.T) {
+	content := "(1000.000000) can0 100#ABCD\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.False(t, entries[0].Transmit)
+}
+
+func TestCandumpParser_Parse_SkipsUnparseable(t *testing.T) {
+	content := "" +
+		"(1000.000000) can1 001#AA R\n" +
+		"this is garbage\n" +
+		"(1000.010000) can1 002#BB R\n"
+	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	assert.Len(t, entries, 2, "garbage line should be silently skipped")
+}
+
 // --- DetectParser ------------------------------------------------------------
+
+func TestDetectParser_Candump(t *testing.T) {
+	path := writeTempLog(t, "(1638323019.096233) can1 09B#26FF00F9007500FF R\n")
+	parser, err := DetectParser(path)
+	require.NoError(t, err)
+	assert.IsType(t, &CandumpParser{}, parser)
+}
 
 func TestDetectParser_BUSMASTER(t *testing.T) {
 	path := writeTempLog(t, minimalBUSMASTERLog(""))

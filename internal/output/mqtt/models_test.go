@@ -204,57 +204,19 @@ func TestGetTopicFromSignal_UnknownInterface(t *testing.T) {
 	assert.Equal(t, "/bb_app/unknown/99/signals/MSG_TEST/TestSig", topic)
 }
 
-func TestSignalToJSON_FieldValues(t *testing.T) {
-	resolver := &mockResolver{
-		conns: map[int]*mockCanConn{
-			0: {name: "jeep0"},
-		},
-	}
-	c := newTestMQTTClient(resolver)
-
-	sig := canModels.CanSignalTimestamped{
-		Timestamp: 1_000_000_000,
-		Interface: 0,
-		ID:        0x141,
-		Signal:    "EngineSpeed",
-		Value:     3500.0,
-		Unit:      "rpm",
-	}
-
-	jsonStr, err := c.SignalToJSON(sig)
-	require.NoError(t, err)
-
-	var out struct {
-		Timestamp int64   `json:"timestamp"`
-		Interface string  `json:"interface"`
-		ID        string  `json:"id"`
-		Signal    string  `json:"signal"`
-		Value     float64 `json:"value"`
-		Unit      string  `json:"unit"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
-
-	assert.Equal(t, int64(1_000_000_000), out.Timestamp)
-	assert.Equal(t, "jeep0", out.Interface)
-	assert.Equal(t, "0x141", out.ID)
-	assert.Equal(t, "EngineSpeed", out.Signal)
-	assert.Equal(t, 3500.0, out.Value)
-	assert.Equal(t, "rpm", out.Unit)
+func TestSignalPayload_WholeNumber(t *testing.T) {
+	sig := canModels.CanSignalTimestamped{Value: 3500.0}
+	assert.Equal(t, "3500", signalPayload(sig))
 }
 
-func TestSignalToJSON_UnknownInterface(t *testing.T) {
-	c := newTestMQTTClient(&mockResolver{conns: map[int]*mockCanConn{}})
+func TestSignalPayload_Zero(t *testing.T) {
+	sig := canModels.CanSignalTimestamped{Value: 0}
+	assert.Equal(t, "0", signalPayload(sig))
+}
 
-	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0x001}
-
-	jsonStr, err := c.SignalToJSON(sig)
-	require.NoError(t, err)
-
-	var out struct {
-		Interface string `json:"interface"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(jsonStr), &out))
-	assert.Equal(t, "", out.Interface, "unknown interface should produce empty string")
+func TestSignalPayload_Fractional(t *testing.T) {
+	sig := canModels.CanSignalTimestamped{Value: 3500.5}
+	assert.Equal(t, "3500.5", signalPayload(sig))
 }
 
 func TestToJSON_EmptyData(t *testing.T) {

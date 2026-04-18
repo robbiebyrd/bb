@@ -138,13 +138,9 @@ func (c *MQTTClient) HandleSignal(sig canModels.CanSignalTimestamped) {
 	}
 
 	topic := c.getTopicFromSignal(sig)
-	msgString, err := c.SignalToJSON(sig)
-	if err != nil {
-		c.l.Error("MQTT failed to serialize signal", "error", err)
-		return
-	}
+	payload := signalPayload(sig)
 
-	token := c.client.Publish(topic, c.cfg.MQTTConfig.Qos, c.cfg.MQTTConfig.ShadowCopy, msgString)
+	token := c.client.Publish(topic, c.cfg.MQTTConfig.Qos, c.cfg.MQTTConfig.ShadowCopy, payload)
 
 	go func(t mqtt.Token) {
 		t.Wait()

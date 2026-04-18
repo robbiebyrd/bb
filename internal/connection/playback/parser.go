@@ -34,8 +34,14 @@ func DetectParser(path string) (LogParser, error) {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
-	if scanner.Scan() && strings.HasPrefix(scanner.Text(), "***BUSMASTER") {
-		return &BUSMASTERParser{}, nil
+	if scanner.Scan() {
+		line := scanner.Text()
+		switch {
+		case strings.HasPrefix(line, "***BUSMASTER"):
+			return &BUSMASTERParser{}, nil
+		case strings.HasPrefix(line, "("):
+			return &CandumpParser{}, nil
+		}
 	}
 	return nil, fmt.Errorf("unsupported log format: %s", path)
 }
