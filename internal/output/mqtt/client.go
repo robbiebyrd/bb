@@ -3,8 +3,10 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
@@ -34,8 +36,9 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 		opts.SetPassword(cfg.MQTTConfig.Password)
 	}
 	if cfg.MQTTConfig.TLS {
-		tlsCfg := &tls.Config{
-			InsecureSkipVerify: false,
+		tlsCfg, err := buildTLSConfig(cfg.MQTTConfig)
+		if err != nil {
+			return nil, fmt.Errorf("building TLS config: %w", err)
 		}
 		opts.SetTLSConfig(tlsCfg)
 	}
@@ -192,4 +195,29 @@ func (c *MQTTClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped)
 		}
 	}
 	return false, nil
+}
+
+// buildTLSConfig constructs a tls.Config for the MQTT connection. When
+// TLSCACertFile is set, the PEM file is loaded and added as the only trusted
+// root CA (overriding system roots). When it is empty, RootCAs is left nil so
+// Go falls back to the system certificate pool.
+func buildTLSConfig(cfg canModels.MQTTConfig) (*tls.Config, error) {
+	tlsCfg := &tls.Config{InsecureSkipVerify: false}
+
+	if cfg.TLSCACertFile == "" {
+		return tlsCfg, nil
+	}
+
+	pemBytes, err := os.ReadFile(cfg.TLSCACertFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading CA cert file %q: %w", cfg.TLSCACertFile, err)
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pemBytes) {
+		return nil, fmt.Errorf("no valid PEM certificates found in %q", cfg.TLSCACertFile)
+	}
+
+	tlsCfg.RootCAs = pool
+	return tlsCfg, nil
 }
