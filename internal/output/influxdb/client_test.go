@@ -294,6 +294,61 @@ func TestConvertMsg(t *testing.T) {
 	assert.Equal(t, "can_message", result.Measurement)
 }
 
+// TestConvertMsg_ExtendedID verifies that convertMsg correctly formats 29-bit
+// extended CAN IDs (> 0xFFF). The %03x format must expand beyond 3 digits
+// without truncation — e.g. 0x18DAF110 must produce "18daf110", not "110".
+func TestConvertMsg_ExtendedID(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       uint32
+		expected string
+	}{
+		{
+			name:     "standard 11-bit ID",
+			id:       0x1AB,
+			expected: "1ab",
+		},
+		{
+			name:     "extended 29-bit OBD2 functional request ID",
+			id:       0x18DAF110,
+			expected: "18daf110",
+		},
+		{
+			name:     "extended 29-bit ID at max 29-bit value",
+			id:       0x1FFFFFFF,
+			expected: "1fffffff",
+		},
+		{
+			name:     "extended 29-bit ID boundary (just above 0xFFF)",
+			id:       0x1000,
+			expected: "1000",
+		},
+	}
+
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {interfaceName: "can0-can-vcan0"},
+		},
+	}
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = resolver
+	c.measurementName = "can_message"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := canModels.CanMessageTimestamped{
+				Timestamp: 1_000_000_000,
+				Interface: 0,
+				ID:        tt.id,
+				Length:    1,
+				Data:      []byte{0x00},
+			}
+			result := c.convertMsg(msg)
+			assert.Equal(t, tt.expected, result.ID)
+		})
+	}
+}
+
 func TestConvertMsg_UnknownInterface(t *testing.T) {
 	c := newHandleClient(10, 2, 100, 4)
 	c.resolver = &mockResolver{conns: map[int]*mockCanConn{}}
