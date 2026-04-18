@@ -96,3 +96,42 @@ func newTestCmd(cfg *canModels.Config) (*cobra.Command, func() error) {
 	apply := config.BindFlags(cmd, cfg)
 	return cmd, apply
 }
+
+func TestParseUint32Slice_Empty(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--mqtt-dedupe-ids", ""}, &cfg)
+	assert.Nil(t, cfg.MQTTConfig.DedupeIDs)
+}
+
+func TestParseUint32Slice_Valid(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--mqtt-dedupe-ids", "1,2,3"}, &cfg)
+	assert.Equal(t, []uint32{1, 2, 3}, cfg.MQTTConfig.DedupeIDs)
+}
+
+func TestParseUint32Slice_Whitespace(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--mqtt-dedupe-ids", " 10 , 20 "}, &cfg)
+	assert.Equal(t, []uint32{10, 20}, cfg.MQTTConfig.DedupeIDs)
+}
+
+func TestParseUint32Slice_Invalid(t *testing.T) {
+	cfg := canModels.Config{}
+	cmd, apply := newTestCmd(&cfg)
+	cmd.SetArgs([]string{"--mqtt-dedupe-ids", "abc"})
+	require.NoError(t, cmd.Execute())
+	err := apply()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid ID")
+}
+
+func TestParseUint32Slice_Overflow(t *testing.T) {
+	cfg := canModels.Config{}
+	cmd, apply := newTestCmd(&cfg)
+	// 2^32 exceeds uint32 max
+	cmd.SetArgs([]string{"--mqtt-dedupe-ids", "4294967296"})
+	require.NoError(t, cmd.Execute())
+	err := apply()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid ID")
+}

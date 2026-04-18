@@ -28,8 +28,11 @@ func Load(logger *slog.Logger) (canModels.Config, string) {
 		}
 	}
 	cfgJson, err := ToJSON(cfg)
-	if err != nil || cfgJson == nil {
+	if err != nil {
 		panic(err)
+	}
+	if cfgJson == nil {
+		panic("config.ToJSON returned nil without error")
 	}
 
 	return cfg, *cfgJson
