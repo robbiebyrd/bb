@@ -61,3 +61,13 @@ func TestInfluxDBConfig_OptionalWhenHostAbsent(t *testing.T) {
 	require.NoError(t, err, "config parsing must not error when INFLUX_HOST is absent")
 	assert.Equal(t, "", cfg.Host)
 }
+
+func TestInfluxDBConfig_TLS_DefaultFalse(t *testing.T) {
+	os.Unsetenv("INFLUX_TLS")
+	os.Unsetenv("INFLUX_TLS_CA_FILE")
+
+	cfg, err := env.ParseAs[canModels.InfluxDBConfig]()
+	require.NoError(t, err)
+	assert.False(t, cfg.TLS)
+	assert.Equal(t, "", cfg.TLSCACertFile)
+}

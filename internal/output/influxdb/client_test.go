@@ -177,10 +177,15 @@ func TestHandleChannel_DropsWhenWorkerQueueFull(t *testing.T) {
 		t.Fatal("HandleChannel blocked on full internalChannel — should drop batch instead")
 	}
 
-	// The batch must have been dropped, not sent.
+	// The batch must have been dropped, not sent. Use the two-value receive to
+	// distinguish a real queued batch from the zero value returned when the
+	// channel is closed and empty.
 	select {
-	case <-c.internalChannel:
-		t.Error("expected batch to be dropped, but it was queued in internalChannel")
+	case batch, ok := <-c.internalChannel:
+		if ok {
+			t.Errorf("expected batch to be dropped, but it was queued in internalChannel: %v", batch)
+		}
+		// channel closed and empty — correct
 	default:
 		// correct — nothing queued
 	}
@@ -303,6 +308,56 @@ func TestConvertMsg_UnknownInterface(t *testing.T) {
 
 	result := c.convertMsg(msg)
 	assert.Equal(t, "", result.Interface, "unknown interface should produce empty interface name")
+}
+
+func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
+	// A simple test: if we close the incoming channel, HandleCanMessageChannel
+	// should return only after all workers have finished processing.
+	// We verify by checking that the function returns without hanging.
+	// Note: this test validates the shutdown sequence, not actual writes.
+	ctx := context.Background()
+	c := &InfluxDBClient{
+		incomingChannel: make(chan canModels.CanMessageTimestamped, 4),
+		internalChannel: make(chan []canModels.CanMessageTimestamped, 2),
+		messageBlock:    make([]canModels.CanMessageTimestamped, 0, 10),
+		maxBlocks:       10,
+		flushTime:       50,
+		l:               silentLogger(),
+		ctx:             ctx,
+		filters:         make(map[string]canModels.FilterInterface),
+	}
+
+	// Start a fake worker that reads from internalChannel and signals done.
+	workerDone := make(chan struct{})
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		for range c.internalChannel {
+			// drain
+		}
+		close(workerDone)
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		close(c.incomingChannel)
+		_ = c.HandleCanMessageChannel()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Good — HandleCanMessageChannel returned
+	case <-time.After(2 * time.Second):
+		t.Fatal("HandleCanMessageChannel did not return after incoming channel closed")
+	}
+
+	// Worker should also be done (internalChannel was closed)
+	select {
+	case <-workerDone:
+	case <-time.After(time.Second):
+		t.Fatal("worker goroutine did not exit after internalChannel closed")
+	}
 }
 
 func TestConvertMany(t *testing.T) {
