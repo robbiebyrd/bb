@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"log/slog"
 )
 
 // SignalDispatcherRegistrar is the minimal interface app.go uses to register
@@ -20,9 +19,5 @@ type AppInterface interface {
 	Run() error
 	GetConnections() ConnectionManager
 	GetContext() context.Context
-	GetConfig() *Config
-	GetLogger() *slog.Logger
-	GetLogLevel() *slog.LevelVar
-	SetLogLevel(logLevel slog.Level)
 	AddSignalDispatcher(d SignalDispatcherRegistrar, interfaceID int)
 }
