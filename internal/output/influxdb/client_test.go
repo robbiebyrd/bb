@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -245,7 +246,7 @@ func TestShouldFilterMessage_NoFilters(t *testing.T) {
 	c := newHandleClient(10, 2, 100, 4)
 	msg := testMsg(0x100)
 
-	shouldFilter, name := c.shouldFilterMessage(msg)
+	shouldFilter, name := common.ShouldFilter(c.filters, msg)
 	assert.False(t, shouldFilter)
 	assert.Nil(t, name)
 }
@@ -255,7 +256,7 @@ func TestShouldFilterMessage_MatchingFilter(t *testing.T) {
 	_ = c.AddFilter("drop-all", &mockFilterAlwaysTrue{})
 
 	msg := testMsg(0x100)
-	shouldFilter, name := c.shouldFilterMessage(msg)
+	shouldFilter, name := common.ShouldFilter(c.filters, msg)
 	assert.True(t, shouldFilter)
 	require.NotNil(t, name)
 	assert.Equal(t, "drop-all", *name)

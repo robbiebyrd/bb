@@ -1,6 +1,20 @@
 package common
 
-import "slices"
+import (
+	"slices"
+
+	canModels "github.com/robbiebyrd/bb/internal/models"
+)
+
+// ShouldFilter returns true and the matching filter name if any filter rejects the message.
+func ShouldFilter(filters map[string]canModels.FilterInterface, canMsg canModels.CanMessageTimestamped) (bool, *string) {
+	for name, filter := range filters {
+		if filter.Filter(canMsg) {
+			return true, &name
+		}
+	}
+	return false, nil
+}
 
 func PadOrTrim(bb []byte, size int) []byte {
 	l := len(bb)

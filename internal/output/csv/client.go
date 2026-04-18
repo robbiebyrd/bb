@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -54,6 +55,10 @@ func (c *CSVClient) AddFilter(name string, filter canModels.FilterInterface) err
 }
 
 func (c *CSVClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
+	if shouldFilter, _ := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+		return
+	}
+
 	interfaceName := ""
 	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 		interfaceName = conn.GetInterfaceName()
