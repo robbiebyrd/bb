@@ -54,9 +54,7 @@ func (r *mockResolver) ConnectionByID(id int) canModels.CanConnection {
 // mockFilterAlwaysTrue returns true (filter/drop) for every message.
 type mockFilterAlwaysTrue struct{}
 
-func (m *mockFilterAlwaysTrue) Add(_ canModels.CanMessageFilter) error    { return nil }
 func (m *mockFilterAlwaysTrue) Filter(_ canModels.CanMessageTimestamped) bool { return true }
-func (m *mockFilterAlwaysTrue) Mode(_ canModels.CanFilterGroupOperator)   {}
 
 func silentLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))

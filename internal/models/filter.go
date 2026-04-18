@@ -58,9 +58,7 @@ type CanMessageFilter interface {
 }
 
 type FilterInterface interface {
-	Add(filter CanMessageFilter) error
 	Filter(canMsg CanMessageTimestamped) bool
-	Mode(mode CanFilterGroupOperator)
 }
 
 type FilterInput struct {

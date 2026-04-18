@@ -55,9 +55,7 @@ func (r *mockResolver) ConnectionByID(id int) canModels.CanConnection {
 // mockFilter implements canModels.FilterInterface for testing.
 type mockFilter struct{}
 
-func (m *mockFilter) Add(_ canModels.CanMessageFilter) error    { return nil }
 func (m *mockFilter) Filter(_ canModels.CanMessageTimestamped) bool { return false }
-func (m *mockFilter) Mode(_ canModels.CanFilterGroupOperator)   {}
 
 func silentLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))

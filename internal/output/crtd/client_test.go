@@ -16,22 +16,10 @@ import (
 )
 
 // mockFilter implements canModels.FilterInterface for testing.
-type mockFilter struct {
-	filters []canModels.CanMessageFilter
-	mode    canModels.CanFilterGroupOperator
-}
-
-func (m *mockFilter) Add(filter canModels.CanMessageFilter) error {
-	m.filters = append(m.filters, filter)
-	return nil
-}
+type mockFilter struct{}
 
 func (m *mockFilter) Filter(_ canModels.CanMessageTimestamped) bool {
 	return false
-}
-
-func (m *mockFilter) Mode(mode canModels.CanFilterGroupOperator) {
-	m.mode = mode
 }
 
 func silentLogger() *slog.Logger {

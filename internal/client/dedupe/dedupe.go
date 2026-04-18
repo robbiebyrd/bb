@@ -29,12 +29,6 @@ func NewDedupeFilterClient(l *slog.Logger, timeout int, ids []uint32) canModels.
 	}
 }
 
-func (dc *DedupeFilterClient) Add(_ canModels.CanMessageFilter) error {
-	return nil
-}
-
-func (dc *DedupeFilterClient) Mode(_ canModels.CanFilterGroupOperator) {}
-
 func (dc *DedupeFilterClient) Filter(canMsg canModels.CanMessageTimestamped) bool {
 	if len(dc.ids) > 0 {
 		if _, ok := dc.ids[canMsg.ID]; !ok {
