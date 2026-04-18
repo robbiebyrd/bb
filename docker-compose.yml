@@ -34,9 +34,13 @@ services:
     container_name: mosquitto
     restart: unless-stopped
     ports:
-      - 1883:1883
+      # 1883 is bound to 127.0.0.1 inside the broker config — only loopback traffic reaches it.
+      - 127.0.0.1:1883:1883
       - 9001:9001
     volumes:
+      # mosquitto.conf sets allow_anonymous false and password_file /mosquitto/config/passwd.
+      # Create the passwd file before starting: mosquitto_passwd -c ./config/mosquitto/passwd <username>
+      # Set MQTT_USERNAME and MQTT_PASSWORD env vars for the Go client.
       - ./config/mosquitto:/mosquitto/config
       - ./data/mosquitto/data:/mosquitto/data
       - ./data/mosquitto/log:/mosquitto/log
