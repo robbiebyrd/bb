@@ -3,6 +3,7 @@ package playback
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -26,7 +27,13 @@ type LogParser interface {
 }
 
 // DetectParser inspects the file header and returns the appropriate LogParser.
-func DetectParser(path string) (LogParser, error) {
+// The logger is used by the returned parser to log skipped lines; pass nil to
+// use the default slog logger.
+func DetectParser(path string, logger *slog.Logger) (LogParser, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening %s: %w", path, err)
@@ -38,9 +45,9 @@ func DetectParser(path string) (LogParser, error) {
 		line := scanner.Text()
 		switch {
 		case strings.HasPrefix(line, "***BUSMASTER"):
-			return &BUSMASTERParser{}, nil
+			return &BUSMASTERParser{l: logger}, nil
 		case strings.HasPrefix(line, "("):
-			return &CandumpParser{}, nil
+			return &CandumpParser{l: logger}, nil
 		}
 	}
 	return nil, fmt.Errorf("unsupported log format: %s", path)
@@ -50,9 +57,16 @@ func DetectParser(path string) (LogParser, error) {
 // Each line outside of *** header blocks has the form:
 //
 //	H:M:S:MMMM  Tx/Rx  Channel  0xID  Type  DLC  [DataBytes...]
-type BUSMASTERParser struct{}
+type BUSMASTERParser struct {
+	l *slog.Logger
+}
 
 func (p *BUSMASTERParser) Parse(path string) ([]LogEntry, error) {
+	logger := p.l
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening log file: %w", err)
@@ -61,6 +75,7 @@ func (p *BUSMASTERParser) Parse(path string) ([]LogEntry, error) {
 
 	var entries []LogEntry
 	var baseNs int64 = -1
+	var skipped int
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -71,7 +86,9 @@ func (p *BUSMASTERParser) Parse(path string) ([]LogEntry, error) {
 
 		entry, tsNs, err := parseBUSMASTERLine(line)
 		if err != nil {
-			continue // skip unparseable lines silently
+			logger.Debug("playback: skipping unparseable line", "line", line, "error", err)
+			skipped++
+			continue
 		}
 
 		if baseNs < 0 {
@@ -79,6 +96,10 @@ func (p *BUSMASTERParser) Parse(path string) ([]LogEntry, error) {
 		}
 		entry.OffsetNs = tsNs - baseNs
 		entries = append(entries, *entry)
+	}
+
+	if skipped > 0 {
+		logger.Warn("playback: skipped unparseable lines", "path", path, "skipped", skipped)
 	}
 
 	return entries, scanner.Err()

@@ -15,6 +15,38 @@ import (
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
+// capturingHandler collects slog records for test assertions.
+type capturingHandler struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func newCapturingHandler() *capturingHandler { return &capturingHandler{} }
+
+func (h *capturingHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+func (h *capturingHandler) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, r)
+	return nil
+}
+
+func (h *capturingHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *capturingHandler) WithGroup(_ string) slog.Handler      { return h }
+
+func (h *capturingHandler) recordsAt(level slog.Level) []slog.Record {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []slog.Record
+	for _, r := range h.records {
+		if r.Level == level {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // --- helpers -----------------------------------------------------------------
 
 func testConfig() *canModels.Config {
@@ -154,9 +186,31 @@ func TestBUSMASTERParser_Parse_SkipsUnparseable(t *testing.T) {
 			"this is garbage\n" +
 			"0:0:0:0010 Rx 1 0x002 s 1 BB\n",
 	)
-	entries, err := (&BUSMASTERParser{}).Parse(writeTempLog(t, content))
+	entries, err := (&BUSMASTERParser{l: silentLogger()}).Parse(writeTempLog(t, content))
 	require.NoError(t, err)
-	assert.Len(t, entries, 2, "garbage line should be silently skipped")
+	assert.Len(t, entries, 2, "garbage line should be skipped")
+}
+
+func TestBUSMASTERParser_Parse_LogsSkippedLines(t *testing.T) {
+	content := minimalBUSMASTERLog(
+		"0:0:0:0000 Rx 1 0x001 s 1 AA\n" +
+			"this is garbage\n" +
+			"also garbage\n" +
+			"0:0:0:0010 Rx 1 0x002 s 1 BB\n",
+	)
+	h := newCapturingHandler()
+	logger := slog.New(h)
+	p := &BUSMASTERParser{l: logger}
+	entries, err := p.Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+
+	debugRecords := h.recordsAt(slog.LevelDebug)
+	assert.Len(t, debugRecords, 2, "expected one debug log per skipped line")
+
+	warnRecords := h.recordsAt(slog.LevelWarn)
+	require.Len(t, warnRecords, 1, "expected one warn summary after loop")
+	assert.Contains(t, warnRecords[0].Message, "skipped")
 }
 
 // --- CandumpParser -----------------------------------------------------------
@@ -227,35 +281,56 @@ func TestCandumpParser_Parse_SkipsUnparseable(t *testing.T) {
 		"(1000.000000) can1 001#AA R\n" +
 		"this is garbage\n" +
 		"(1000.010000) can1 002#BB R\n"
-	entries, err := (&CandumpParser{}).Parse(writeTempLog(t, content))
+	entries, err := (&CandumpParser{l: silentLogger()}).Parse(writeTempLog(t, content))
 	require.NoError(t, err)
-	assert.Len(t, entries, 2, "garbage line should be silently skipped")
+	assert.Len(t, entries, 2, "garbage line should be skipped")
+}
+
+func TestCandumpParser_Parse_LogsSkippedLines(t *testing.T) {
+	content := "" +
+		"(1000.000000) can1 001#AA R\n" +
+		"this is garbage\n" +
+		"also garbage\n" +
+		"(1000.010000) can1 002#BB R\n"
+	h := newCapturingHandler()
+	logger := slog.New(h)
+	p := &CandumpParser{l: logger}
+	entries, err := p.Parse(writeTempLog(t, content))
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+
+	debugRecords := h.recordsAt(slog.LevelDebug)
+	assert.Len(t, debugRecords, 2, "expected one debug log per skipped line")
+
+	warnRecords := h.recordsAt(slog.LevelWarn)
+	require.Len(t, warnRecords, 1, "expected one warn summary after loop")
+	assert.Contains(t, warnRecords[0].Message, "skipped")
 }
 
 // --- DetectParser ------------------------------------------------------------
 
 func TestDetectParser_Candump(t *testing.T) {
 	path := writeTempLog(t, "(1638323019.096233) can1 09B#26FF00F9007500FF R\n")
-	parser, err := DetectParser(path)
+	parser, err := DetectParser(path, silentLogger())
 	require.NoError(t, err)
 	assert.IsType(t, &CandumpParser{}, parser)
 }
 
 func TestDetectParser_BUSMASTER(t *testing.T) {
 	path := writeTempLog(t, minimalBUSMASTERLog(""))
-	parser, err := DetectParser(path)
+	parser, err := DetectParser(path, silentLogger())
 	require.NoError(t, err)
 	assert.IsType(t, &BUSMASTERParser{}, parser)
 }
 
 func TestDetectParser_UnknownFormat(t *testing.T) {
 	path := writeTempLog(t, "this is not a known log format\n")
-	_, err := DetectParser(path)
+	_, err := DetectParser(path, silentLogger())
 	assert.Error(t, err)
 }
 
 func TestDetectParser_MissingFile(t *testing.T) {
-	_, err := DetectParser("/no/such/file.log")
+	_, err := DetectParser("/no/such/file.log", nil)
 	assert.Error(t, err)
 }
 

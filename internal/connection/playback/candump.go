@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -15,9 +16,16 @@ import (
 //	(unix_seconds.fractional) interface hexID#hexData [R|T]
 //
 // The trailing direction flag is optional; its absence implies receive (Transmit=false).
-type CandumpParser struct{}
+type CandumpParser struct {
+	l *slog.Logger
+}
 
 func (p *CandumpParser) Parse(path string) ([]LogEntry, error) {
+	logger := p.l
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening log file: %w", err)
@@ -26,6 +34,7 @@ func (p *CandumpParser) Parse(path string) ([]LogEntry, error) {
 
 	var entries []LogEntry
 	var baseNs int64 = -1
+	var skipped int
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -36,7 +45,9 @@ func (p *CandumpParser) Parse(path string) ([]LogEntry, error) {
 
 		entry, tsNs, err := parseCandumpLine(line)
 		if err != nil {
-			continue // skip unparseable lines silently
+			logger.Debug("playback: skipping unparseable line", "line", line, "error", err)
+			skipped++
+			continue
 		}
 
 		if baseNs < 0 {
@@ -44,6 +55,10 @@ func (p *CandumpParser) Parse(path string) ([]LogEntry, error) {
 		}
 		entry.OffsetNs = tsNs - baseNs
 		entries = append(entries, *entry)
+	}
+
+	if skipped > 0 {
+		logger.Warn("playback: skipped unparseable lines", "path", path, "skipped", skipped)
 	}
 
 	return entries, scanner.Err()

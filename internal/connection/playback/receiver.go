@@ -17,7 +17,7 @@ import (
 func (c *PlaybackCanClient) Receive(wg *sync.WaitGroup) {
 	c.streaming = true
 
-	parser, err := DetectParser(c.uri)
+	parser, err := DetectParser(c.uri, c.l)
 	if err != nil {
 		c.l.Error("playback: unsupported log format",
 			"path", c.uri, "error", err)
