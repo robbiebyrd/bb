@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -107,17 +106,21 @@ func (scc *BroadcastClient) testFilterGroup(
 	c BroadcastClientListener,
 	canMsg canModels.CanMessageTimestamped,
 ) bool {
-	filterValues := []bool{}
-
-	for _, f := range c.Filter.Filters {
-		filterValues = append(filterValues, f.Filter(canMsg))
-	}
-
 	switch c.Filter.Operator {
 	case canModels.FilterOr:
-		return common.ArrayContainsTrue(filterValues)
+		for _, f := range c.Filter.Filters {
+			if f.Filter(canMsg) {
+				return true
+			}
+		}
+		return false
 	default:
-		return common.ArrayAllTrue(filterValues)
+		for _, f := range c.Filter.Filters {
+			if !f.Filter(canMsg) {
+				return false
+			}
+		}
+		return true
 	}
 }
 
