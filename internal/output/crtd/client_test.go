@@ -275,6 +275,17 @@ func TestRun(t *testing.T) {
 	assert.Nil(t, err, "Run should return nil")
 }
 
+func TestHandleChannel_ClosesFile(t *testing.T) {
+	client, f := newTestClient(t)
+
+	close(client.c)
+	err := client.HandleCanMessageChannel()
+	assert.Nil(t, err)
+
+	// The file handle should be closed; a second Close call returns an error.
+	assert.Error(t, f.Close(), "file should already be closed after HandleCanMessageChannel returns")
+}
+
 // TestHandleChannel_DataWrittenAfterChannelClose verifies that all data is
 // flushed and readable after the channel is closed, without relying on
 // per-message flushes.

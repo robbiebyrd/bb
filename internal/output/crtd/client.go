@@ -115,6 +115,7 @@ func (c *CRTDLoggerClient) HandleCanMessage(canMsg canModels.CanMessageTimestamp
 }
 
 func (c *CRTDLoggerClient) HandleCanMessageChannel() error {
+	defer c.file.Close()
 	for canMsg := range c.c {
 		c.HandleCanMessage(canMsg)
 	}

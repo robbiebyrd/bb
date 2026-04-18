@@ -70,6 +70,7 @@ func newTestClient(t *testing.T, resolver canModels.InterfaceResolver) (*CSVClie
 
 	return &CSVClient{
 		w:               csv.NewWriter(f),
+		file:            f,
 		incomingChannel: make(chan canModels.CanMessageTimestamped, 16),
 		filters:         make(map[string]canModels.FilterInterface),
 		l:               silentLogger(),
@@ -81,6 +82,16 @@ func readRows(t *testing.T, f *os.File) [][]string {
 	t.Helper()
 	_, err := f.Seek(0, io.SeekStart)
 	require.NoError(t, err)
+	rows, err := csv.NewReader(f).ReadAll()
+	require.NoError(t, err)
+	return rows
+}
+
+func readRowsByName(t *testing.T, name string) [][]string {
+	t.Helper()
+	f, err := os.Open(name)
+	require.NoError(t, err)
+	defer f.Close()
 	rows, err := csv.NewReader(f).ReadAll()
 	require.NoError(t, err)
 	return rows
@@ -187,9 +198,21 @@ func TestCSVClient_HandleChannel(t *testing.T) {
 	err := client.HandleCanMessageChannel()
 	assert.NoError(t, err)
 
-	rows := readRows(t, f)
+	// File is closed after HandleCanMessageChannel returns; read by name.
+	rows := readRowsByName(t, f.Name())
 	require.Len(t, rows, 3)
 	assert.Equal(t, "256", rows[0][1])  // 0x100
 	assert.Equal(t, "512", rows[1][1])  // 0x200
 	assert.Equal(t, "768", rows[2][1])  // 0x300
+}
+
+func TestCSVClient_HandleCanMessageChannel_ClosesFile(t *testing.T) {
+	client, f := newTestClient(t, &mockResolver{})
+
+	close(client.incomingChannel)
+	err := client.HandleCanMessageChannel()
+	assert.NoError(t, err)
+
+	// The file handle should be closed; a second Close call returns an error.
+	assert.Error(t, f.Close(), "file should already be closed after HandleCanMessageChannel returns")
 }

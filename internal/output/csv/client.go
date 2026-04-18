@@ -15,6 +15,7 @@ import (
 
 type CSVClient struct {
 	w               *csv.Writer
+	file            *os.File
 	includeHeaders  bool
 	incomingChannel chan canModels.CanMessageTimestamped
 	filters         map[string]canModels.FilterInterface
@@ -37,6 +38,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 
 	return &CSVClient{
 		w:               writer,
+		file:            file,
 		includeHeaders:  cfg.CSVLog.IncludeHeaders,
 		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		filters:         make(map[string]canModels.FilterInterface),
@@ -77,6 +79,7 @@ func (c *CSVClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 }
 
 func (c *CSVClient) HandleCanMessageChannel() error {
+	defer c.file.Close()
 	for canMsg := range c.incomingChannel {
 		c.HandleCanMessage(canMsg)
 	}
