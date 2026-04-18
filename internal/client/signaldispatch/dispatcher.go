@@ -40,18 +40,7 @@ func (d *SignalDispatcher) GetChannel() chan canModels.CanMessageTimestamped {
 // Runs until inChannel is closed.
 func (d *SignalDispatcher) Dispatch() error {
 	for msg := range d.inChannel {
-		signals := d.parser.ParseSignals(
-			canModels.CanMessageData{
-				Interface: msg.Interface,
-				ID:        msg.ID,
-				Transmit:  msg.Transmit,
-				Remote:    msg.Remote,
-				Length:    msg.Length,
-				Data:      msg.Data,
-			},
-			msg.Timestamp,
-			msg.Interface,
-		)
+		signals := d.parser.ParseSignals(msg)
 		for _, sig := range signals {
 			for _, ch := range d.listeners {
 				select {

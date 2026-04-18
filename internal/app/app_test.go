@@ -16,7 +16,7 @@ import (
 // mockParser satisfies ParserInterface with no-op behaviour.
 type mockParser struct{}
 
-func (m *mockParser) ParseSignals(_ canModels.CanMessageData, _ int64, _ int) []canModels.CanSignalTimestamped {
+func (m *mockParser) ParseSignals(_ canModels.CanMessageTimestamped) []canModels.CanSignalTimestamped {
 	return nil
 }
 

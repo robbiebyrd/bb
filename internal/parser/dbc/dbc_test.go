@@ -51,9 +51,9 @@ func TestParseSignals_KnownMessage(t *testing.T) {
 	// byte 0 = 88 → 88 - 48 = 40 degC
 	data := make([]byte, 8)
 	data[0] = 88
-	msg := canModels.CanMessageData{ID: 464, Length: 8, Data: data}
+	msg := canModels.CanMessageTimestamped{ID: 464, Length: 8, Data: data, Timestamp: 1_000_000_000, Interface: 3}
 
-	signals := client.ParseSignals(msg, 1_000_000_000, 3)
+	signals := client.ParseSignals(msg)
 
 	if len(signals) == 0 {
 		t.Fatal("expected signals, got none")
@@ -94,8 +94,8 @@ func TestParseSignals_UnitsPopulated(t *testing.T) {
 	require.NoError(t, err)
 
 	// STEER_0C4 (ID=196): SteeringPosition unit="deg", SteeringSpeed unit="deg/s"
-	msg := canModels.CanMessageData{ID: 196, Length: 7, Data: make([]byte, 7)}
-	signals := client.ParseSignals(msg, 0, 0)
+	msg := canModels.CanMessageTimestamped{ID: 196, Length: 7, Data: make([]byte, 7)}
+	signals := client.ParseSignals(msg)
 
 	units := make(map[string]string)
 	for _, s := range signals {
@@ -114,7 +114,7 @@ func TestParseSignals_UnknownMessage(t *testing.T) {
 	client, err := NewDBCParserClient(l, "example.dbc")
 	require.NoError(t, err)
 
-	signals := client.ParseSignals(canModels.CanMessageData{ID: 99999, Length: 8, Data: make([]byte, 8)}, 0, 0)
+	signals := client.ParseSignals(canModels.CanMessageTimestamped{ID: 99999, Length: 8, Data: make([]byte, 8)})
 	if signals != nil {
 		t.Fatalf("expected nil for unknown message, got %v", signals)
 	}

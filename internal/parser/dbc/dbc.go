@@ -47,10 +47,8 @@ func (dc *DBCParserClient) Load() error {
 }
 
 // ParseSignals decodes all signals in msg and returns one CanSignalTimestamped
-// per decoded signal. timestamp and iface are passed through from the
-// originating CanMessageTimestamped so callers don't need to re-attach them.
-// Returns nil if the message ID is not in the database.
-func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageData, timestamp int64, iface int) []canModels.CanSignalTimestamped {
+// per decoded signal. Returns nil if the message ID is not in the database.
+func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageTimestamped) []canModels.CanSignalTimestamped {
 	if dc.db == nil {
 		return nil
 	}
@@ -64,8 +62,8 @@ func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageData, timestamp 
 	signals := make([]canModels.CanSignalTimestamped, 0, len(message.Signals))
 	for _, sig := range message.Signals {
 		signals = append(signals, canModels.CanSignalTimestamped{
-			Timestamp: timestamp,
-			Interface: iface,
+			Timestamp: msg.Timestamp,
+			Interface: msg.Interface,
 			ID:        msg.ID,
 			Message:   message.Name,
 			Signal:    sig.Name,

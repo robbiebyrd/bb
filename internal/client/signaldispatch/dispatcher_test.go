@@ -18,17 +18,15 @@ type mockParser struct {
 	signals []canModels.CanSignalTimestamped
 }
 
-func (m *mockParser) Parse(_ canModels.CanMessageData) any { return nil }
-
-func (m *mockParser) ParseSignals(msg canModels.CanMessageData, timestamp int64, iface int) []canModels.CanSignalTimestamped {
+func (m *mockParser) ParseSignals(msg canModels.CanMessageTimestamped) []canModels.CanSignalTimestamped {
 	if m.signals == nil {
 		return nil
 	}
 	// Propagate the real timestamp/interface so tests can verify forwarding.
 	out := make([]canModels.CanSignalTimestamped, len(m.signals))
 	for i, s := range m.signals {
-		s.Timestamp = timestamp
-		s.Interface = iface
+		s.Timestamp = msg.Timestamp
+		s.Interface = msg.Interface
 		s.ID = msg.ID
 		out[i] = s
 	}
