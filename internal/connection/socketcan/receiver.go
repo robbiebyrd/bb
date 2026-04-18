@@ -19,7 +19,8 @@ func (scc *SocketCanConnectionClient) Receive(wg *sync.WaitGroup) {
 			for scc.receiver.Receive() {
 				frame := scc.receiver.Frame()
 				now := time.Now().UnixNano()
-				scc.channel <- canModels.CanMessageTimestamped{
+				select {
+				case scc.channel <- canModels.CanMessageTimestamped{
 					Timestamp: now,
 					Interface: scc.GetID(),
 					Transmit:  false,
@@ -27,14 +28,21 @@ func (scc *SocketCanConnectionClient) Receive(wg *sync.WaitGroup) {
 					Remote:    frame.IsRemote,
 					Length:    frame.Length,
 					Data:      commonUtils.PadOrTrim(frame.Data[:], 8),
+				}:
+				case <-scc.ctx.Done():
+					return
 				}
 			}
 			// Inner loop exited — check for graceful stop
 			if !scc.streaming {
 				return
 			}
-			// Backoff before reconnect attempt
-			time.Sleep(100 * time.Millisecond)
+			// Backoff before reconnect attempt; exit early on context cancellation
+			select {
+			case <-time.After(100 * time.Millisecond):
+			case <-scc.ctx.Done():
+				return
+			}
 		}
 	})
 }

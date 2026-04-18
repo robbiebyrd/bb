@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/robbiebyrd/bb/internal/app"
 	"github.com/robbiebyrd/bb/internal/client/signaldispatch"
@@ -129,4 +130,39 @@ func TestAddSignalDispatcher_NoRaceWithAddOutput(t *testing.T) {
 	// If Dispatch is already running (reading listeners), this is a data race.
 	client := newMockSignalClient()
 	a.AddOutput(client)
+}
+
+func TestAddOutputs_AddsClient(t *testing.T) {
+	a := newTestApp(t)
+	c1 := newMockSignalClient()
+	a.AddOutputs([]canModels.OutputClient{c1})
+	// HandleCanMessageChannel goroutine must start.
+	select {
+	case <-c1.started:
+		// expected
+	}
+}
+
+func TestApp_GettersReturnExpectedValues(t *testing.T) {
+	lvl := new(slog.LevelVar)
+	cfg := &canModels.Config{MessageBufferSize: 16}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	a := app.NewApp(cfg, logger, lvl)
+
+	require.NotNil(t, a.GetConnections())
+	require.NotNil(t, a.GetContext())
+	assert.Equal(t, cfg, a.GetConfig())
+	assert.Equal(t, logger, a.GetLogger())
+	assert.Equal(t, lvl, a.GetLogLevel())
+}
+
+func TestApp_SetLogLevel(t *testing.T) {
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelInfo)
+	cfg := &canModels.Config{MessageBufferSize: 16}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	a := app.NewApp(cfg, logger, lvl)
+
+	a.SetLogLevel(slog.LevelDebug)
+	assert.Equal(t, slog.LevelDebug, a.GetLogLevel().Level())
 }

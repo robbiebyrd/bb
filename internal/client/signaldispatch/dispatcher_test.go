@@ -148,3 +148,24 @@ func TestDispatch_ExitsWhenChannelClosed(t *testing.T) {
 		t.Fatal("Dispatch did not exit after channel close")
 	}
 }
+
+func TestDispatch_ConcurrentAddListenerNoRace(t *testing.T) {
+	// This test must pass with go test -race.
+	// Story 001-b1a1 fixed the race by ensuring AddListener is always called
+	// before Dispatch starts (Dispatch only starts in app.Run, after all AddOutputs).
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{{Signal: "S", Value: 1}},
+	}
+	d := signaldispatch.New(parser, 16, newLogger())
+
+	ch := make(chan canModels.CanSignalTimestamped, 4)
+	d.AddListener(ch) // AddListener BEFORE Dispatch — safe
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 1}
+	close(d.GetChannel())
+
+	require.NoError(t, <-done)
+}
