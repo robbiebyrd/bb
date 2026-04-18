@@ -149,7 +149,6 @@ func TestGetTopicFromMessage_UsesConnectionName(t *testing.T) {
 	c := &MQTTClient{
 		resolver: resolver,
 		topic:    "bb_app",
-		cfg:      &canModels.Config{},
 	}
 
 	msg := canModels.CanMessageTimestamped{Interface: 0, ID: 0x123}
@@ -163,13 +162,12 @@ func TestGetTopicFromMessage_UnknownInterface(t *testing.T) {
 	c := &MQTTClient{
 		resolver: &mockResolver{conns: map[int]*mockCanConn{}},
 		topic:    "bb_app",
-		cfg:      &canModels.Config{},
 	}
 
 	msg := canModels.CanMessageTimestamped{Interface: 99, ID: 0xABC}
 	topic := c.getTopicFromMessage(msg)
 
-	assert.Equal(t, "/bb_app/unknown/99/messages/0xABC", topic)
+	assert.Equal(t, "/bb_app/unknown/99/messages/0xabc", topic)
 }
 
 func TestGetTopicFromSignal_UsesConnectionName(t *testing.T) {
@@ -181,7 +179,6 @@ func TestGetTopicFromSignal_UsesConnectionName(t *testing.T) {
 	c := &MQTTClient{
 		resolver: resolver,
 		topic:    "bb_app",
-		cfg:      &canModels.Config{},
 	}
 
 	sig := canModels.CanSignalTimestamped{Interface: 0, ID: 0x141, Message: "MSG_ENGINE", Signal: "EngineSpeed"}
@@ -195,7 +192,6 @@ func TestGetTopicFromSignal_UnknownInterface(t *testing.T) {
 	c := &MQTTClient{
 		resolver: &mockResolver{conns: map[int]*mockCanConn{}},
 		topic:    "bb_app",
-		cfg:      &canModels.Config{},
 	}
 
 	sig := canModels.CanSignalTimestamped{Interface: 99, ID: 0xABC, Message: "MSG_TEST", Signal: "TestSig"}

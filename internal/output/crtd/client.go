@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -77,6 +78,10 @@ func (c *CRTDLoggerClient) AddFilter(name string, filter canModels.FilterInterfa
 }
 
 func (c *CRTDLoggerClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
+	if shouldFilter, _ := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+		return
+	}
+
 	seconds := canMsg.Timestamp / 1e9
 	microseconds := (canMsg.Timestamp % 1e9) / 1e3
 

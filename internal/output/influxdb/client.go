@@ -14,6 +14,7 @@ import (
 
 	"github.com/InfluxCommunity/influxdb3-go/v2/influxdb3"
 
+	"github.com/robbiebyrd/bb/internal/client/common"
 	canModels "github.com/robbiebyrd/bb/internal/models"
 )
 
@@ -130,7 +131,7 @@ func (c *InfluxDBClient) HandleCanMessageChannel() error {
 				c.wg.Wait()
 				return nil
 			}
-			if shouldFilter, filterName := c.shouldFilterMessage(canMsg); shouldFilter {
+			if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
 				c.l.Debug("message filtered, dropping message", "message", canMsg, "filterName", *filterName)
 				continue
 			}
@@ -225,11 +226,3 @@ func boolToInt(b bool) uint8 {
 	return 0
 }
 
-func (c *InfluxDBClient) shouldFilterMessage(canMsg canModels.CanMessageTimestamped) (bool, *string) {
-	for name, filter := range c.filters {
-		if filter.Filter(canMsg) {
-			return true, &name
-		}
-	}
-	return false, nil
-}

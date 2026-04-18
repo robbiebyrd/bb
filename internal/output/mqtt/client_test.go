@@ -1,12 +1,14 @@
 package mqtt
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"log/slog"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -105,4 +107,69 @@ func TestBuildTLSConfig_InvalidPEM_ReturnsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, tlsCfg)
+}
+
+// stubFilter is a minimal FilterInterface implementation that never filters any message.
+type stubFilter struct{}
+
+func (s *stubFilter) Filter(_ canModels.CanMessageTimestamped) bool { return false }
+
+// TestHandleCanMessageChannel_DrainAndReturn verifies the channel handler
+// returns nil once the incoming channel is closed with no pending messages.
+func TestHandleCanMessageChannel_DrainAndReturn(t *testing.T) {
+	c := &MQTTClient{
+		l:               slog.Default(),
+		ctx:             context.Background(),
+		incomingChannel: make(chan canModels.CanMessageTimestamped),
+		filters:         make(map[string]canModels.FilterInterface),
+		resolver:        &mockResolver{conns: map[int]*mockCanConn{}},
+	}
+
+	close(c.incomingChannel)
+
+	err := c.HandleCanMessageChannel()
+	assert.NoError(t, err)
+}
+
+// TestHandleSignalChannel_DrainAndReturn verifies the signal channel handler
+// returns nil once the signal channel is closed with no pending signals.
+func TestHandleSignalChannel_DrainAndReturn(t *testing.T) {
+	c := &MQTTClient{
+		l:             slog.Default(),
+		ctx:           context.Background(),
+		signalChannel: make(chan canModels.CanSignalTimestamped),
+		filters:       make(map[string]canModels.FilterInterface),
+		resolver:      &mockResolver{conns: map[int]*mockCanConn{}},
+	}
+
+	close(c.signalChannel)
+
+	err := c.HandleSignalChannel()
+	assert.NoError(t, err)
+}
+
+// TestAddFilter_HappyPath verifies a new filter is accepted and stored.
+func TestAddFilter_HappyPath(t *testing.T) {
+	c := &MQTTClient{
+		l:       slog.Default(),
+		filters: make(map[string]canModels.FilterInterface),
+	}
+
+	err := c.AddFilter("my-filter", &stubFilter{})
+	require.NoError(t, err)
+	assert.Contains(t, c.filters, "my-filter")
+}
+
+// TestAddFilter_DuplicateRejected verifies registering the same filter name twice returns an error.
+func TestAddFilter_DuplicateRejected(t *testing.T) {
+	c := &MQTTClient{
+		l:       slog.Default(),
+		filters: make(map[string]canModels.FilterInterface),
+	}
+
+	require.NoError(t, c.AddFilter("dup", &stubFilter{}))
+
+	err := c.AddFilter("dup", &stubFilter{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dup")
 }
