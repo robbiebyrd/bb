@@ -33,13 +33,13 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(cfg.MQTTConfig.Host)
 	opts.SetClientID(cfg.MQTTConfig.ClientId)
-	if cfg.MQTTConfig.Username \!= "" {
+	if cfg.MQTTConfig.Username != "" {
 		opts.SetUsername(cfg.MQTTConfig.Username)
 		opts.SetPassword(cfg.MQTTConfig.Password)
 	}
 	if cfg.MQTTConfig.TLS {
 		tlsCfg, err := buildTLSConfig(cfg.MQTTConfig)
-		if err \!= nil {
+		if err != nil {
 			return nil, fmt.Errorf("building TLS config: %w", err)
 		}
 		opts.SetTLSConfig(tlsCfg)
@@ -53,7 +53,7 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 		"clientId",
 		cfg.MQTTConfig.ClientId,
 	)
-	if token := client.Connect(); token.Wait() && token.Error() \!= nil {
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		logger.Error("error connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId, "error", token.Error())
 		return nil, fmt.Errorf("connecting to MQTT broker: %w", token.Error())
 	}
@@ -91,7 +91,7 @@ func (c *MQTTClient) AddFilter(name string, filter canModels.FilterInterface) er
 }
 
 func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
-	if \!c.client.IsConnectionOpen() {
+	if !c.client.IsConnectionOpen() {
 		c.l.Error("MQTT client not connected, dropping message")
 		return
 	}
@@ -99,7 +99,7 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
 		if c.l.Enabled(context.Background(), slog.LevelDebug) {
 			msgString, err := c.ToJSON(canMsg)
-			if err \!= nil {
+			if err != nil {
 				c.l.Debug("message filtered, dropping message (serialize error)", "error", err, "filterName", *filterName)
 			} else {
 				c.l.Debug("message filtered, dropping message", "message", msgString, "filterName", *filterName)
@@ -110,7 +110,7 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 
 	topic := c.getTopicFromMessage(canMsg)
 	msgString, err := c.ToJSON(canMsg)
-	if err \!= nil {
+	if err != nil {
 		c.l.Error("MQTT failed to serialize message", "error", err)
 		return
 	}
@@ -136,7 +136,7 @@ func (c *MQTTClient) GetSignalChannel() chan canModels.CanSignalTimestamped {
 }
 
 func (c *MQTTClient) HandleSignal(sig canModels.CanSignalTimestamped) {
-	if \!c.client.IsConnectionOpen() {
+	if !c.client.IsConnectionOpen() {
 		c.l.Error("MQTT client not connected, dropping signal")
 		return
 	}
@@ -169,7 +169,7 @@ func (c *MQTTClient) publish(topic string, payload any) {
 	token := c.client.Publish(topic, c.qos, c.shadowCopy, payload)
 	go func(t mqtt.Token) {
 		t.Wait()
-		if t.Error() \!= nil {
+		if t.Error() != nil {
 			c.l.Error("MQTT publish failed", "error", t.Error())
 		}
 	}(token)
@@ -177,7 +177,7 @@ func (c *MQTTClient) publish(topic string, payload any) {
 
 func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped) string {
 	name := "unknown"
-	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn \!= nil {
+	if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 		name = conn.GetName()
 	}
 	return fmt.Sprintf("/%s/%s/%d/messages/0x%x", c.topic, name, canMsg.Interface, canMsg.ID)
@@ -185,7 +185,7 @@ func (c *MQTTClient) getTopicFromMessage(canMsg canModels.CanMessageTimestamped)
 
 func (c *MQTTClient) getTopicFromSignal(sig canModels.CanSignalTimestamped) string {
 	name := "unknown"
-	if conn := c.resolver.ConnectionByID(sig.Interface); conn \!= nil {
+	if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
 		name = conn.GetName()
 	}
 	return fmt.Sprintf("/%s/%s/%d/signals/%s/%s", c.topic, name, sig.Interface, sig.Message, sig.Signal)
@@ -203,12 +203,12 @@ func buildTLSConfig(cfg canModels.MQTTConfig) (*tls.Config, error) {
 	}
 
 	pemBytes, err := os.ReadFile(cfg.TLSCACertFile)
-	if err \!= nil {
+	if err != nil {
 		return nil, fmt.Errorf("reading CA cert file %q: %w", cfg.TLSCACertFile, err)
 	}
 
 	pool := x509.NewCertPool()
-	if \!pool.AppendCertsFromPEM(pemBytes) {
+	if !pool.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("no valid PEM certificates found in %q", cfg.TLSCACertFile)
 	}
 
