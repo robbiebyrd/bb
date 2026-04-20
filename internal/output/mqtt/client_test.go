@@ -120,12 +120,12 @@ func TestHandleCanMessageChannel_DrainAndReturn(t *testing.T) {
 	c := &MQTTClient{
 		l:               slog.Default(),
 		ctx:             context.Background(),
-		incomingChannel: make(chan canModels.CanMessageTimestamped),
+		canChannel: make(chan canModels.CanMessageTimestamped),
 		filters:         make(map[string]canModels.FilterInterface),
 		resolver:        &mockResolver{conns: map[int]*mockCanConn{}},
 	}
 
-	close(c.incomingChannel)
+	close(c.canChannel)
 
 	err := c.HandleCanMessageChannel()
 	assert.NoError(t, err)

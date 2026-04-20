@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/InfluxCommunity/influxdb3-go/v2/influxdb3"
@@ -19,28 +20,42 @@ import (
 )
 
 type InfluxDBClient struct {
-	client          *influxdb3.Client
-	ctx             context.Context
-	measurementName string
-	messageBlock    []canModels.CanMessageTimestamped
-	wg              sync.WaitGroup
-	maxBlocks       int
-	maxConnections  int
-	internalChannel chan []canModels.CanMessageTimestamped
-	flushTime       int // ms
-	l               *slog.Logger
-	incomingChannel chan canModels.CanMessageTimestamped
-	filters         map[string]canModels.FilterInterface
-	resolver        canModels.InterfaceResolver
+	client                *influxdb3.Client
+	signalClient          *influxdb3.Client
+	ctx                   context.Context
+	measurementName       string
+	signalMeasurementName string
+	messageBlock          []canModels.CanMessageTimestamped
+	signalBlock           []canModels.CanSignalTimestamped
+	wg                    sync.WaitGroup
+	signalWg              sync.WaitGroup
+	maxBlocks             int
+	maxConnections        int
+	internalChannel       chan []canModels.CanMessageTimestamped
+	signalInternalChannel chan []canModels.CanSignalTimestamped
+	flushTime             int // ms
+	l                     *slog.Logger
+	canChannel            chan canModels.CanMessageTimestamped
+	signalChannel         chan canModels.CanSignalTimestamped
+	filters               map[string]canModels.FilterInterface
+	resolver              canModels.InterfaceResolver
+	canMsgCount           atomic.Uint64
+	signalMsgCount        atomic.Uint64
 }
 
-func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, resolver canModels.InterfaceResolver) (canModels.OutputClient, error) {
+func NewClient(
+	ctx context.Context,
+	cfg *canModels.Config,
+	logger *slog.Logger,
+	resolver canModels.InterfaceResolver,
+	filters ...canModels.FilterInput,
+) (canModels.OutputClient, error) {
 	logger.Debug("starting influxdb3 client")
 
 	clientCfg := influxdb3.ClientConfig{
 		Host:     cfg.InfluxDB.Host,
 		Token:    cfg.InfluxDB.Token,
-		Database: cfg.InfluxDB.Database,
+		Database: cfg.InfluxDB.MessageDatabase,
 	}
 
 	if cfg.InfluxDB.TLS {
@@ -66,25 +81,58 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 		return nil, fmt.Errorf("creating InfluxDB3 client: %w", err)
 	}
 
+	var signalClient *influxdb3.Client
+	if cfg.InfluxDB.SignalDatabase != "" {
+		signalCfg := clientCfg
+		signalCfg.Database = cfg.InfluxDB.SignalDatabase
+		signalClient, err = influxdb3.New(signalCfg)
+		if err != nil {
+			return nil, fmt.Errorf("creating InfluxDB3 signal client: %w", err)
+		}
+	}
+
 	logger.Debug("started influxdb3 client")
 
+	newFilters := make(map[string]canModels.FilterInterface)
+	for _, f := range filters {
+		newFilters[f.Name] = f.Filter
+	}
+
 	return &InfluxDBClient{
-		client:          client,
-		ctx:             ctx,
-		l:               logger,
-		measurementName: cfg.InfluxDB.TableName,
-		maxBlocks:       cfg.InfluxDB.MaxWriteLines,
-		maxConnections:  cfg.InfluxDB.MaxConnections,
-		flushTime:       cfg.InfluxDB.FlushTime,
-		internalChannel: make(chan []canModels.CanMessageTimestamped, cfg.InfluxDB.MaxConnections),
-		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
-		messageBlock:    make([]canModels.CanMessageTimestamped, 0, cfg.InfluxDB.MaxWriteLines),
-		wg:              sync.WaitGroup{},
-		filters:         make(map[string]canModels.FilterInterface),
-		resolver:        resolver,
+		client:                client,
+		signalClient:          signalClient,
+		ctx:                   ctx,
+		l:                     logger,
+		measurementName:       cfg.InfluxDB.TableName,
+		signalMeasurementName: cfg.InfluxDB.SignalTableName,
+		maxBlocks:             cfg.InfluxDB.MaxWriteLines,
+		maxConnections:        cfg.InfluxDB.MaxConnections,
+		flushTime:             cfg.InfluxDB.FlushTime,
+		internalChannel: make(
+			chan []canModels.CanMessageTimestamped,
+			cfg.InfluxDB.MaxConnections,
+		),
+		signalInternalChannel: make(
+			chan []canModels.CanSignalTimestamped,
+			cfg.InfluxDB.MaxConnections,
+		),
+		canChannel:    make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
+		signalChannel: make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
+		messageBlock: make(
+			[]canModels.CanMessageTimestamped,
+			0,
+			cfg.InfluxDB.MaxWriteLines,
+		),
+		signalBlock: make(
+			[]canModels.CanSignalTimestamped,
+			0,
+			cfg.InfluxDB.MaxWriteLines,
+		),
+		wg:       sync.WaitGroup{},
+		filters:  newFilters,
+		resolver: resolver,
 	}, nil
 }
-
 
 func (c *InfluxDBClient) AddFilter(name string, filter canModels.FilterInterface) error {
 	if _, ok := c.filters[name]; ok {
@@ -96,7 +144,7 @@ func (c *InfluxDBClient) AddFilter(name string, filter canModels.FilterInterface
 }
 
 func (c *InfluxDBClient) GetChannel() chan canModels.CanMessageTimestamped {
-	return c.incomingChannel
+	return c.canChannel
 }
 
 // HandleCanMessage is a no-op for InfluxDB. Batching is done entirely inside
@@ -105,6 +153,10 @@ func (c *InfluxDBClient) HandleCanMessage(_ canModels.CanMessageTimestamped) {}
 
 func (c *InfluxDBClient) HandleCanMessageChannel() error {
 	c.l.Debug("starting channel handler")
+
+	done := make(chan struct{})
+	defer close(done)
+	common.StartThroughputReporter(done, c.l, c.GetName(), "can", &c.canMsgCount, func() int { return len(c.canChannel) }, 5*time.Second)
 
 	ticker := time.NewTicker(time.Duration(c.flushTime) * time.Millisecond)
 	defer ticker.Stop()
@@ -124,15 +176,22 @@ func (c *InfluxDBClient) HandleCanMessageChannel() error {
 
 	for {
 		select {
-		case canMsg, ok := <-c.incomingChannel:
+		case canMsg, ok := <-c.canChannel:
 			if !ok {
 				flush()
 				close(c.internalChannel)
 				c.wg.Wait()
 				return nil
 			}
+			c.canMsgCount.Add(1)
 			if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
-				c.l.Debug("message filtered, dropping message", "message", canMsg, "filterName", *filterName)
+				c.l.Debug(
+					"message filtered, dropping message",
+					"message",
+					canMsg,
+					"filterName",
+					*filterName,
+				)
 				continue
 			}
 			c.messageBlock = append(c.messageBlock, canMsg)
@@ -172,6 +231,19 @@ func (c *InfluxDBClient) Run() error {
 			defer func() { <-guard }()
 			c.worker(id)
 		}(i)
+	}
+
+	if c.signalClient != nil {
+		signalGuard := make(chan struct{}, c.maxConnections)
+		for i := 0; i < cap(signalGuard); i++ {
+			signalGuard <- struct{}{}
+			c.signalWg.Add(1)
+			go func(id int) {
+				defer c.signalWg.Done()
+				defer func() { <-signalGuard }()
+				c.signalWorker(id)
+			}(i)
+		}
 	}
 
 	return nil
@@ -219,10 +291,103 @@ func (c *InfluxDBClient) write(msg []InfluxDBCanMessage) error {
 	return c.client.WriteData(c.ctx, data)
 }
 
+func (c *InfluxDBClient) GetSignalChannel() chan canModels.CanSignalTimestamped {
+	return c.signalChannel
+}
+
+func (c *InfluxDBClient) HandleSignal(sig canModels.CanSignalTimestamped) {
+	if c.signalClient == nil {
+		return
+	}
+	converted := c.convertSignal(sig)
+	if err := c.signalClient.WriteData(c.ctx, []any{converted}); err != nil {
+		c.l.Error("influxdb3 signal write failed", "error", err)
+	}
+}
+
+func (c *InfluxDBClient) HandleSignalChannel() error {
+	c.l.Debug("starting influxdb3 signal channel handler")
+
+	done := make(chan struct{})
+	defer close(done)
+	common.StartThroughputReporter(done, c.l, c.GetName(), "signal", &c.signalMsgCount, func() int { return len(c.signalChannel) }, 5*time.Second)
+
+	ticker := time.NewTicker(time.Duration(c.flushTime) * time.Millisecond)
+	defer ticker.Stop()
+
+	flush := func() {
+		if len(c.signalBlock) == 0 {
+			return
+		}
+		select {
+		case c.signalInternalChannel <- c.signalBlock:
+		default:
+			c.l.Warn("influxdb: signal workers at capacity, dropping batch",
+				"batch_size", len(c.signalBlock))
+		}
+		c.signalBlock = make([]canModels.CanSignalTimestamped, 0, c.maxBlocks)
+	}
+
+	for {
+		select {
+		case sig, ok := <-c.signalChannel:
+			if !ok {
+				flush()
+				close(c.signalInternalChannel)
+				c.signalWg.Wait()
+				return nil
+			}
+			c.signalMsgCount.Add(1)
+			c.signalBlock = append(c.signalBlock, sig)
+			if len(c.signalBlock) >= c.maxBlocks {
+				flush()
+			}
+		case <-ticker.C:
+			flush()
+		}
+	}
+}
+
+func (c *InfluxDBClient) signalWorker(i int) {
+	c.l.Debug("influxdb3 signal worker started", "worker", i)
+	for sigChunk := range c.signalInternalChannel {
+		c.l.Debug("influxdb3 signal worker handling chunk", "worker", i)
+		if err := c.writeSignals(sigChunk); err != nil {
+			c.l.Error("influxdb3 signal write failed", "error", err)
+		}
+	}
+}
+
+func (c *InfluxDBClient) writeSignals(sigs []canModels.CanSignalTimestamped) error {
+	if c.signalClient == nil {
+		return nil
+	}
+	data := make([]any, len(sigs))
+	for i, s := range sigs {
+		data[i] = c.convertSignal(s)
+	}
+	return c.signalClient.WriteData(c.ctx, data)
+}
+
+func (c *InfluxDBClient) convertSignal(sig canModels.CanSignalTimestamped) InfluxDBSignalMessage {
+	interfaceName := ""
+	if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
+		interfaceName = conn.GetInterfaceName()
+	}
+	return InfluxDBSignalMessage{
+		Timestamp:   time.Unix(0, sig.Timestamp),
+		Interface:   interfaceName,
+		Message:     sig.Message,
+		Signal:      sig.Signal,
+		Value:       sig.Value,
+		Unit:        sig.Unit,
+		Measurement: c.signalMeasurementName,
+	}
+}
+
 func boolToInt(b bool) uint8 {
 	if b {
 		return 1
 	}
 	return 0
 }
-

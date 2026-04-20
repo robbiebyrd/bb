@@ -48,6 +48,12 @@ func (dc *DBCParserClient) Load() error {
 
 // ParseSignals decodes all signals in msg and returns one CanSignalTimestamped
 // per decoded signal. Returns nil if the message ID is not in the database.
+//
+// Supports single-level (flat) and two-level (nested) multiplexed messages.
+// For nested mux, a signal marked mNM in the DBC (IsMultiplexer && IsMultiplexed)
+// is only active when the top mux value equals N; leaf signals under it are then
+// filtered by that nested mux's current value. The mux switch signals themselves
+// are always included.
 func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageTimestamped) []canModels.CanSignalTimestamped {
 	if dc.db == nil {
 		return nil
@@ -59,8 +65,51 @@ func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageTimestamped) []c
 	var canData can.Data
 	copy(canData[:], msg.Data)
 
+	// Find the top-level mux switch (IsMultiplexer=true, IsMultiplexed=false).
+	var topMux *descriptor.Signal
+	var topMuxValue uint64
+	for _, sig := range message.Signals {
+		if sig.IsMultiplexer && !sig.IsMultiplexed {
+			topMux = sig
+			topMuxValue = sig.UnmarshalUnsigned(canData)
+			break
+		}
+	}
+
+	// Find the active nested mux switch (IsMultiplexer && IsMultiplexed && value==topMuxValue).
+	var nestedMux *descriptor.Signal
+	var nestedMuxValue uint64
+	if topMux != nil {
+		for _, sig := range message.Signals {
+			if sig.IsMultiplexer && sig.IsMultiplexed && uint64(sig.MultiplexerValue) == topMuxValue {
+				nestedMux = sig
+				nestedMuxValue = sig.UnmarshalUnsigned(canData)
+				break
+			}
+		}
+	}
+
 	signals := make([]canModels.CanSignalTimestamped, 0, len(message.Signals))
 	for _, sig := range message.Signals {
+		switch {
+		case !sig.IsMultiplexed:
+			// Always include: non-multiplexed signals and the top mux switch itself.
+		case sig.IsMultiplexer && sig.IsMultiplexed:
+			// Nested mux switch: include only when active (parent mux value matches).
+			if topMux == nil || uint64(sig.MultiplexerValue) != topMuxValue {
+				continue
+			}
+		case nestedMux != nil:
+			// Leaf under a two-level mux: filter by the nested mux's current value.
+			if uint64(sig.MultiplexerValue) != nestedMuxValue {
+				continue
+			}
+		default:
+			// Flat-mux leaf: filter by the top mux's current value.
+			if topMux == nil || uint64(sig.MultiplexerValue) != topMuxValue {
+				continue
+			}
+		}
 		signals = append(signals, canModels.CanSignalTimestamped{
 			Timestamp: msg.Timestamp,
 			Interface: msg.Interface,
@@ -72,6 +121,37 @@ func (dc *DBCParserClient) ParseSignals(msg canModels.CanMessageTimestamped) []c
 		})
 	}
 	return signals
+}
+
+// NewDBCParserClientFromBytes constructs a parser from raw DBC file bytes.
+// name is used only for logging and error messages.
+func NewDBCParserClientFromBytes(l *slog.Logger, name string, data []byte) (canModels.ParserInterface, error) {
+	p := dbc.NewParser(name, data)
+	if parseErr := p.Parse(); parseErr != nil {
+		return nil, fmt.Errorf("parsing DBC data %s: %w", name, parseErr)
+	}
+	dc := &DBCParserClient{l: l, dbcFilePath: name, db: compile(name, p.Defs())}
+	dc.l.Info("loaded DBC data", "name", name, "messages", len(dc.db.Messages))
+	return dc, nil
+}
+
+// MultiParser combines multiple ParserInterface implementations. ParseSignals
+// returns the union of signals from all parsers.
+type MultiParser struct {
+	parsers []canModels.ParserInterface
+}
+
+// NewMultiParser wraps one or more parsers so their results are merged on each call.
+func NewMultiParser(parsers ...canModels.ParserInterface) canModels.ParserInterface {
+	return &MultiParser{parsers: parsers}
+}
+
+func (m *MultiParser) ParseSignals(msg canModels.CanMessageTimestamped) []canModels.CanSignalTimestamped {
+	var all []canModels.CanSignalTimestamped
+	for _, p := range m.parsers {
+		all = append(all, p.ParseSignals(msg)...)
+	}
+	return all
 }
 
 // compile converts parsed DBC definitions into a descriptor.Database.

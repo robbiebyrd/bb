@@ -12,3 +12,13 @@ type InfluxDBCanMessage struct {
 	Data        string    `lp:"tag,data"`
 	Measurement string    `lp:"measurement"`
 }
+
+type InfluxDBSignalMessage struct {
+	Timestamp   time.Time `lp:"timestamp"`
+	Interface   string    `lp:"tag,interface"`
+	Message     string    `lp:"tag,message"`
+	Signal      string    `lp:"tag,signal"`
+	Unit        string    `lp:"tag,unit"`
+	Value       float64   `lp:"field,value"`
+	Measurement string    `lp:"measurement"`
+}

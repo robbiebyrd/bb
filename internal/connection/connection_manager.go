@@ -3,6 +3,7 @@ package connection
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/robbiebyrd/bb/internal/connection/playback"
@@ -92,6 +93,7 @@ func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 			),
 		)
 	case "slcan":
+		dbcStr := strings.Join(options.DBCFiles, ",")
 		cm.Add(
 			slcan.NewSLCanConnection(
 				cm.ctx,
@@ -100,10 +102,11 @@ func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 				cm.MessageChannel,
 				&options.Network,
 				&options.URI,
-				&options.DBCFile,
+				&dbcStr,
 			),
 		)
 	case "playback":
+		dbcStr := strings.Join(options.DBCFiles, ",")
 		cm.Add(
 			playback.NewPlaybackCanClient(
 				cm.ctx,
@@ -115,10 +118,11 @@ func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 				cm.l,
 				&options.Network,
 				nil,
-				&options.DBCFile,
+				&dbcStr,
 			),
 		)
 	default:
+		dbcStr := strings.Join(options.DBCFiles, ",")
 		cm.Add(
 			socketcan.NewSocketCanConnection(
 				cm.ctx,
@@ -127,7 +131,7 @@ func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 				cm.MessageChannel,
 				&options.Network,
 				&options.URI,
-				&options.DBCFile,
+				&dbcStr,
 			),
 		)
 	}

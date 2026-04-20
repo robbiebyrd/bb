@@ -28,7 +28,7 @@ type CanInterfaceOption struct {
 	Name    string `env:"NAME,required"`
 	URI     string `env:"URI"           envDefault:""`
 	Network string `env:"NET"           envDefault:"can"`
-	DBCFile string `env:"DBC"           envDefault:""`
+	DBCFiles []string `env:"DBC" envDefault:""`
 	Loop    bool   `env:"LOOP"          envDefault:"false"`
 }
 

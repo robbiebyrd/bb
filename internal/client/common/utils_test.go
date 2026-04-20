@@ -1,10 +1,93 @@
 package common
 
 import (
+	"context"
+	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// logCapture is a minimal slog.Handler that records every log entry.
+type logCapture struct {
+	mu   sync.Mutex
+	recs []slog.Record
+}
+
+func (h *logCapture) Enabled(_ context.Context, _ slog.Level) bool { return true }
+func (h *logCapture) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	h.recs = append(h.recs, r.Clone())
+	h.mu.Unlock()
+	return nil
+}
+func (h *logCapture) WithAttrs(_ []slog.Attr) slog.Handler { return h }
+func (h *logCapture) WithGroup(_ string) slog.Handler      { return h }
+
+func (h *logCapture) count() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.recs)
+}
+
+func TestStartThroughputReporter_DoesNotBlock(t *testing.T) {
+	var counter atomic.Uint64
+	done := make(chan struct{})
+	defer close(done)
+	l := slog.New(&logCapture{})
+
+	start := time.Now()
+	StartThroughputReporter(done, l, "test", "can", &counter, func() int { return 0 }, time.Second)
+	assert.Less(t, time.Since(start), 50*time.Millisecond, "StartThroughputReporter must return immediately")
+}
+
+func TestStartThroughputReporter_LogsOnTick(t *testing.T) {
+	var counter atomic.Uint64
+	counter.Add(100)
+	capture := &logCapture{}
+	done := make(chan struct{})
+	defer close(done)
+
+	StartThroughputReporter(done, slog.New(capture), "output-test", "can", &counter, func() int { return 7 }, 20*time.Millisecond)
+
+	require.Eventually(t, func() bool { return capture.count() > 0 }, 200*time.Millisecond, 5*time.Millisecond)
+
+	capture.mu.Lock()
+	rec := capture.recs[0]
+	capture.mu.Unlock()
+
+	assert.Equal(t, "client throughput", rec.Message)
+	attrs := map[string]any{}
+	rec.Attrs(func(a slog.Attr) bool {
+		attrs[a.Key] = a.Value.Any()
+		return true
+	})
+	assert.Equal(t, "output-test", attrs["client"])
+	assert.Equal(t, "can", attrs["channel"])
+	assert.Contains(t, attrs, "msgs_per_sec")
+	assert.Contains(t, attrs, "buffer_queue")
+}
+
+func TestStartThroughputReporter_ExitsWhenDoneClosed(t *testing.T) {
+	capture := &logCapture{}
+	done := make(chan struct{})
+
+	var counter atomic.Uint64
+	StartThroughputReporter(done, slog.New(capture), "output-test", "signal", &counter, func() int { return 0 }, 20*time.Millisecond)
+
+	require.Eventually(t, func() bool { return capture.count() > 0 }, 200*time.Millisecond, 5*time.Millisecond)
+
+	close(done)
+	time.Sleep(10 * time.Millisecond) // let goroutine exit
+
+	countAtClose := capture.count()
+	time.Sleep(60 * time.Millisecond) // 3 more potential ticks — none should fire
+	assert.Equal(t, countAtClose, capture.count(), "no more logs should appear after done is closed")
+}
 
 func TestPadOrTrim(t *testing.T) {
 	// pad: input shorter than half of size

@@ -56,16 +56,23 @@ func testMsg(id uint32) canModels.CanMessageTimestamped {
 // real InfluxDB connection. internalChanSize controls the internalChannel buffer.
 func newHandleClient(maxBlocks, maxConnections, flushTimeMs, internalChanSize int) *InfluxDBClient {
 	return &InfluxDBClient{
-		ctx:             context.Background(),
-		l:               silentLogger(),
-		maxBlocks:       maxBlocks,
-		maxConnections:  maxConnections,
-		flushTime:       flushTimeMs,
-		internalChannel: make(chan []canModels.CanMessageTimestamped, internalChanSize),
-		incomingChannel: make(chan canModels.CanMessageTimestamped, 32),
-		messageBlock:    make([]canModels.CanMessageTimestamped, 0, maxBlocks),
-		filters:         make(map[string]canModels.FilterInterface),
+		ctx:                   context.Background(),
+		l:                     silentLogger(),
+		maxBlocks:             maxBlocks,
+		maxConnections:        maxConnections,
+		flushTime:             flushTimeMs,
+		internalChannel:       make(chan []canModels.CanMessageTimestamped, internalChanSize),
+		signalInternalChannel: make(chan []canModels.CanSignalTimestamped, internalChanSize),
+		canChannel:            make(chan canModels.CanMessageTimestamped, 32),
+		signalChannel:         make(chan canModels.CanSignalTimestamped, 32),
+		messageBlock:          make([]canModels.CanMessageTimestamped, 0, maxBlocks),
+		signalBlock:           make([]canModels.CanSignalTimestamped, 0, maxBlocks),
+		filters:               make(map[string]canModels.FilterInterface),
 	}
+}
+
+func testSignal(id uint32) canModels.CanSignalTimestamped {
+	return canModels.CanSignalTimestamped{ID: id, Signal: "RPM", Value: 1000}
 }
 
 // TestHandleChannel_FlushesOnMaxBlocks verifies that a full messageBlock is
@@ -77,7 +84,7 @@ func TestHandleChannel_FlushesOnMaxBlocks(t *testing.T) {
 	go c.HandleCanMessageChannel() //nolint:errcheck
 
 	for i := 0; i < maxBlocks; i++ {
-		c.incomingChannel <- testMsg(uint32(i))
+		c.canChannel <- testMsg(uint32(i))
 	}
 
 	select {
@@ -89,7 +96,7 @@ func TestHandleChannel_FlushesOnMaxBlocks(t *testing.T) {
 		t.Fatal("timed out waiting for count-based flush")
 	}
 
-	close(c.incomingChannel)
+	close(c.canChannel)
 }
 
 // TestHandleChannel_FlushesOnTicker verifies that a partial messageBlock is
@@ -100,7 +107,7 @@ func TestHandleChannel_FlushesOnTicker(t *testing.T) {
 
 	go c.HandleCanMessageChannel() //nolint:errcheck
 
-	c.incomingChannel <- testMsg(0x001)
+	c.canChannel <- testMsg(0x001)
 
 	deadline := time.Duration(flushMs)*time.Millisecond + 40*time.Millisecond
 	select {
@@ -112,7 +119,7 @@ func TestHandleChannel_FlushesOnTicker(t *testing.T) {
 		t.Fatalf("timed out after %v — ticker-based flush did not fire", deadline)
 	}
 
-	close(c.incomingChannel)
+	close(c.canChannel)
 }
 
 // TestHandleChannel_FlushesRemainingOnClose verifies that messages accumulated
@@ -120,9 +127,9 @@ func TestHandleChannel_FlushesOnTicker(t *testing.T) {
 func TestHandleChannel_FlushesRemainingOnClose(t *testing.T) {
 	c := newHandleClient(100, 4, 5000, 4) // high maxBlocks, long ticker
 
-	c.incomingChannel <- testMsg(0xAAA)
-	c.incomingChannel <- testMsg(0xBBB)
-	close(c.incomingChannel)
+	c.canChannel <- testMsg(0xAAA)
+	c.canChannel <- testMsg(0xBBB)
+	close(c.canChannel)
 
 	done := make(chan error, 1)
 	go func() {
@@ -148,8 +155,8 @@ func TestHandleChannel_DropsWhenWorkerQueueFull(t *testing.T) {
 	// size=0: unbuffered and no workers — any blocking send would deadlock.
 	c := newHandleClient(1, 4, 5000, 0)
 
-	c.incomingChannel <- testMsg(0x100) // maxBlocks=1, so this triggers a flush
-	close(c.incomingChannel)
+	c.canChannel <- testMsg(0x100) // maxBlocks=1, so this triggers a flush
+	close(c.canChannel)
 
 	done := make(chan error, 1)
 	go func() {
@@ -186,9 +193,9 @@ func TestHandleChannel_DoesNotBlockWhenWorkersAreBusy(t *testing.T) {
 	// absorbs both flushes. An unbuffered channel deadlocks.
 	c := newHandleClient(1, 2, 5000, 2) // size=maxConnections — buffered post-fix
 
-	c.incomingChannel <- testMsg(0x100)
-	c.incomingChannel <- testMsg(0x200)
-	close(c.incomingChannel)
+	c.canChannel <- testMsg(0x100)
+	c.canChannel <- testMsg(0x200)
+	close(c.canChannel)
 
 	done := make(chan error, 1)
 	go func() {
@@ -358,7 +365,7 @@ func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
 	// Note: this test validates the shutdown sequence, not actual writes.
 	ctx := context.Background()
 	c := &InfluxDBClient{
-		incomingChannel: make(chan canModels.CanMessageTimestamped, 4),
+		canChannel: make(chan canModels.CanMessageTimestamped, 4),
 		internalChannel: make(chan []canModels.CanMessageTimestamped, 2),
 		messageBlock:    make([]canModels.CanMessageTimestamped, 0, 10),
 		maxBlocks:       10,
@@ -381,7 +388,7 @@ func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		close(c.incomingChannel)
+		close(c.canChannel)
 		_ = c.HandleCanMessageChannel()
 		close(done)
 	}()
@@ -399,6 +406,151 @@ func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("worker goroutine did not exit after internalChannel closed")
 	}
+}
+
+func TestHandleSignalChannel_FlushesOnMaxBlocks(t *testing.T) {
+	maxBlocks := 3
+	c := newHandleClient(maxBlocks, 4, 5000, 4) // long ticker — only count flush fires
+
+	go c.HandleSignalChannel() //nolint:errcheck
+
+	for i := 0; i < maxBlocks; i++ {
+		c.signalChannel <- testSignal(uint32(i))
+	}
+
+	select {
+	case batch := <-c.signalInternalChannel:
+		assert.Len(t, batch, maxBlocks)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("timed out waiting for count-based signal flush")
+	}
+
+	close(c.signalChannel)
+}
+
+func TestHandleSignalChannel_FlushesOnTicker(t *testing.T) {
+	flushMs := 50
+	c := newHandleClient(100, 4, flushMs, 4) // high maxBlocks — only ticker fires
+
+	go c.HandleSignalChannel() //nolint:errcheck
+
+	c.signalChannel <- testSignal(0x001)
+
+	deadline := time.Duration(flushMs)*time.Millisecond + 40*time.Millisecond
+	select {
+	case batch := <-c.signalInternalChannel:
+		assert.Len(t, batch, 1)
+	case <-time.After(deadline):
+		t.Fatalf("timed out after %v — ticker-based signal flush did not fire", deadline)
+	}
+
+	close(c.signalChannel)
+}
+
+func TestHandleSignalChannel_FlushesRemainingOnClose(t *testing.T) {
+	c := newHandleClient(100, 4, 5000, 4) // high maxBlocks, long ticker
+
+	c.signalChannel <- testSignal(0x001)
+	c.signalChannel <- testSignal(0x002)
+	close(c.signalChannel)
+
+	done := make(chan error, 1)
+	go func() { done <- c.HandleSignalChannel() }()
+
+	select {
+	case batch := <-c.signalInternalChannel:
+		assert.Len(t, batch, 2)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("timed out waiting for signal flush-on-close")
+	}
+
+	<-done
+}
+
+func TestHandleSignalChannel_DropsWhenWorkerQueueFull(t *testing.T) {
+	// size=0: unbuffered and no workers — any blocking send would deadlock.
+	c := newHandleClient(1, 4, 5000, 0)
+
+	c.signalChannel <- testSignal(0x100) // maxBlocks=1, triggers flush
+	close(c.signalChannel)
+
+	done := make(chan error, 1)
+	go func() { done <- c.HandleSignalChannel() }()
+
+	select {
+	case <-done:
+		// good — returned without blocking
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("HandleSignalChannel blocked on full signalInternalChannel — should drop batch instead")
+	}
+}
+
+func TestGetSignalChannelAndHandleSignalChannel(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+
+	ch := c.GetSignalChannel()
+	require.NotNil(t, ch)
+
+	// HandleSignalChannel must drain the channel and return when it's closed.
+	sig := canModels.CanSignalTimestamped{
+		Timestamp: 1_000_000_000,
+		Interface: 0,
+		Message:   "ENGINE",
+		Signal:    "RPM",
+		Value:     1500.5,
+		Unit:      "rpm",
+	}
+	ch <- sig
+	close(ch)
+
+	err := c.HandleSignalChannel()
+	require.NoError(t, err)
+}
+
+func TestHandleSignal_NilSignalClient(t *testing.T) {
+	// When no signal database is configured (signalClient == nil), HandleSignal
+	// must be a no-op and must not panic.
+	c := newHandleClient(10, 2, 100, 4)
+	c.HandleSignal(canModels.CanSignalTimestamped{Signal: "RPM", Value: 1000})
+}
+
+func TestConvertSignal(t *testing.T) {
+	resolver := &mockResolver{
+		conns: map[int]*mockCanConn{
+			0: {interfaceName: "can0-can-vcan0"},
+		},
+	}
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = resolver
+	c.signalMeasurementName = "can_signal"
+
+	sig := canModels.CanSignalTimestamped{
+		Timestamp: 1_000_000_000,
+		Interface: 0,
+		ID:        0x1AB,
+		Message:   "ENGINE",
+		Signal:    "RPM",
+		Value:     1500.5,
+		Unit:      "rpm",
+	}
+
+	result := c.convertSignal(sig)
+
+	assert.Equal(t, time.Unix(0, 1_000_000_000), result.Timestamp)
+	assert.Equal(t, "can0-can-vcan0", result.Interface)
+	assert.Equal(t, "ENGINE", result.Message)
+	assert.Equal(t, "RPM", result.Signal)
+	assert.InDelta(t, 1500.5, result.Value, 0.001)
+	assert.Equal(t, "rpm", result.Unit)
+	assert.Equal(t, "can_signal", result.Measurement)
+}
+
+func TestConvertSignal_UnknownInterface(t *testing.T) {
+	c := newHandleClient(10, 2, 100, 4)
+	c.resolver = &mockResolver{conns: map[int]*mockCanConn{}}
+
+	result := c.convertSignal(canModels.CanSignalTimestamped{Interface: 99, Signal: "RPM"})
+	assert.Equal(t, "", result.Interface)
 }
 
 func TestConvertMany(t *testing.T) {

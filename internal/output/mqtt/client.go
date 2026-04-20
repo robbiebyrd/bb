@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync/atomic"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
@@ -15,19 +17,27 @@ import (
 )
 
 type MQTTClient struct {
-	client          mqtt.Client
-	ctx             context.Context
-	l               *slog.Logger
-	incomingChannel chan canModels.CanMessageTimestamped
-	signalChannel   chan canModels.CanSignalTimestamped
-	topic           string
-	qos             uint8
-	shadowCopy      bool
-	filters         map[string]canModels.FilterInterface
-	resolver        canModels.InterfaceResolver
+	client         mqtt.Client
+	ctx            context.Context
+	l              *slog.Logger
+	canChannel     chan canModels.CanMessageTimestamped
+	signalChannel  chan canModels.CanSignalTimestamped
+	topic          string
+	qos            uint8
+	shadowCopy     bool
+	filters        map[string]canModels.FilterInterface
+	resolver       canModels.InterfaceResolver
+	canMsgCount    atomic.Uint64
+	signalMsgCount atomic.Uint64
 }
 
-func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, resolver canModels.InterfaceResolver, filters ...canModels.FilterInput) (canModels.OutputClient, error) {
+func NewClient(
+	ctx context.Context,
+	cfg *canModels.Config,
+	logger *slog.Logger,
+	resolver canModels.InterfaceResolver,
+	filters ...canModels.FilterInput,
+) (canModels.OutputClient, error) {
 	logger.Debug("starting MQTT client")
 
 	opts := mqtt.NewClientOptions()
@@ -54,7 +64,15 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 		cfg.MQTTConfig.ClientId,
 	)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		logger.Error("error connecting MQTT client", "host", cfg.MQTTConfig.Host, "clientId", cfg.MQTTConfig.ClientId, "error", token.Error())
+		logger.Error(
+			"error connecting MQTT client",
+			"host",
+			cfg.MQTTConfig.Host,
+			"clientId",
+			cfg.MQTTConfig.ClientId,
+			"error",
+			token.Error(),
+		)
 		return nil, fmt.Errorf("connecting to MQTT broker: %w", token.Error())
 	}
 
@@ -67,16 +85,16 @@ func NewClient(ctx context.Context, cfg *canModels.Config, logger *slog.Logger, 
 	}
 
 	return &MQTTClient{
-		client:          client,
-		ctx:             ctx,
-		l:               logger,
-		incomingChannel: make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
-		signalChannel:   make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
-		topic:           cfg.MQTTConfig.Topic,
-		qos:             cfg.MQTTConfig.Qos,
-		shadowCopy:      cfg.MQTTConfig.ShadowCopy,
-		filters:         newFilters,
-		resolver:        resolver,
+		client:        client,
+		ctx:           ctx,
+		l:             logger,
+		canChannel:    make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
+		signalChannel: make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
+		topic:         cfg.MQTTConfig.Topic,
+		qos:           cfg.MQTTConfig.Qos,
+		shadowCopy:    cfg.MQTTConfig.ShadowCopy,
+		filters:       newFilters,
+		resolver:      resolver,
 	}, nil
 }
 
@@ -100,7 +118,13 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 		if c.l.Enabled(context.Background(), slog.LevelDebug) {
 			msgString, err := c.ToJSON(canMsg)
 			if err != nil {
-				c.l.Debug("message filtered, dropping message (serialize error)", "error", err, "filterName", *filterName)
+				c.l.Debug(
+					"message filtered, dropping message (serialize error)",
+					"error",
+					err,
+					"filterName",
+					*filterName,
+				)
 			} else {
 				c.l.Debug("message filtered, dropping message", "message", msgString, "filterName", *filterName)
 			}
@@ -120,12 +144,16 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 }
 
 func (c *MQTTClient) GetChannel() chan canModels.CanMessageTimestamped {
-	return c.incomingChannel
+	return c.canChannel
 }
 
 func (c *MQTTClient) HandleCanMessageChannel() error {
 	c.l.Debug("starting MQTT channel handler")
-	for canMsg := range c.incomingChannel {
+	done := make(chan struct{})
+	defer close(done)
+	common.StartThroughputReporter(done, c.l, c.GetName(), "can", &c.canMsgCount, func() int { return len(c.canChannel) }, 5*time.Second)
+	for canMsg := range c.canChannel {
+		c.canMsgCount.Add(1)
 		c.HandleCanMessage(canMsg)
 	}
 	return nil
@@ -150,7 +178,11 @@ func (c *MQTTClient) HandleSignal(sig canModels.CanSignalTimestamped) {
 
 func (c *MQTTClient) HandleSignalChannel() error {
 	c.l.Debug("starting MQTT signal channel handler")
+	done := make(chan struct{})
+	defer close(done)
+	common.StartThroughputReporter(done, c.l, c.GetName(), "signal", &c.signalMsgCount, func() int { return len(c.signalChannel) }, 5*time.Second)
 	for sig := range c.signalChannel {
+		c.signalMsgCount.Add(1)
 		c.HandleSignal(sig)
 	}
 	return nil
@@ -184,7 +216,14 @@ func (c *MQTTClient) getTopicFromSignal(sig canModels.CanSignalTimestamped) stri
 	if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
 		name = conn.GetName()
 	}
-	return fmt.Sprintf("/%s/%s/%d/signals/%s/%s", c.topic, name, sig.Interface, sig.Message, sig.Signal)
+	return fmt.Sprintf(
+		"/%s/%s/%d/signals/%s/%s",
+		c.topic,
+		name,
+		sig.Interface,
+		sig.Message,
+		sig.Signal,
+	)
 }
 
 // buildTLSConfig constructs a tls.Config for the MQTT connection. When

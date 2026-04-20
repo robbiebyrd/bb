@@ -36,12 +36,40 @@ func newTestClient(t *testing.T) (*CRTDLoggerClient, *os.File) {
 	t.Cleanup(func() { os.Remove(f.Name()) })
 
 	return &CRTDLoggerClient{
-		w:       bufio.NewWriter(f),
-		file:    f,
-		c:       make(chan canModels.CanMessageTimestamped, 16),
-		filters: make(map[string]canModels.FilterInterface),
-		l:       silentLogger(),
+		w:             bufio.NewWriter(f),
+		file:          f,
+		canChannel:    make(chan canModels.CanMessageTimestamped, 16),
+		signalChannel: make(chan canModels.CanSignalTimestamped, 16),
+		filters:       make(map[string]canModels.FilterInterface),
+		l:             silentLogger(),
 	}, f
+}
+
+// newSignalTestClient creates a CRTDLoggerClient backed by both CAN and signal temp files.
+func newSignalTestClient(t *testing.T) (*CRTDLoggerClient, *os.File, *os.File) {
+	t.Helper()
+	canFile, err := os.CreateTemp("", "crtd_can_*.crtd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(canFile.Name()) })
+
+	sigFile, err := os.CreateTemp("", "crtd_sig_*.crtd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(sigFile.Name()) })
+
+	return &CRTDLoggerClient{
+		w:             bufio.NewWriter(canFile),
+		file:          canFile,
+		signalWriter:  bufio.NewWriter(sigFile),
+		signalFile:    sigFile,
+		canChannel:    make(chan canModels.CanMessageTimestamped, 16),
+		signalChannel: make(chan canModels.CanSignalTimestamped, 16),
+		filters:       make(map[string]canModels.FilterInterface),
+		l:             silentLogger(),
+	}, canFile, sigFile
 }
 
 func readFileContents(t *testing.T, f *os.File) string {
@@ -64,7 +92,7 @@ func TestNewClient(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := &canModels.Config{
-		CRTDLogger:        canModels.CRTDLogConfig{OutputFile: name},
+		CRTDLogger:        canModels.CRTDLogConfig{CanOutputFile: name},
 		MessageBufferSize: 16,
 	}
 
@@ -85,7 +113,7 @@ func TestNewClient(t *testing.T) {
 func TestNewClient_BadPath_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 	cfg := &canModels.Config{
-		CRTDLogger:        canModels.CRTDLogConfig{OutputFile: "/nonexistent/path/to/file.crtd"},
+		CRTDLogger:        canModels.CRTDLogConfig{CanOutputFile: "/nonexistent/path/to/file.crtd"},
 		MessageBufferSize: 16,
 	}
 	_, err := NewClient(ctx, cfg, silentLogger())
@@ -253,9 +281,9 @@ func TestHandleChannel(t *testing.T) {
 
 	go func() {
 		for _, msg := range msgs {
-			client.c <- msg
+			client.canChannel <- msg
 		}
-		close(client.c)
+		close(client.canChannel)
 	}()
 
 	err := client.HandleCanMessageChannel()
@@ -272,7 +300,7 @@ func TestHandleChannel(t *testing.T) {
 func TestHandleChannel_ClosesFile(t *testing.T) {
 	client, f := newTestClient(t)
 
-	close(client.c)
+	close(client.canChannel)
 	err := client.HandleCanMessageChannel()
 	assert.Nil(t, err)
 
@@ -293,9 +321,9 @@ func TestHandleChannel_DataWrittenAfterChannelClose(t *testing.T) {
 
 	go func() {
 		for _, msg := range msgs {
-			client.c <- msg
+			client.canChannel <- msg
 		}
-		close(client.c)
+		close(client.canChannel)
 	}()
 
 	err := client.HandleCanMessageChannel()
@@ -311,6 +339,61 @@ type alwaysFailWriter struct{}
 
 func (alwaysFailWriter) Write(_ []byte) (int, error) {
 	return 0, io.ErrClosedPipe
+}
+
+func TestCRTDClient_GetSignalChannel(t *testing.T) {
+	client, _ := newTestClient(t)
+	assert.NotNil(t, client.GetSignalChannel())
+}
+
+func TestCRTDClient_HandleSignal_NilWriter(t *testing.T) {
+	// When no signal file is configured, HandleSignal must be a no-op.
+	client, _ := newTestClient(t)
+	client.HandleSignal(canModels.CanSignalTimestamped{Signal: "RPM", Value: 1000})
+}
+
+func TestCRTDClient_HandleSignal_WritesLine(t *testing.T) {
+	client, _, sigFile := newSignalTestClient(t)
+
+	sig := canModels.CanSignalTimestamped{
+		Timestamp: 1000000000,
+		Interface: 0,
+		Message:   "ENGINE",
+		Signal:    "RPM",
+		Value:     1500.5,
+		Unit:      "rpm",
+	}
+	client.HandleSignal(sig)
+	_ = client.signalWriter.Flush()
+
+	contents := readFileContents(t, sigFile)
+	assert.Contains(t, contents, "1.000000")
+	assert.Contains(t, contents, "SIG")
+	assert.Contains(t, contents, "ENGINE/RPM")
+	assert.Contains(t, contents, "1500.5")
+	assert.Contains(t, contents, "rpm")
+}
+
+func TestCRTDClient_HandleSignalChannel(t *testing.T) {
+	client, _, sigFile := newSignalTestClient(t)
+
+	sigs := []canModels.CanSignalTimestamped{
+		{Timestamp: 1000000000, Interface: 0, Message: "ENG", Signal: "RPM", Value: 1000, Unit: "rpm"},
+		{Timestamp: 2000000000, Interface: 0, Message: "ENG", Signal: "TEMP", Value: 90, Unit: "C"},
+	}
+	go func() {
+		for _, s := range sigs {
+			client.signalChannel <- s
+		}
+		close(client.signalChannel)
+	}()
+
+	err := client.HandleSignalChannel()
+	require.NoError(t, err)
+
+	contents := readFileContents(t, sigFile)
+	assert.Contains(t, contents, "RPM")
+	assert.Contains(t, contents, "TEMP")
 }
 
 // TestNewClient_HeaderFirstLineErrorLogged verifies that a write error on the

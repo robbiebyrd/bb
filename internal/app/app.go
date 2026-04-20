@@ -64,11 +64,13 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 		b.wgClients.Go(rc.Run)
 	}
 
-	b.logger.Debug("starting internal handler for output client", "name", c.GetName())
-	b.wgClients.Go(c.HandleCanMessageChannel)
+	if b.config.LogCanMessages {
+		b.logger.Debug("starting internal handler for output client", "name", c.GetName())
+		b.wgClients.Go(c.HandleCanMessageChannel)
 
-	b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
-	b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
+		b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
+		b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
+	}
 
 	if sc, ok := c.(canModels.SignalOutputClient); ok && len(b.signalDispatchers) > 0 {
 		b.logger.Debug("wiring signal handler for output client", "name", c.GetName())
@@ -80,6 +82,9 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 }
 
 func (b *AppData) AddSignalDispatcher(d canModels.SignalDispatcherRegistrar, interfaceID int) {
+	if !b.config.LogSignals {
+		return
+	}
 	if err := b.broadcastClient.Add(broadcast.BroadcastClientListener{
 		Name:    fmt.Sprintf("signal-dispatcher-%d", interfaceID),
 		Channel: d.GetChannel(),

@@ -1,0 +1,14 @@
+VERSION ""
+
+NS_ :
+
+BS_:
+
+BU_:
+
+BO_ 2024 OBD2_ECU0: 8 Vector__XXX
+ SG_ PID M : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ CoolantTemp m5 : 24|8@1+ (1,-40) [-40|215] "degC" Vector__XXX
+ SG_ EngineRPM m12 : 31|16@0+ (0.25,0) [0|16383.75] "RPM" Vector__XXX
+ SG_ VehicleSpeed m13 : 24|8@1+ (1,0) [0|255] "km/h" Vector__XXX
+

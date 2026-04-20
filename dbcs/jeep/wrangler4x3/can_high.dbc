@@ -550,6 +550,7 @@ BO_ 1185 MSG_4A1_Battery_Temperatures: 8 VEHICLE
 BO_ 1186 MSG_4A2_Battery_Temperatures: 8 VEHICLE
  SG_ RAW : 7|64@0+ (1,0) [0|4294967295] "" VEHICLE
 
+
 CM_ BO_ 35 "STEERING WHEEL ANGLE  $xxxx????0000 - steering wheel angle*0.5  Each increment or decrement represents 0.5 degrees. One complete turn of the wheel would be $2D0 (720) units of change.   typical range of values: $14FF – extreme left $1000 – center $0AFF – extreme right $3FFF – offline (uninitialized) As a vehicle develops alignment issues, be aware that center may move away from $1000.  STEERING WHEEL DRIVER TORQUE  $????xxxx0000 – turning force by driver -- OR rate of turn  A measurement of how ";
 CM_ BO_ 37 "ENGINE VARIABLES  $xxxx???????? – mass air flow sensor?  Unsigned word (values $0000-$1540) Typical idle value: $62A low at idle and while braking goes higher when accelerating  $????xxxx???? – manifold air pressure?  Signed word ($06FE-$0EAD) (zero at $07ff, most typical value is $0763)  $????????xxxx – engine torque?  Signed word (zero at $07ff, most typical value near $07ff) Increases with engine torque  Numbers appear to be analog values which clearly respond while driving, but their purpose";
 CM_ BO_ 38 "ENGINE / Readiness $xxxx???????? - Engine output power ? $?????x?????? - Ready to Drive State ? $???????x???? - Engine Status ?";

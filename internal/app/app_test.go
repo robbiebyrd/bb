@@ -56,8 +56,16 @@ func (m *mockSignalClient) GetSignalChannel() chan canModels.CanSignalTimestampe
 
 func newTestApp(t *testing.T) canModels.AppInterface {
 	t.Helper()
+	return newTestAppWithCfg(t, &canModels.Config{
+		MessageBufferSize: 16,
+		LogCanMessages:    true,
+		LogSignals:        true,
+	})
+}
+
+func newTestAppWithCfg(t *testing.T, cfg *canModels.Config) canModels.AppInterface {
+	t.Helper()
 	lvl := new(slog.LevelVar)
-	cfg := &canModels.Config{MessageBufferSize: 16}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	return app.NewApp(cfg, logger, lvl)
 }
@@ -156,6 +164,51 @@ func TestApp_GettersReturnExpectedValues(t *testing.T) {
 	assert.Equal(t, cfg, a.GetConfig())
 	assert.Equal(t, logger, a.GetLogger())
 	assert.Equal(t, lvl, a.GetLogLevel())
+}
+
+func TestAddOutput_CanMessagesDisabled_HandlersNotStarted(t *testing.T) {
+	a := newTestAppWithCfg(t, &canModels.Config{
+		MessageBufferSize: 16,
+		LogCanMessages:    false,
+		LogSignals:        true,
+	})
+	client := newMockSignalClient()
+	a.AddOutput(client)
+
+	// Neither HandleCanMessageChannel nor HandleSignalChannel should start.
+	select {
+	case <-client.started:
+		t.Fatal("a channel handler goroutine started with LogCanMessages=false")
+	default:
+		// Correct — no goroutines started.
+	}
+}
+
+func TestAddSignalDispatcher_SignalsDisabled_IsNoOp(t *testing.T) {
+	a := newTestAppWithCfg(t, &canModels.Config{
+		MessageBufferSize: 16,
+		LogCanMessages:    true,
+		LogSignals:        false,
+	})
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	dispatcher := signaldispatch.New(&mockParser{}, 16, logger)
+	a.AddSignalDispatcher(dispatcher, 0)
+
+	client := newMockSignalClient()
+	a.AddOutput(client)
+
+	// Only HandleCanMessageChannel starts; HandleSignalChannel must NOT start
+	// because the dispatcher was never registered.
+	select {
+	case <-client.started:
+		// first one is HandleCanMessageChannel — expected
+	}
+	select {
+	case <-client.started:
+		t.Fatal("HandleSignalChannel goroutine started with LogSignals=false")
+	default:
+		// Correct.
+	}
 }
 
 func TestApp_SetLogLevel(t *testing.T) {

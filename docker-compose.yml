@@ -53,7 +53,7 @@ services:
   influxdb3-ui:
     container_name: influxdb3-explorer
     ports:
-      - 8888:80
+      - 8234:80
     image: influxdata/influxdb3-ui:1.4.0
 
   mqtt-explorer:
