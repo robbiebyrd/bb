@@ -1,9 +1,11 @@
 package signaldispatch
 
 import (
+	"fmt"
 	"log/slog"
 
 	canModels "github.com/robbiebyrd/bb/internal/models"
+	"github.com/robbiebyrd/bb/internal/parser/obd2"
 )
 
 // SignalDispatcher receives CanMessageTimestamped values, decodes them into
@@ -42,17 +44,44 @@ func (d *SignalDispatcher) Dispatch() error {
 	for msg := range d.inChannel {
 		signals := d.parser.ParseSignals(msg)
 		for _, sig := range signals {
-			for _, ch := range d.listeners {
-				select {
-				case ch <- sig:
-				default:
-					d.l.Warn("signal dispatcher: listener full, dropping signal",
-						"signal", sig.Signal,
-						"id", sig.ID,
-					)
+			expanded := expandPIDsSupported(sig)
+			for _, s := range expanded {
+				for _, ch := range d.listeners {
+					select {
+					case ch <- s:
+					default:
+						d.l.Warn("signal dispatcher: listener full, dropping signal",
+							"signal", s.Signal,
+							"id", s.ID,
+						)
+					}
 				}
 			}
 		}
 	}
 	return nil
+}
+
+// expandPIDsSupported checks whether sig is a PIDs Supported bitmask signal.
+// If so, it returns one signal per supported PID (value=1, named
+// "S01PID_Supported_XX"). Otherwise it returns the original signal unchanged.
+func expandPIDsSupported(sig canModels.CanSignalTimestamped) []canModels.CanSignalTimestamped {
+	base, ok := obd2.IsPIDsSupportedSignal(sig.Signal)
+	if !ok {
+		return []canModels.CanSignalTimestamped{sig}
+	}
+	pids := obd2.DecodePIDsSupported(uint32(sig.Value), base)
+	expanded := make([]canModels.CanSignalTimestamped, 0, len(pids))
+	for _, pid := range pids {
+		expanded = append(expanded, canModels.CanSignalTimestamped{
+			Timestamp: sig.Timestamp,
+			Interface: sig.Interface,
+			ID:        sig.ID,
+			Message:   sig.Message,
+			Signal:    fmt.Sprintf("S01PID_Supported_%02X", pid),
+			Value:     1,
+			Unit:      sig.Unit,
+		})
+	}
+	return expanded
 }

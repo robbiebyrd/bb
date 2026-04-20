@@ -147,6 +147,90 @@ func TestDispatch_ExitsWhenChannelClosed(t *testing.T) {
 	}
 }
 
+func TestDispatch_ExpandsPIDsSupported(t *testing.T) {
+	// When the parser produces a PIDsSupported bitmask signal, the dispatcher
+	// should expand it into one signal per supported PID (value=1) instead of
+	// forwarding the raw bitmask.
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{
+			{Message: "OBD2_Mode01", Signal: "S01PID", Value: 0}, // mux switch — passed through
+			{Message: "OBD2_Mode01", Signal: "S01PID00_PIDsSupported_01_20", Value: 0x80000001}, // only PID 0x01 and 0x20
+		},
+	}
+	d := signaldispatch.New(parser, 16, newLogger())
+	ch := make(chan canModels.CanSignalTimestamped, 32)
+	d.AddListener(ch)
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 2024, Timestamp: 5000, Interface: 1}
+	close(d.GetChannel())
+	require.NoError(t, <-done)
+
+	var signals []canModels.CanSignalTimestamped
+	for {
+		select {
+		case s := <-ch:
+			signals = append(signals, s)
+		default:
+			goto check
+		}
+	}
+check:
+	// Should have: S01PID (mux, passed through) + 2 expanded PIDs
+	var names []string
+	for _, s := range signals {
+		names = append(names, s.Signal)
+	}
+	assert.Contains(t, names, "S01PID")
+	assert.Contains(t, names, "S01PID_Supported_01")
+	assert.Contains(t, names, "S01PID_Supported_20")
+	assert.NotContains(t, names, "S01PID00_PIDsSupported_01_20", "raw bitmask signal should not be forwarded")
+
+	// Each expanded signal should have value=1, carry the original timestamp/interface.
+	for _, s := range signals {
+		if s.Signal == "S01PID_Supported_01" || s.Signal == "S01PID_Supported_20" {
+			assert.Equal(t, float64(1), s.Value)
+			assert.Equal(t, int64(5000), s.Timestamp)
+			assert.Equal(t, 1, s.Interface)
+			assert.Equal(t, "OBD2_Mode01", s.Message)
+		}
+	}
+}
+
+func TestDispatch_ExpandsPIDsSupported_Range21to40(t *testing.T) {
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{
+			{Message: "OBD2_Mode01", Signal: "S01PID20_PIDsSupported_21_40", Value: 0xC0000000}, // PID 0x21, 0x22
+		},
+	}
+	d := signaldispatch.New(parser, 16, newLogger())
+	ch := make(chan canModels.CanSignalTimestamped, 32)
+	d.AddListener(ch)
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 2024}
+	close(d.GetChannel())
+	require.NoError(t, <-done)
+
+	var names []string
+	for {
+		select {
+		case s := <-ch:
+			names = append(names, s.Signal)
+		default:
+			goto check
+		}
+	}
+check:
+	assert.Contains(t, names, "S01PID_Supported_21")
+	assert.Contains(t, names, "S01PID_Supported_22")
+	assert.Len(t, names, 2)
+}
+
 func TestDispatch_ConcurrentAddListenerNoRace(t *testing.T) {
 	// This test must pass with go test -race.
 	// Story 001-b1a1 fixed the race by ensuring AddListener is always called
