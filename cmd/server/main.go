@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	dbcassets "github.com/robbiebyrd/bb/dbcs"
 	"github.com/robbiebyrd/bb/internal/app"
 	"github.com/robbiebyrd/bb/internal/client/dedupe"
 	"github.com/robbiebyrd/bb/internal/client/logging"
@@ -16,6 +17,7 @@ import (
 	"github.com/robbiebyrd/bb/internal/output/csv"
 	"github.com/robbiebyrd/bb/internal/output/influxdb"
 	"github.com/robbiebyrd/bb/internal/output/mqtt"
+	"github.com/robbiebyrd/bb/internal/output/prometheus"
 	"github.com/robbiebyrd/bb/internal/parser/dbc"
 )
 
@@ -59,21 +61,33 @@ func main() {
 		ctx, connections := b.GetContext(), b.GetConnections()
 
 		for i, iface := range cfg.CanInterfaces {
-			if iface.DBCFile == "" {
+			var parsers []canModels.ParserInterface
+			for _, dbcPath := range iface.DBCFiles {
+				p, err := dbc.NewDBCParserClient(logger, dbcPath)
+				if err != nil {
+					logger.Error("failed to load DBC file", "interface", iface.Name, "path", dbcPath, "error", err)
+					os.Exit(1)
+				}
+				parsers = append(parsers, p)
+			}
+			if !cfg.DisableOBD2 {
+				obd2Parser, err := dbc.NewDBCParserClientFromBytes(logger, "obd2-builtin", dbcassets.OBD2DBC)
+				if err != nil {
+					logger.Error("failed to load built-in OBD-II DBC", "error", err)
+					os.Exit(1)
+				}
+				parsers = append(parsers, obd2Parser)
+			}
+			if len(parsers) == 0 {
 				continue
 			}
-			parser, err := dbc.NewDBCParserClient(logger, iface.DBCFile)
-			if err != nil {
-				logger.Error("failed to load DBC file", "interface", iface.Name, "path", iface.DBCFile, "error", err)
-				os.Exit(1)
-			}
-			dispatcher := signaldispatch.New(parser, cfg.MessageBufferSize, logger)
+			dispatcher := signaldispatch.New(dbc.NewMultiParser(parsers...), cfg.MessageBufferSize, logger)
 			b.AddSignalDispatcher(dispatcher, i)
 		}
 
 		var outputs []canModels.OutputClient
 
-		if cfg.CRTDLogger.OutputFile != "" {
+		if cfg.CRTDLogger.CanOutputFile != "" || cfg.CRTDLogger.SignalOutputFile != "" {
 			crtdClient, err := crtd.NewClient(ctx, &cfg, logger)
 			if err != nil {
 				logger.Error("failed to create CRTD client", "error", err)
@@ -82,7 +96,7 @@ func main() {
 			outputs = append(outputs, crtdClient)
 		}
 
-		if cfg.CSVLog.OutputFile != "" {
+		if cfg.CSVLog.CanOutputFile != "" || cfg.CSVLog.SignalOutputFile != "" {
 			csvClient, err := csv.NewClient(ctx, &cfg, logger, connections)
 			if err != nil {
 				logger.Error("failed to create CSV client", "error", err)
@@ -92,7 +106,14 @@ func main() {
 		}
 
 		if cfg.InfluxDB.Host != "" {
-			influxClient, err := influxdb.NewClient(ctx, &cfg, logger, connections)
+			var influxFilters []canModels.FilterInput
+			if cfg.InfluxDB.Dedupe {
+				influxFilters = append(influxFilters, canModels.FilterInput{
+					Name:   "deduper",
+					Filter: dedupe.NewDedupeFilterClient(logger, cfg.InfluxDB.DedupeTimeout, cfg.InfluxDB.DedupeIDs),
+				})
+			}
+			influxClient, err := influxdb.NewClient(ctx, &cfg, logger, connections, influxFilters...)
 			if err != nil {
 				logger.Error("failed to create InfluxDB client", "error", err)
 				os.Exit(1)
@@ -114,6 +135,15 @@ func main() {
 				os.Exit(1)
 			}
 			outputs = append(outputs, mqttClient)
+		}
+
+		if cfg.Prometheus.ListenAddr != "" {
+			prometheusClient, err := prometheus.NewClient(ctx, &cfg, logger, connections)
+			if err != nil {
+				logger.Error("failed to create Prometheus client", "error", err)
+				os.Exit(1)
+			}
+			outputs = append(outputs, prometheusClient)
 		}
 
 		b.AddOutputs(outputs)

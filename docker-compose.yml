@@ -33,6 +33,10 @@ services:
     hostname: mosquitto
     container_name: mosquitto
     restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+      - MQTT_USERNAME=bb
+      - MQTT_PASSWORD=bbpassword
     ports:
       # 1883 is bound to 127.0.0.1 inside the broker config — only loopback traffic reaches it.
       - 127.0.0.1:1883:1883
@@ -44,6 +48,7 @@ services:
       - ./config/mosquitto:/mosquitto/config
       - ./data/mosquitto/data:/mosquitto/data
       - ./data/mosquitto/log:/mosquitto/log
+      - ./data/mosquitto/persist:/mosquitto/persist
 
   influxdb3-ui:
     container_name: influxdb3-explorer
@@ -54,7 +59,7 @@ services:
   mqtt-explorer:
     image: ghcr.io/thomasnordquist/mqtt-explorer:latest
     ports:
-      - "3000:3000"
+      - "3009:3000"
     environment:
       - MQTT_EXPLORER_SKIP_AUTH=true
     volumes:
@@ -67,5 +72,16 @@ services:
       retries: 3
       start_period: 40s
 
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
 volumes:
   mqtt-explorer-data:
+  prometheus-data:

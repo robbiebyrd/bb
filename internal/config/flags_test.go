@@ -59,8 +59,21 @@ func TestBindFlags_InterfaceWithDBCAndLoop(t *testing.T) {
 	assert.Equal(t, "pb0", iface.Name)
 	assert.Equal(t, "playback", iface.Network)
 	assert.Equal(t, "/tmp/log.crtd", iface.URI)
-	assert.Equal(t, "/path/to.dbc", iface.DBCFile)
+	assert.Equal(t, []string{"/path/to.dbc"}, iface.DBCFiles)
 	assert.True(t, iface.Loop)
+}
+
+func TestBindFlags_InterfaceWithMultipleDBCFiles(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--interface", "sim0:sim:can0:/a.dbc,/b.dbc"}, &cfg)
+	require.Len(t, cfg.CanInterfaces, 1)
+	assert.Equal(t, []string{"/a.dbc", "/b.dbc"}, cfg.CanInterfaces[0].DBCFiles)
+}
+
+func TestBindFlags_DisableOBD2(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--disable-obd2"}, &cfg)
+	assert.True(t, cfg.DisableOBD2)
 }
 
 func TestBindFlags_DedupeIDs(t *testing.T) {
@@ -134,4 +147,58 @@ func TestParseUint32Slice_Overflow(t *testing.T) {
 	err := apply()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid ID")
+}
+
+func TestBindFlags_LogCanMessages(t *testing.T) {
+	cfg := canModels.Config{LogCanMessages: true}
+	runFlags(t, []string{"--log-can-messages=false"}, &cfg)
+	assert.False(t, cfg.LogCanMessages)
+}
+
+func TestBindFlags_LogSignals(t *testing.T) {
+	cfg := canModels.Config{LogSignals: true}
+	runFlags(t, []string{"--log-signals=false"}, &cfg)
+	assert.False(t, cfg.LogSignals)
+}
+
+func TestBindFlags_PrometheusListenAddr(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--prometheus-listen-addr", ":9091"}, &cfg)
+	assert.Equal(t, ":9091", cfg.Prometheus.ListenAddr)
+}
+
+func TestBindFlags_PrometheusPath(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--prometheus-path", "/custom-metrics"}, &cfg)
+	assert.Equal(t, "/custom-metrics", cfg.Prometheus.Path)
+}
+
+func TestBindFlags_PrometheusDefaultsPreserved(t *testing.T) {
+	cfg := canModels.Config{
+		Prometheus: canModels.PrometheusConfig{ListenAddr: "", Path: "/metrics"},
+	}
+	runFlags(t, nil, &cfg)
+	assert.Equal(t, "", cfg.Prometheus.ListenAddr)
+	assert.Equal(t, "/metrics", cfg.Prometheus.Path)
+}
+
+func TestBindFlags_InfluxDedupe(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--influx-dedupe", "--influx-dedupe-timeout", "500"}, &cfg)
+	assert.True(t, cfg.InfluxDB.Dedupe)
+	assert.Equal(t, 500, cfg.InfluxDB.DedupeTimeout)
+}
+
+func TestBindFlags_InfluxDedupeIDs(t *testing.T) {
+	cfg := canModels.Config{}
+	runFlags(t, []string{"--influx-dedupe-ids", "256,512"}, &cfg)
+	assert.Equal(t, []uint32{256, 512}, cfg.InfluxDB.DedupeIDs)
+}
+
+func TestBindFlags_InfluxDedupeIDsPreservedWhenAbsent(t *testing.T) {
+	cfg := canModels.Config{
+		InfluxDB: canModels.InfluxDBConfig{DedupeIDs: []uint32{100, 200}},
+	}
+	runFlags(t, nil, &cfg)
+	assert.Equal(t, []uint32{100, 200}, cfg.InfluxDB.DedupeIDs)
 }

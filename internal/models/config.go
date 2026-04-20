@@ -1,16 +1,21 @@
 package models
 
 type InfluxDBConfig struct {
-	Host           string `env:"HOST" envDefault:""`
-	Token          string `env:"TOKEN"           envDefault:""`
-	TokenFile      string `env:"TOKEN_FILE"      envDefault:"./config/influxdb/token.json"`
-	Database       string `env:"DATABASE"        envDefault:"can_data"`
-	TableName      string `env:"TABLE"           envDefault:"can_message"`
-	FlushTime      int    `env:"FLUSH_TIME"      envDefault:"100"`
-	MaxWriteLines  int    `env:"MAX_WRITE_LINES" envDefault:"1000"`
-	MaxConnections int    `env:"MAX_CONNECTIONS" envDefault:"5"`
-	TLS            bool   `env:"TLS"             envDefault:"false"`
-	TLSCACertFile  string `env:"TLS_CA_FILE"     envDefault:""`
+	Host            string `env:"HOST"             envDefault:""`
+	Token           string `env:"TOKEN"            envDefault:""`
+	TokenFile       string `env:"TOKEN_FILE"       envDefault:"./config/influxdb/token.json"`
+	MessageDatabase string `env:"MESSAGE_DATABASE" envDefault:"can_data"`
+	SignalDatabase  string `env:"SIGNAL_DATABASE"  envDefault:""`
+	TableName       string `env:"TABLE"            envDefault:"can_message"`
+	SignalTableName string `env:"SIGNAL_TABLE"     envDefault:"can_signal"`
+	FlushTime       int    `env:"FLUSH_TIME"       envDefault:"100"`
+	MaxWriteLines   int    `env:"MAX_WRITE_LINES"  envDefault:"1000"`
+	MaxConnections  int      `env:"MAX_CONNECTIONS"  envDefault:"5"`
+	TLS             bool     `env:"TLS"              envDefault:"false"`
+	TLSCACertFile   string   `env:"TLS_CA_FILE"      envDefault:""`
+	Dedupe          bool     `env:"DEDUPE"           envDefault:"false"`
+	DedupeTimeout   int      `env:"DEDUPE_TIMEOUT_MS" envDefault:"1000"`
+	DedupeIDs       []uint32 `env:"DEDUPE_IDS"       envDefault:""` // Comma-separated list of IDs to dedupe
 }
 
 type MQTTConfig struct {
@@ -29,12 +34,19 @@ type MQTTConfig struct {
 }
 
 type CSVLogConfig struct {
-	OutputFile     string `env:"OUTPUT_FILE"    envDefault:""`
-	IncludeHeaders bool   `env:"OUTPUT_HEADERS" envDefault:"true"`
+	CanOutputFile    string `env:"CAN_OUTPUT_FILE"    envDefault:""`
+	SignalOutputFile string `env:"SIGNAL_OUTPUT_FILE" envDefault:""`
+	IncludeHeaders   bool   `env:"OUTPUT_HEADERS"     envDefault:"true"`
 }
 
 type CRTDLogConfig struct {
-	OutputFile string `env:"OUTPUT_FILE" envDefault:""`
+	CanOutputFile    string `env:"CAN_OUTPUT_FILE"    envDefault:""`
+	SignalOutputFile string `env:"SIGNAL_OUTPUT_FILE" envDefault:""`
+}
+
+type PrometheusConfig struct {
+	ListenAddr string `env:"LISTEN_ADDR" envDefault:""`
+	Path       string `env:"PATH"        envDefault:"/metrics"`
 }
 
 type Config struct {
@@ -43,9 +55,13 @@ type Config struct {
 	CSVLog        CSVLogConfig         `envPrefix:"CSV_"`
 	CRTDLogger    CRTDLogConfig        `envPrefix:"CRTD_"`
 	MQTTConfig    MQTTConfig           `envPrefix:"MQTT_"`
+	Prometheus    PrometheusConfig     `envPrefix:"PROMETHEUS_"`
 
+	DisableOBD2           bool   `env:"DISABLE_OBD2"            envDefault:"false"`
 	MessageBufferSize     int    `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
 	SimEmitRate           int    `env:"SIM_RATE"                envDefault:"10"`
 	LogLevel              string `env:"LOG_LEVEL"               envDefault:"info"`
 	CanInterfaceSeparator string `env:"CAN_INTERFACE_SEPARATOR" envDefault:"-"`
+	LogCanMessages        bool   `env:"LOG_CAN_MESSAGES"        envDefault:"true"`
+	LogSignals            bool   `env:"LOG_SIGNALS"             envDefault:"true"`
 }

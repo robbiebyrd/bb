@@ -1,6 +1,6 @@
 # bb — Bertha (2024 Jeep Wrangler 4xe CAN Bus Logger)
 
-Go service that reads CAN bus frames and fans them out to InfluxDB, MQTT, and CSV.
+Go service that reads CAN bus frames and fans them out to InfluxDB, MQTT, CSV, and Prometheus.
 
 ## Commands
 
@@ -17,11 +17,11 @@ docker compose up -d            # Start InfluxDB3 + Mosquitto locally
 CanInterfaces (socketcan | sim)
   → buffered channel (MSG_BUFFER_SIZE, default 81920)
   → BroadcastClient (fan-out)
-  → OutputClients: InfluxDB | MQTT (w/ dedupe) | CSV
+  → OutputClients: InfluxDB | MQTT (w/ dedupe) | CSV | Prometheus
 ```
 
 Key packages: `internal/app`, `internal/connection`, `internal/client/broadcast`,
-`internal/client/dedupe`, `internal/output/{influxdb,mqtt,csv}`, `internal/parser/dbc`
+`internal/client/dedupe`, `internal/output/{influxdb,mqtt,csv,prometheus}`, `internal/parser/dbc`
 
 ## Config (env vars)
 
@@ -29,9 +29,11 @@ All config is environment-based via `caarlos0/env`.
 
 | Prefix | Key vars |
 |--------|----------|
-| `INFLUX_` | `HOST` (required), `TOKEN`, `TOKEN_FILE`, `DATABASE`, `TABLE`, `FLUSH_TIME`, `MAX_WRITE_LINES` |
+| `INFLUX_` | `HOST` (required), `TOKEN`, `TOKEN_FILE`, `MESSAGE_DATABASE`, `SIGNAL_DATABASE` (empty = signals disabled), `TABLE`, `SIGNAL_TABLE`, `FLUSH_TIME`, `MAX_WRITE_LINES` |
 | `MQTT_` | `HOST` (required), `CLIENT_ID` (required), `TOPIC`, `DEDUPE`, `DEDUPE_TIMEOUT_MS`, `DEDUPE_IDS`, `USERNAME`, `PASSWORD`, `TLS` |
-| `CSV_` | `OUTPUT_FILE` (required) |
+| `CSV_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE`, `OUTPUT_HEADERS` |
+| `CRTD_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE` |
+| `PROMETHEUS_` | `LISTEN_ADDR` (empty = disabled, e.g. `127.0.0.1:9091`), `PATH` (default `/metrics`) |
 | `INTERFACE_` | `NAME` (required), `NET` (`can`\|`sim`), `URI` |
 | — | `MSG_BUFFER_SIZE`, `LOG_LEVEL`, `SIM_RATE` (ns), `CAN_INTERFACE_SEPARATOR` |
 
@@ -42,5 +44,7 @@ All config is environment-based via `caarlos0/env`.
 - **Interface name format**: `{name}{sep}{network}{sep}{uri}` — separator defaults to `-`, configurable via `CAN_INTERFACE_SEPARATOR`.
 - **Sim emit rate**: `SIM_RATE` is in **nanoseconds** between messages (e.g. `10000000` = 10ms = 100 msg/s).
 - **MQTT dedupe**: filters by message ID within a time window; `DEDUPE_IDS` is a comma-separated list of IDs to deduplicate (empty = all IDs).
+- **Prometheus frame counters**: `can_frames_total` only populates when `LOG_CAN_MESSAGES=true` (default). `can_signal_value` gauges always populate when a DBC file is configured.
+- **Prometheus listen address**: bind to loopback (`127.0.0.1:9091`) by default; the Prometheus server in docker-compose scrapes `host.docker.internal:9091`.
 
 @.claude/wiz-claude.md
