@@ -2,6 +2,7 @@ package mf4
 
 import (
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -134,6 +135,31 @@ func TestBuildTXBlock_HasCorrectHeaderAndPadding(t *testing.T) {
 	blockLen := binary.LittleEndian.Uint64(b[8:16])
 	assert.EqualValues(t, len(b), blockLen)
 	assert.Zero(t, blockLen%8, "block length must be 8-byte aligned")
+}
+
+func TestAppendCAN_RejectsOversizedPayload(t *testing.T) {
+	path := tempFile(t, ".mf4")
+	w, err := NewCANWriter(path)
+	require.NoError(t, err)
+	defer w.CloseUnfinalized()
+
+	err = w.AppendCAN(0, 0x100, false, make([]byte, MaxCANDataLen+1))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrCANDataTooLong))
+
+	// Exactly at the limit must still succeed.
+	require.NoError(t, w.AppendCAN(0, 0x100, false, make([]byte, MaxCANDataLen)))
+}
+
+func TestAppendSignal_RejectsNULInLabel(t *testing.T) {
+	path := tempFile(t, ".mf4")
+	w, err := NewSignalWriter(path)
+	require.NoError(t, err)
+	defer w.CloseUnfinalized()
+
+	err = w.AppendSignal(0, 0x100, 0, 1.0, "mes\x00sage", "sig", "u")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSignalLabelHasNUL))
 }
 
 func TestEncodeCANFrameRecord_RoundTripFields(t *testing.T) {

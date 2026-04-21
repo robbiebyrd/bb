@@ -2,10 +2,25 @@ package mf4
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"strings"
+)
+
+// MaxCANDataLen is the largest payload length the writer accepts for a CAN
+// record. Classic CAN tops out at 8 bytes and CAN FD at 64 bytes; MDF4 has
+// no frame type larger than FD, so anything above 64 is rejected.
+const MaxCANDataLen = 64
+
+// Sentinel errors returned by AppendCAN / AppendSignal. Callers can use
+// errors.Is to distinguish invalid input from I/O failures.
+var (
+	ErrCANDataTooLong     = errors.New("mf4: CAN data exceeds 64 bytes")
+	ErrSignalLabelHasNUL  = errors.New("mf4: signal label string contains NUL byte")
+	ErrSignalLabelTooLong = errors.New("mf4: signal label exceeds uint32 length")
 )
 
 // LayoutScheme selects the record schema written by the MDF4 writer. CAN
@@ -98,26 +113,27 @@ func (w *Writer) writeMetadata() error {
 		return fmt.Errorf("unknown MF4 layout scheme: %d", w.scheme)
 	}
 
+	// Stage every block in memory so block sizes come from Block.Size() and
+	// the serialized TX payloads. Link offsets are filled in after all
+	// sizes are known, and the on-disk write order follows the computed
+	// addresses below.
+	hd := NewBlock(BlockIDHD, 6, 24)
+	cg1 := NewBlock(BlockIDCG, 6, 32)
+	cg2 := NewBlock(BlockIDCG, 6, 32)
+	cnTs := NewBlock(BlockIDCN, 8, 48)
+	cnPayload := NewBlock(BlockIDCN, 8, 48)
+	dg := NewBlock(BlockIDDG, 4, 8)
+
 	txPrimary := BuildTXBlock(primaryAcqName)
 	txTimestamp := BuildTXBlock(AcqNameTimestamp)
 	txPayload := BuildTXBlock(primaryAcqName)
 
-	// Fixed block sizes:
-	//   HD: 24 header + 6 links + 24 data  = 96
-	//   CG: 24 header + 6 links + 32 data  = 104
-	//   CN: 24 header + 8 links + 48 data  = 136
-	//   DG: 24 header + 4 links + 8 data   = 64
-	//   DT header: 24
-	const (
-		hdSize      int64 = 96
-		cgSize      int64 = 104
-		cnSize      int64 = 136
-		dgSize      int64 = 64
-		dtHeaderLen int64 = 24
-	)
+	// The DT block header is emitted as a bare header (no links, no data)
+	// so its on-disk length is simply HeaderSize.
+	dtHeaderLen := int64(HeaderSize)
 
 	cur := int64(IDBlockSize)
-	cur += hdSize
+	cur += hd.Size()
 
 	txPrimaryAddr := cur
 	cur += int64(len(txPrimary))
@@ -127,69 +143,35 @@ func (w *Writer) writeMetadata() error {
 	cur += int64(len(txPayload))
 
 	cg1Addr := cur
-	cur += cgSize
+	cur += cg1.Size()
 	cg2Addr := cur
-	cur += cgSize
+	cur += cg2.Size()
 
 	cnTsAddr := cur
-	cur += cnSize
+	cur += cnTs.Size()
 	cnDataAddr := cur
-	cur += cnSize
+	cur += cnPayload.Size()
 
 	dgAddr := cur
-	cur += dgSize
+	cur += dg.Size()
 
 	dtHeaderAddr := cur
 	cur += dtHeaderLen
 
-	// --- ID block ---
-	if _, err := w.f.Write(WriteIDBlock(true)); err != nil {
-		return err
-	}
-
-	// --- HD block ---
-	hd := NewBlock(BlockIDHD, 6, 24)
-	hd.Links[0] = dgAddr // DG first
-	// StartTimeNs at data offset 0 is left 0; wall-clock time isn't
-	// required by the playback reader and downstream tools fall back to
+	// HD: wall-clock StartTimeNs is left 0; downstream tools fall back to
 	// the measurement-relative timestamps inside the records.
-	if _, err := w.f.Write(hd.Bytes()); err != nil {
-		return err
-	}
+	hd.Links[0] = dgAddr
 
-	// --- TX blocks ---
-	if _, err := w.f.Write(txPrimary); err != nil {
-		return err
-	}
-	if _, err := w.f.Write(txTimestamp); err != nil {
-		return err
-	}
-	if _, err := w.f.Write(txPayload); err != nil {
-		return err
-	}
-
-	// --- CG1 (primary fixed-length records) ---
-	cg1 := NewBlock(BlockIDCG, 6, 32)
 	cg1.Links[0] = cg2Addr       // next CG -> VLSD
 	cg1.Links[1] = cnTsAddr      // first CN -> timestamp
 	cg1.Links[2] = txPrimaryAddr // acq name
 	binary.LittleEndian.PutUint64(cg1.Data[0:8], RecordIDPrimary)
 	binary.LittleEndian.PutUint16(cg1.Data[16:18], CGFlagBus)
 	binary.LittleEndian.PutUint32(cg1.Data[24:28], primaryRecSize)
-	if _, err := w.f.Write(cg1.Bytes()); err != nil {
-		return err
-	}
 
-	// --- CG2 (VLSD) ---
-	cg2 := NewBlock(BlockIDCG, 6, 32)
 	binary.LittleEndian.PutUint64(cg2.Data[0:8], RecordIDVLSD)
 	binary.LittleEndian.PutUint16(cg2.Data[16:18], CGFlagVLSD)
-	if _, err := w.f.Write(cg2.Bytes()); err != nil {
-		return err
-	}
 
-	// --- CN Timestamp (master) ---
-	cnTs := NewBlock(BlockIDCN, 8, 48)
 	cnTs.Links[0] = cnDataAddr      // next CN -> payload
 	cnTs.Links[2] = txTimestampAddr // TxName
 	cnTs.Data[0] = ChannelTypeMaster
@@ -197,37 +179,40 @@ func (w *Writer) writeMetadata() error {
 	cnTs.Data[2] = DataTypeFloatLE
 	binary.LittleEndian.PutUint32(cnTs.Data[4:8], 0)   // byte offset
 	binary.LittleEndian.PutUint32(cnTs.Data[8:12], 64) // bit count
-	if _, err := w.f.Write(cnTs.Bytes()); err != nil {
-		return err
-	}
 
-	// --- CN payload channel ---
-	cnPayload := NewBlock(BlockIDCN, 8, 48)
 	cnPayload.Links[2] = txPayloadAddr
 	cnPayload.Data[0] = ChannelTypeFixedLength
 	cnPayload.Data[2] = DataTypeByteArr
 	binary.LittleEndian.PutUint32(cnPayload.Data[4:8], 8) // byte offset past timestamp
 	payloadBits := uint32((primaryRecSize - 8) * 8)
 	binary.LittleEndian.PutUint32(cnPayload.Data[8:12], payloadBits)
-	if _, err := w.f.Write(cnPayload.Bytes()); err != nil {
-		return err
-	}
 
-	// --- DG block ---
-	dg := NewBlock(BlockIDDG, 4, 8)
-	dg.Links[1] = cg1Addr       // CG first
-	dg.Links[2] = dtHeaderAddr  // DT data
-	dg.Data[0] = 1              // RecIDSize = 1 byte
-	if _, err := w.f.Write(dg.Bytes()); err != nil {
-		return err
-	}
+	dg.Links[1] = cg1Addr      // CG first
+	dg.Links[2] = dtHeaderAddr // DT data
+	dg.Data[0] = 1             // RecIDSize = 1 byte
 
-	// --- DT header (length=24 marks unfinalized; data follows) ---
+	// DT header: length == HeaderSize marks unfinalized; record bytes follow.
 	dtHeader := make([]byte, dtHeaderLen)
 	copy(dtHeader[0:4], BlockIDDT)
 	binary.LittleEndian.PutUint64(dtHeader[8:16], uint64(dtHeaderLen))
-	if _, err := w.f.Write(dtHeader); err != nil {
-		return err
+
+	writes := [][]byte{
+		WriteIDBlock(true),
+		hd.Bytes(),
+		txPrimary,
+		txTimestamp,
+		txPayload,
+		cg1.Bytes(),
+		cg2.Bytes(),
+		cnTs.Bytes(),
+		cnPayload.Bytes(),
+		dg.Bytes(),
+		dtHeader,
+	}
+	for _, buf := range writes {
+		if _, err := w.f.Write(buf); err != nil {
+			return err
+		}
 	}
 
 	w.dtHeaderAt = dtHeaderAddr
@@ -237,10 +222,14 @@ func (w *Writer) writeMetadata() error {
 }
 
 // AppendCAN appends a single CAN_DataFrame record plus its VLSD payload.
-// The writer must have been created with NewCANWriter.
+// The writer must have been created with NewCANWriter. Payloads longer than
+// MaxCANDataLen (64 bytes, CAN FD max) are rejected with ErrCANDataTooLong.
 func (w *Writer) AppendCAN(tsNs int64, canID uint32, tx bool, data []byte) error {
 	if w.scheme != LayoutCAN {
 		return fmt.Errorf("AppendCAN requires LayoutCAN")
+	}
+	if len(data) > MaxCANDataLen {
+		return fmt.Errorf("%w: got %d bytes", ErrCANDataTooLong, len(data))
 	}
 	dataLen := uint8(len(data))
 	rec := make([]byte, 1+CANRecordSize)
@@ -255,13 +244,23 @@ func (w *Writer) AppendCAN(tsNs int64, canID uint32, tx bool, data []byte) error
 
 // AppendSignal appends a decoded signal record plus its label string as a
 // VLSD payload. Label format is "message\x00signal\x00unit" to allow the
-// three strings to be recovered by a reader.
+// three strings to be recovered by a reader. Strings must not contain NUL
+// bytes, and the concatenated label must fit in a uint32 length prefix.
 func (w *Writer) AppendSignal(tsNs int64, canID uint32, iface uint32, value float64, message, signal, unit string) error {
 	if w.scheme != LayoutSignal {
 		return fmt.Errorf("AppendSignal requires LayoutSignal")
 	}
+	for _, s := range []string{message, signal, unit} {
+		if strings.ContainsRune(s, 0) {
+			return ErrSignalLabelHasNUL
+		}
+	}
+	labelLen := len(message) + len(signal) + len(unit) + 2
+	if uint64(labelLen) > uint64(^uint32(0)) {
+		return ErrSignalLabelTooLong
+	}
 
-	label := make([]byte, 0, len(message)+len(signal)+len(unit)+2)
+	label := make([]byte, 0, labelLen)
 	label = append(label, message...)
 	label = append(label, 0)
 	label = append(label, signal...)
