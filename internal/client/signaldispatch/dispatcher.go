@@ -50,7 +50,8 @@ func (d *SignalDispatcher) Dispatch() error {
 		for _, sig := range signals {
 			expanded := expandPIDsSupported(sig)
 			d.mu.RLock()
-			listeners := d.listeners
+			listeners := make([]chan canModels.CanSignalTimestamped, len(d.listeners))
+			copy(listeners, d.listeners)
 			d.mu.RUnlock()
 			for _, s := range expanded {
 				for _, ch := range listeners {

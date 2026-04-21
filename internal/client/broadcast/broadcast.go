@@ -98,7 +98,8 @@ func (scc *BroadcastClient) Broadcast() error {
 		case canMsg := <-scc.incomingChannel:
 			scc.msgCount.Add(1)
 			scc.mu.RLock()
-			listeners := scc.broadcastChannels
+			listeners := make([]*registeredListener, len(scc.broadcastChannels))
+			copy(listeners, scc.broadcastChannels)
 			scc.mu.RUnlock()
 			for _, c := range listeners {
 				broadcastMsg := true
