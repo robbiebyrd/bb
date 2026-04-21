@@ -44,6 +44,16 @@ type CRTDLogConfig struct {
 	SignalOutputFile string `env:"SIGNAL_OUTPUT_FILE" envDefault:""`
 }
 
+type MF4LogConfig struct {
+	CanOutputFile    string `env:"CAN_OUTPUT_FILE"    envDefault:""`
+	SignalOutputFile string `env:"SIGNAL_OUTPUT_FILE" envDefault:""`
+	// Finalize rewrites the DT block length and flips the ID block magic
+	// to "MDF     " on graceful shutdown so external MDF4 tools accept the
+	// file as finalized. Disable to always leave the file in streaming
+	// ("UnFinMF ") form — safer if bb may be killed abruptly.
+	Finalize bool `env:"FINALIZE" envDefault:"true"`
+}
+
 type PrometheusConfig struct {
 	ListenAddr string `env:"LISTEN_ADDR" envDefault:""`
 	Path       string `env:"PATH"        envDefault:"/metrics"`
@@ -54,6 +64,7 @@ type Config struct {
 	InfluxDB      InfluxDBConfig       `envPrefix:"INFLUX_"`
 	CSVLog        CSVLogConfig         `envPrefix:"CSV_"`
 	CRTDLogger    CRTDLogConfig        `envPrefix:"CRTD_"`
+	MF4Logger     MF4LogConfig         `envPrefix:"MF4_"`
 	MQTTConfig    MQTTConfig           `envPrefix:"MQTT_"`
 	Prometheus    PrometheusConfig     `envPrefix:"PROMETHEUS_"`
 

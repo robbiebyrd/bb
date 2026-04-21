@@ -16,6 +16,7 @@ import (
 	"github.com/robbiebyrd/bb/internal/output/crtd"
 	"github.com/robbiebyrd/bb/internal/output/csv"
 	"github.com/robbiebyrd/bb/internal/output/influxdb"
+	mf4out "github.com/robbiebyrd/bb/internal/output/mf4"
 	"github.com/robbiebyrd/bb/internal/output/mqtt"
 	"github.com/robbiebyrd/bb/internal/output/prometheus"
 	"github.com/robbiebyrd/bb/internal/parser/dbc"
@@ -103,6 +104,15 @@ func main() {
 				os.Exit(1)
 			}
 			outputs = append(outputs, csvClient)
+		}
+
+		if cfg.MF4Logger.CanOutputFile != "" || cfg.MF4Logger.SignalOutputFile != "" {
+			mf4Client, err := mf4out.NewClient(ctx, &cfg, logger)
+			if err != nil {
+				logger.Error("failed to create MF4 client", "error", err)
+				os.Exit(1)
+			}
+			outputs = append(outputs, mf4Client)
 		}
 
 		if cfg.InfluxDB.Host != "" {

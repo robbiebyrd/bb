@@ -53,6 +53,11 @@ func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 	f.StringVar(&cfg.CRTDLogger.CanOutputFile, "crtd-can-output-file", cfg.CRTDLogger.CanOutputFile, "CRTD log output file path for CAN messages")
 	f.StringVar(&cfg.CRTDLogger.SignalOutputFile, "crtd-signal-output-file", cfg.CRTDLogger.SignalOutputFile, "CRTD log output file path for decoded signals (empty = disabled)")
 
+	// MF4 (ASAM MDF 4.x)
+	f.StringVar(&cfg.MF4Logger.CanOutputFile, "mf4-can-output-file", cfg.MF4Logger.CanOutputFile, "MF4 output file path for CAN messages (empty = disabled)")
+	f.StringVar(&cfg.MF4Logger.SignalOutputFile, "mf4-signal-output-file", cfg.MF4Logger.SignalOutputFile, "MF4 output file path for decoded signals (empty = disabled)")
+	f.BoolVar(&cfg.MF4Logger.Finalize, "mf4-finalize", cfg.MF4Logger.Finalize, "Rewrite the MF4 file's DT length and ID magic on graceful shutdown so it is recognised as finalized (false = always leave unfinalized)")
+
 	// Prometheus
 	f.StringVar(&cfg.Prometheus.ListenAddr, "prometheus-listen-addr", cfg.Prometheus.ListenAddr, "Prometheus metrics listener address (empty = disabled, e.g. 127.0.0.1:9091)")
 	f.StringVar(&cfg.Prometheus.Path, "prometheus-path", cfg.Prometheus.Path, "Prometheus metrics HTTP path")

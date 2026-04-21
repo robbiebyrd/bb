@@ -7,7 +7,8 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"strings"
+
+	mf4fmt "github.com/robbiebyrd/bb/internal/parser/mf4"
 )
 
 // MF4Parser reads ASAM MDF4 (.mf4) log files containing CAN bus data.
@@ -22,9 +23,6 @@ import (
 type MF4Parser struct {
 	l *slog.Logger
 }
-
-// mf4 block header: [4]ID [4]reserved uint64(length) uint64(linkCount) = 24 bytes.
-const mf4HeaderSize = 24
 
 // cgInfo describes one channel group in an MF4 data group.
 type cgInfo struct {
@@ -47,13 +45,13 @@ func (p *MF4Parser) Parse(path string) ([]LogEntry, error) {
 	defer f.Close()
 
 	// Read the 64-byte ID block.
-	idBuf := make([]byte, 64)
+	idBuf := make([]byte, mf4fmt.IDBlockSize)
 	if _, err := io.ReadFull(f, idBuf); err != nil {
 		return nil, fmt.Errorf("reading MF4 ID block: %w", err)
 	}
 
 	// Read HD block at fixed offset 64.
-	hdLinks, _, err := readMF4Block(f, 64)
+	hdLinks, _, err := mf4fmt.ReadBlock(f, int64(mf4fmt.IDBlockSize))
 	if err != nil {
 		return nil, fmt.Errorf("reading HD block: %w", err)
 	}
@@ -88,7 +86,7 @@ func (p *MF4Parser) Parse(path string) ([]LogEntry, error) {
 // parseDG parses a single Data Group and returns CAN log entries plus the
 // address of the next DG (0 if none).
 func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogEntry, int64, error) {
-	dgLinks, dgData, err := readMF4Block(f, addr)
+	dgLinks, dgData, err := mf4fmt.ReadBlock(f, addr)
 	if err != nil {
 		return nil, 0, fmt.Errorf("reading DG block: %w", err)
 	}
@@ -107,15 +105,15 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 
 	cgAddr := cgFirstAddr
 	for cgAddr != 0 {
-		cgLinks, cgData, err := readMF4Block(f, cgAddr)
+		cgLinks, cgData, err := mf4fmt.ReadBlock(f, cgAddr)
 		if err != nil {
 			return nil, nextDG, fmt.Errorf("reading CG block: %w", err)
 		}
 		recordID := binary.LittleEndian.Uint64(cgData[0:8])
 		flags := binary.LittleEndian.Uint16(cgData[16:18])
 		dataBytes := binary.LittleEndian.Uint32(cgData[24:28])
-		acqName := readMF4Text(f, cgLinks[2])
-		isVLSD := flags&1 != 0
+		acqName := mf4fmt.ReadText(f, cgLinks[2])
+		isVLSD := flags&mf4fmt.CGFlagVLSD != 0
 
 		info := &cgInfo{
 			recordID:  recordID,
@@ -125,7 +123,7 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 		}
 		cgMap[recordID] = info
 
-		if acqName == "CAN_DataFrame" {
+		if acqName == mf4fmt.AcqNameCANDataFrame {
 			canCG = info
 		}
 
@@ -138,7 +136,7 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 	}
 
 	// Read the DT block data.
-	dtData, err := readMF4DTData(f, dtAddr)
+	dtData, err := mf4fmt.ReadDTData(f, dtAddr)
 	if err != nil {
 		return nil, nextDG, fmt.Errorf("reading DT data: %w", err)
 	}
@@ -157,7 +155,7 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 			if pos+recIDSize > len(dtData) {
 				break
 			}
-			recID := readRecordID(dtData[pos:], recIDSize)
+			recID := mf4fmt.ReadRecordID(dtData[pos:], recIDSize)
 			pos += recIDSize
 
 			cg, ok := cgMap[recID]
@@ -180,7 +178,7 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 				break
 			}
 
-			if cg.acqName != "CAN_DataFrame" {
+			if cg.acqName != mf4fmt.AcqNameCANDataFrame {
 				pos += recSize
 				continue
 			}
@@ -215,22 +213,10 @@ func (p *MF4Parser) parseDG(f *os.File, addr int64, logger *slog.Logger) ([]LogE
 	return entries, nextDG, nil
 }
 
-// parseMF4CANRecord decodes a single CAN_DataFrame record (22 bytes for
-// standard CAN). The record layout is:
-//
-//	[0:8]   float64 LE  timestamp (ns since measurement start)
-//	[8:22]  CAN composite:
-//	  byte 0, bits 0-1:   BusChannel
-//	  byte 0, bits 2-30:  CAN ID (29 bits, LE uint32)
-//	  byte 3, bit 7:      IDE
-//	  byte 4, bit 0:      Dir (0=Rx, 1=Tx)
-//	  byte 4, bits 1-7:   DataLength
-//	  byte 5, bit 0:      EDL
-//	  byte 5, bit 1:      BRS
-//	  byte 5, bits 2-5:   DLC
-//	  bytes 6-13:         VLSD offset (uint64 LE) into vlsdBuf
+// parseMF4CANRecord decodes a single CAN_DataFrame record. The record
+// layout is described in mf4fmt.EncodeCANFrameRecord.
 func parseMF4CANRecord(rec []byte, vlsd *vlsdIndex) (*LogEntry, error) {
-	if len(rec) < 22 {
+	if len(rec) < mf4fmt.CANRecordSize {
 		return nil, fmt.Errorf("CAN record too short: %d bytes", len(rec))
 	}
 
@@ -259,8 +245,8 @@ func parseMF4CANRecord(rec []byte, vlsd *vlsdIndex) (*LogEntry, error) {
 // vlsdIndex maps raw byte offsets (as stored in CAN_DataFrame records) to
 // positions within the concatenated payload buffer.
 type vlsdIndex struct {
-	buf     []byte          // concatenated VLSD payloads (no length prefixes)
-	offsets map[uint64]int  // raw stream offset -> index into buf
+	buf     []byte         // concatenated VLSD payloads (no length prefixes)
+	offsets map[uint64]int // raw stream offset -> index into buf
 }
 
 // collectVLSD scans the data stream and builds a VLSD index. In MDF4, each
@@ -279,7 +265,7 @@ func collectVLSD(dtData []byte, recIDSize int, cgMap map[uint64]*cgInfo) *vlsdIn
 		if pos+recIDSize > len(dtData) {
 			break
 		}
-		recID := readRecordID(dtData[pos:], recIDSize)
+		recID := mf4fmt.ReadRecordID(dtData[pos:], recIDSize)
 		pos += recIDSize
 
 		cg, ok := cgMap[recID]
@@ -319,111 +305,8 @@ func (v *vlsdIndex) lookup(rawOffset uint64, dataLength int) []byte {
 	return out
 }
 
-// readMF4Block reads a generic MF4 block at the given address and returns
-// its link array and data section.
-func readMF4Block(f *os.File, addr int64) ([]int64, []byte, error) {
-	if _, err := f.Seek(addr, io.SeekStart); err != nil {
-		return nil, nil, err
-	}
-	var hdr [mf4HeaderSize]byte
-	if _, err := io.ReadFull(f, hdr[:]); err != nil {
-		return nil, nil, err
-	}
-	linkCount := binary.LittleEndian.Uint64(hdr[16:24])
-	blockLen := binary.LittleEndian.Uint64(hdr[8:16])
-
-	links := make([]int64, linkCount)
-	for i := uint64(0); i < linkCount; i++ {
-		if err := binary.Read(f, binary.LittleEndian, &links[i]); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	dataSize := blockLen - mf4HeaderSize - linkCount*8
-	data := make([]byte, dataSize)
-	if _, err := io.ReadFull(f, data); err != nil {
-		return nil, nil, err
-	}
-	return links, data, nil
-}
-
-// readMF4DTData reads the raw data bytes from a DT block. For unfinalized
-// files the DT header reports length=24 (no data), so we read from after
-// the header to EOF.
-func readMF4DTData(f *os.File, addr int64) ([]byte, error) {
-	if _, err := f.Seek(addr, io.SeekStart); err != nil {
-		return nil, err
-	}
-	var hdr [mf4HeaderSize]byte
-	if _, err := io.ReadFull(f, hdr[:]); err != nil {
-		return nil, err
-	}
-
-	id := string(hdr[0:4])
-	blockLen := binary.LittleEndian.Uint64(hdr[8:16])
-
-	if id != "##DT" {
-		return nil, fmt.Errorf("expected ##DT block, got %q", id)
-	}
-
-	dataSize := blockLen - mf4HeaderSize
-	if dataSize > 0 {
-		// Finalized file: data size is known.
-		data := make([]byte, dataSize)
-		if _, err := io.ReadFull(f, data); err != nil {
-			return nil, err
-		}
-		return data, nil
-	}
-
-	// Unfinalized file: length=24 means no declared data. Read to EOF.
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-// readMF4Text reads a TX or MD block and returns the text content.
-func readMF4Text(f *os.File, addr int64) string {
-	if addr == 0 {
-		return ""
-	}
-	links, data, err := readMF4Block(f, addr)
-	_ = links
-	if err != nil || len(data) == 0 {
-		return ""
-	}
-	return strings.TrimRight(string(data), "\x00")
-}
-
-// readRecordID reads 1, 2, 4, or 8 byte record IDs from an unsorted data stream.
-func readRecordID(buf []byte, size int) uint64 {
-	switch size {
-	case 1:
-		return uint64(buf[0])
-	case 2:
-		return uint64(binary.LittleEndian.Uint16(buf[:2]))
-	case 4:
-		return uint64(binary.LittleEndian.Uint32(buf[:4]))
-	case 8:
-		return binary.LittleEndian.Uint64(buf[:8])
-	default:
-		return 0
-	}
-}
-
-// isMF4File checks the first 8 bytes of a file for MF4 magic bytes.
+// isMF4File is a thin wrapper around mf4fmt.IsMF4File retained so the
+// playback parser detection code stays local.
 func isMF4File(path string) bool {
-	f, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-	var magic [8]byte
-	if _, err := io.ReadFull(f, magic[:]); err != nil {
-		return false
-	}
-	s := string(magic[:])
-	return strings.HasPrefix(s, "MDF") || strings.HasPrefix(s, "UnFinMF")
+	return mf4fmt.IsMF4File(path)
 }
