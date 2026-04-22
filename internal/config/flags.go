@@ -81,6 +81,15 @@ func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 	var ifaceStrs []string
 	f.StringArrayVar(&ifaceStrs, "interface", formatInterfaces(cfg.CanInterfaces), "CAN interface in name:net:uri[:dbcfiles[:loop]] format; dbcfiles is comma-separated (repeatable)")
 
+	var signalFilterStrs []string
+	f.StringArrayVar(&signalFilterStrs, "signal-filter", nil, "Signal filter rule in name:field:op:value format (repeatable); field: signal|message, op: eq|neq|contains|notcontains|startswith|notstartswith|endswith|notendswith")
+
+	var signalFilterOpStrs []string
+	f.StringArrayVar(&signalFilterOpStrs, "signal-filter-op", nil, "Signal filter operator in name:and|or format (default and)")
+
+	var signalFilterModeStrs []string
+	f.StringArrayVar(&signalFilterModeStrs, "signal-filter-mode", nil, "Signal filter mode in name:exclude|include format (default exclude)")
+
 	return func() error {
 		if cmd.Flags().Changed("mqtt-dedupe-ids") {
 			ids, err := parseUint32Slice(dedupeIDsStr)
@@ -102,6 +111,21 @@ func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 				return fmt.Errorf("parsing --interface: %w", err)
 			}
 			cfg.CanInterfaces = ifaces
+		}
+		if cmd.Flags().Changed("signal-filter") {
+			if err := applySignalFilters(cfg, signalFilterStrs); err != nil {
+				return fmt.Errorf("parsing --signal-filter: %w", err)
+			}
+		}
+		if cmd.Flags().Changed("signal-filter-op") {
+			if err := applySignalFilterOps(cfg, signalFilterOpStrs); err != nil {
+				return fmt.Errorf("parsing --signal-filter-op: %w", err)
+			}
+		}
+		if cmd.Flags().Changed("signal-filter-mode") {
+			if err := applySignalFilterModes(cfg, signalFilterModeStrs); err != nil {
+				return fmt.Errorf("parsing --signal-filter-mode: %w", err)
+			}
 		}
 		return nil
 	}
@@ -147,6 +171,65 @@ func formatInterfaces(ifaces []canModels.CanInterfaceOption) []string {
 		}
 	}
 	return result
+}
+
+// ifaceByName returns a pointer to the CanInterfaceOption with the given name, or nil.
+func ifaceByName(cfg *canModels.Config, name string) *canModels.CanInterfaceOption {
+	for i := range cfg.CanInterfaces {
+		if cfg.CanInterfaces[i].Name == name {
+			return &cfg.CanInterfaces[i]
+		}
+	}
+	return nil
+}
+
+// applySignalFilters parses "name:field:op:value" strings and appends rules to the named interface.
+func applySignalFilters(cfg *canModels.Config, strs []string) error {
+	for _, s := range strs {
+		idx := strings.Index(s, ":")
+		if idx < 0 {
+			return fmt.Errorf("signal filter %q must be in name:field:op:value format", s)
+		}
+		name, rule := s[:idx], s[idx+1:]
+		iface := ifaceByName(cfg, name)
+		if iface == nil {
+			return fmt.Errorf("signal filter references unknown interface %q", name)
+		}
+		iface.SignalFilters = append(iface.SignalFilters, rule)
+	}
+	return nil
+}
+
+// applySignalFilterOps parses "name:and|or" strings and sets the operator on the named interface.
+func applySignalFilterOps(cfg *canModels.Config, strs []string) error {
+	for _, s := range strs {
+		parts := strings.SplitN(s, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("signal filter op %q must be in name:and|or format", s)
+		}
+		iface := ifaceByName(cfg, parts[0])
+		if iface == nil {
+			return fmt.Errorf("--signal-filter-op references unknown interface %q", parts[0])
+		}
+		iface.SignalFilterOp = parts[1]
+	}
+	return nil
+}
+
+// applySignalFilterModes parses "name:exclude|include" strings and sets the mode on the named interface.
+func applySignalFilterModes(cfg *canModels.Config, strs []string) error {
+	for _, s := range strs {
+		parts := strings.SplitN(s, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("signal filter mode %q must be in name:exclude|include format", s)
+		}
+		iface := ifaceByName(cfg, parts[0])
+		if iface == nil {
+			return fmt.Errorf("--signal-filter-mode references unknown interface %q", parts[0])
+		}
+		iface.SignalFilterMode = parts[1]
+	}
+	return nil
 }
 
 // parseInterfaces parses "name:net:uri[:dbcfiles[:loop]]" strings into CanInterfaceOptions.

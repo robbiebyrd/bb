@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/robbiebyrd/cantou/internal/client/signal-dispatch"
+	signalfilter "github.com/robbiebyrd/cantou/internal/client/signal-filter"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
@@ -249,6 +250,61 @@ func TestDispatch_DroppedCount(t *testing.T) {
 
 	assert.Equal(t, uint64(2), d.DroppedCount("full"))
 	assert.Equal(t, uint64(0), d.DroppedCount("unknown"))
+}
+
+func TestDispatch_SignalFilter_ExcludesMatchingSignals(t *testing.T) {
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{
+			{Signal: "S01_UNUSED_01"},
+			{Signal: "RPM"},
+		},
+	}
+	filter := signalfilter.Group{
+		Rules: []signalfilter.Rule{{Field: signalfilter.FieldSignal, Op: signalfilter.OpContains, Value: "UNUSED"}},
+		Op:    signalfilter.GroupOpAnd,
+		Mode:  signalfilter.ModeExclude,
+	}
+	d := signaldispatch.NewWithFilter(parser, 16, newLogger(), filter)
+	ch := make(chan canModels.CanSignalTimestamped, 8)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 1}
+	close(d.GetChannel())
+	require.NoError(t, <-done)
+
+	require.Len(t, ch, 1)
+	assert.Equal(t, "RPM", (<-ch).Signal)
+}
+
+func TestDispatch_SignalFilter_IncludeMode_KeepsOnlyMatchingSignals(t *testing.T) {
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{
+			{Signal: "RPM"},
+			{Signal: "Speed"},
+			{Signal: "Fuel"},
+		},
+	}
+	filter := signalfilter.Group{
+		Rules: []signalfilter.Rule{{Field: signalfilter.FieldSignal, Op: signalfilter.OpEq, Value: "RPM"}},
+		Op:    signalfilter.GroupOpAnd,
+		Mode:  signalfilter.ModeInclude,
+	}
+	d := signaldispatch.NewWithFilter(parser, 16, newLogger(), filter)
+	ch := make(chan canModels.CanSignalTimestamped, 8)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 1}
+	close(d.GetChannel())
+	require.NoError(t, <-done)
+
+	require.Len(t, ch, 1)
+	assert.Equal(t, "RPM", (<-ch).Signal)
 }
 
 func TestDispatch_ConcurrentAddListenerNoRace(t *testing.T) {

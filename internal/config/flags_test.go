@@ -173,6 +173,54 @@ func TestBindFlags_PrometheusPath(t *testing.T) {
 	assert.Equal(t, "/custom-metrics", cfg.Prometheus.Path)
 }
 
+func TestBindFlags_SignalFilter_AddsRuleToNamedInterface(t *testing.T) {
+	cfg := canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "sim0", Network: "sim", URI: "can0"}},
+	}
+	runFlags(t, []string{"--signal-filter", "sim0:signal:contains:UNUSED"}, &cfg)
+	require.Len(t, cfg.CanInterfaces[0].SignalFilters, 1)
+	assert.Equal(t, "signal:contains:UNUSED", cfg.CanInterfaces[0].SignalFilters[0])
+}
+
+func TestBindFlags_SignalFilter_MultipleRulesSameInterface(t *testing.T) {
+	cfg := canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "sim0", Network: "sim", URI: "can0"}},
+	}
+	runFlags(t, []string{
+		"--signal-filter", "sim0:signal:contains:UNUSED",
+		"--signal-filter", "sim0:message:startswith:UNKNOWN_",
+	}, &cfg)
+	assert.Len(t, cfg.CanInterfaces[0].SignalFilters, 2)
+}
+
+func TestBindFlags_SignalFilter_UnknownInterfaceReturnsError(t *testing.T) {
+	cfg := canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "sim0", Network: "sim", URI: "can0"}},
+	}
+	cmd, apply := newTestCmd(&cfg)
+	cmd.SetArgs([]string{"--signal-filter", "ghost:signal:eq:RPM"})
+	require.NoError(t, cmd.Execute())
+	err := apply()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown interface")
+}
+
+func TestBindFlags_SignalFilterOp_SetsOp(t *testing.T) {
+	cfg := canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "sim0", Network: "sim", URI: "can0"}},
+	}
+	runFlags(t, []string{"--signal-filter-op", "sim0:or"}, &cfg)
+	assert.Equal(t, "or", cfg.CanInterfaces[0].SignalFilterOp)
+}
+
+func TestBindFlags_SignalFilterMode_SetsMode(t *testing.T) {
+	cfg := canModels.Config{
+		CanInterfaces: []canModels.CanInterfaceOption{{Name: "sim0", Network: "sim", URI: "can0"}},
+	}
+	runFlags(t, []string{"--signal-filter-mode", "sim0:include"}, &cfg)
+	assert.Equal(t, "include", cfg.CanInterfaces[0].SignalFilterMode)
+}
+
 func TestBindFlags_PrometheusDefaultsPreserved(t *testing.T) {
 	cfg := canModels.Config{
 		Prometheus: canModels.PrometheusConfig{ListenAddr: "", Path: "/metrics"},

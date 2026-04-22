@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	signalfilter "github.com/robbiebyrd/cantou/internal/client/signal-filter"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 	"github.com/robbiebyrd/cantou/internal/parser/obd2"
 )
@@ -22,6 +23,7 @@ type SignalDispatcher struct {
 	inChannel chan canModels.CanMessageTimestamped
 	mu        sync.RWMutex
 	listeners []*registeredListener
+	filter    signalfilter.Group
 	l         *slog.Logger
 }
 
@@ -33,6 +35,14 @@ func New(parser canModels.ParserInterface, bufSize int, logger *slog.Logger) *Si
 		inChannel: make(chan canModels.CanMessageTimestamped, bufSize),
 		l:         logger,
 	}
+}
+
+// NewWithFilter creates a SignalDispatcher that applies filter to each decoded
+// signal before fanning out. Signals rejected by the filter are silently dropped.
+func NewWithFilter(parser canModels.ParserInterface, bufSize int, logger *slog.Logger, filter signalfilter.Group) *SignalDispatcher {
+	d := New(parser, bufSize, logger)
+	d.filter = filter
+	return d
 }
 
 // AddListener registers a named signal output channel.
@@ -68,10 +78,14 @@ func (d *SignalDispatcher) Dispatch() error {
 		for _, sig := range signals {
 			expanded := obd2.ExpandPIDsSupported(sig)
 			d.mu.RLock()
+
 			listeners := make([]*registeredListener, len(d.listeners))
 			copy(listeners, d.listeners)
 			d.mu.RUnlock()
 			for _, s := range expanded {
+				if !d.filter.Allow(s) {
+					continue
+				}
 				for _, l := range listeners {
 					select {
 					case l.listener.Channel <- s:

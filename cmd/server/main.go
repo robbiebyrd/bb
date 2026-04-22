@@ -10,6 +10,7 @@ import (
 	"github.com/robbiebyrd/cantou/internal/app"
 	"github.com/robbiebyrd/cantou/internal/client/dedupe"
 	"github.com/robbiebyrd/cantou/internal/client/logging"
+	signalfilter "github.com/robbiebyrd/cantou/internal/client/signal-filter"
 	"github.com/robbiebyrd/cantou/internal/client/signal-dispatch"
 	"github.com/robbiebyrd/cantou/internal/config"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
@@ -82,7 +83,12 @@ func main() {
 			if len(parsers) == 0 {
 				continue
 			}
-			dispatcher := signaldispatch.New(dbc.NewMultiParser(parsers...), cfg.MessageBufferSize, logger)
+			filterGroup, err := signalfilter.ParseGroup(iface.SignalFilters, iface.SignalFilterOp, iface.SignalFilterMode)
+			if err != nil {
+				logger.Error("invalid signal filter config", "interface", iface.Name, "error", err)
+				os.Exit(1)
+			}
+			dispatcher := signaldispatch.NewWithFilter(dbc.NewMultiParser(parsers...), cfg.MessageBufferSize, logger, filterGroup)
 			b.AddSignalDispatcher(dispatcher, i)
 		}
 

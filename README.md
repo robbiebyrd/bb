@@ -14,6 +14,7 @@ CANtou reads frames from one or more CAN interfaces, optionally decodes them wit
 
 - **CAN inputs:** Linux SocketCAN, serial SLCAN, offline log playback (`.log`, `.asc`, `.trc`, `.mf4`), and a built-in simulator for local development.
 - **Signal decoding:** multi-DBC support per interface, plus a built-in OBD-II DBC that auto-attaches unless disabled.
+- **Signal filtering:** per-interface rules to exclude noise (`UNUSED`, `UNKNOWN_*`) or include only signals you care about, with configurable AND/OR logic.
 - **Outputs:** InfluxDB 3, MQTT (with optional per-ID deduplication), CSV, CRTD, ASAM MDF 4.11, and Prometheus.
 - **Config:** env-var-first via `caarlos0/env`, every knob overridable by a CLI flag.
 - **Dev ergonomics:** `docker compose up -d` brings up InfluxDB 3, Mosquitto, Prometheus, and MQTT Explorer locally.
@@ -55,9 +56,10 @@ Key packages:
 | `cmd/server` | Binary entrypoint and CLI wiring |
 | `internal/app` | Lifecycle coordinator (context, signals, shutdown) |
 | `internal/connection/{socketcan,slcan,simulate,playback}` | Frame sources |
-| `internal/client/broadcast` | Fan-out hub between inputs and outputs |
+| `internal/client/message-dispatch` | Fan-out hub between inputs and outputs |
+| `internal/client/signal-dispatch` | DBC decoding and signal fan-out pipeline |
+| `internal/client/signal-filter` | Per-interface signal filter rules |
 | `internal/client/dedupe` | Time-windowed per-ID deduplication filter |
-| `internal/client/signaldispatch` | DBC decoding pipeline |
 | `internal/output/{influxdb,mqtt,csv,crtd,mf4,prometheus}` | Sinks |
 | `internal/parser/{dbc,mf4,obd2}` | Format parsers and writers |
 
@@ -82,16 +84,43 @@ All config is environment-based and every field is also exposed as a CLI flag. S
 
 | Prefix | Selected keys |
 |---|---|
-| `INTERFACE_` | `NAME`, `NET` (`can`\|`sim`\|`slcan`\|`playback`), `URI`, `DBCFILES`, `LOOP` |
+| `INTERFACE_N_` | `NAME`, `NET` (`can`\|`sim`\|`slcan`\|`playback`), `URI`, `DBC` (comma-separated paths), `LOOP`, `SIGNAL_FILTER` (comma-separated rules), `SIGNAL_FILTER_OP` (`and`\|`or`, default `and`), `SIGNAL_FILTER_MODE` (`exclude`\|`include`, default `exclude`) |
 | `INFLUX_` | `HOST`, `TOKEN`, `TOKEN_FILE`, `MESSAGE_DATABASE`, `SIGNAL_DATABASE`, `TABLE`, `FLUSH_TIME` |
 | `MQTT_` | `HOST`, `CLIENT_ID`, `TOPIC`, `DEDUPE`, `DEDUPE_TIMEOUT_MS`, `DEDUPE_IDS`, `USERNAME`, `PASSWORD`, `TLS` |
 | `CSV_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE`, `OUTPUT_HEADERS` |
 | `CRTD_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE` |
 | `MF4_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE`, `FINALIZE` |
 | `PROMETHEUS_` | `LISTEN_ADDR`, `PATH` |
-| — | `MSG_BUFFER_SIZE`, `LOG_LEVEL`, `SIM_RATE` (ns between sim messages), `DISABLE_OBD2` |
+| — | `MSG_BUFFER_SIZE`, `LOG_LEVEL`, `SIM_RATE` (ms), `SIM_RATE_MIN`, `SIM_RATE_MAX`, `DISABLE_OBD2` |
 
 Interfaces are also configurable via the repeatable `--interface name:net:uri[:dbcfiles[:loop]]` flag.
+
+### Signal filtering
+
+Per-interface rules to suppress noise or allow-list signals of interest. Each rule is `field:op:value` where `field` is `signal` or `message` and `op` is one of `eq`, `neq`, `contains`, `notcontains`, `startswith`, `notstartswith`, `endswith`, `notendswith`.
+
+**Env vars** (set per interface, e.g. `INTERFACE_0_`):
+
+```bash
+# Drop signals whose name contains "UNUSED" or whose message starts with "UNKNOWN_"
+INTERFACE_0_SIGNAL_FILTER=signal:contains:UNUSED,message:startswith:UNKNOWN_
+INTERFACE_0_SIGNAL_FILTER_OP=or        # any rule matching causes a drop (default: and)
+INTERFACE_0_SIGNAL_FILTER_MODE=exclude # drop matching signals (default)
+
+# Only keep RPM and Speed signals
+INTERFACE_0_SIGNAL_FILTER=signal:eq:RPM,signal:eq:Speed
+INTERFACE_0_SIGNAL_FILTER_OP=or
+INTERFACE_0_SIGNAL_FILTER_MODE=include
+```
+
+**CLI flags** (reference interface by name, repeatable):
+
+```bash
+--signal-filter "can0:signal:contains:UNUSED" \
+--signal-filter "can0:message:startswith:UNKNOWN_" \
+--signal-filter-op "can0:or" \
+--signal-filter-mode "can0:exclude"
+```
 
 ## Development
 

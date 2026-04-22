@@ -25,11 +25,18 @@ type CanSignalTimestamped struct {
 type CanInterfaceOptions []CanInterfaceOption
 
 type CanInterfaceOption struct {
-	Name    string `env:"NAME,required"`
-	URI     string `env:"URI"           envDefault:""`
-	Network string `env:"NET"           envDefault:"can"`
-	DBCFiles []string `env:"DBC" envDefault:""`
-	Loop    bool   `env:"LOOP"          envDefault:"false"`
+	Name    string   `env:"NAME,required"`
+	URI     string   `env:"URI"              envDefault:""`
+	Network string   `env:"NET"              envDefault:"can"`
+	DBCFiles []string `env:"DBC"             envDefault:""`
+	Loop    bool     `env:"LOOP"             envDefault:"false"`
+	// SignalFilters is a list of "field:op:value" rules applied to decoded signals.
+	// SignalFilterOp controls how rules are combined: "and" (default) or "or".
+	// SignalFilterMode controls semantics: "exclude" (default, matching signals are
+	// dropped) or "include" (only matching signals are kept).
+	SignalFilters    []string `env:"SIGNAL_FILTER"      envDefault:""`
+	SignalFilterOp   string   `env:"SIGNAL_FILTER_OP"   envDefault:"and"`
+	SignalFilterMode string   `env:"SIGNAL_FILTER_MODE" envDefault:"exclude"`
 }
 
 type CanConnection interface {
