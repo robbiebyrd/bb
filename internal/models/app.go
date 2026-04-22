@@ -4,11 +4,23 @@ import (
 	"context"
 )
 
-// SignalDispatcherRegistrar is the minimal interface app.go uses to register
-// signal output channels with the dispatcher. Defined here to avoid an import
-// cycle between the app and signaldispatch packages.
+// MessageDispatcherListener and SignalDispatcherListener are defined here to
+// avoid import cycles — app.go constructs them, but the concrete dispatcher
+// types live in separate packages.
+
+type MessageDispatcherListener struct {
+	Name    string
+	Channel chan CanMessageTimestamped
+	Filter  *CanMessageFilterGroup
+}
+
+type SignalDispatcherListener struct {
+	Name    string
+	Channel chan CanSignalTimestamped
+}
+
 type SignalDispatcherRegistrar interface {
-	AddListener(ch chan CanSignalTimestamped)
+	AddListener(listener SignalDispatcherListener)
 	GetChannel() chan CanMessageTimestamped
 	Dispatch() error
 }

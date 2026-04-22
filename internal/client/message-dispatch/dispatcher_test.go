@@ -1,4 +1,4 @@
-package broadcast
+package messagedispatch
 
 import (
 	"context"
@@ -11,11 +11,11 @@ import (
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
-func newTestClient() (*BroadcastClient, chan canModels.CanMessageTimestamped) {
+func newTestClient() (*MessageDispatcher, chan canModels.CanMessageTimestamped) {
 	incoming := make(chan canModels.CanMessageTimestamped, 16)
 	ctx := context.Background()
 	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	return NewBroadcastClient(ctx, incoming, l), incoming
+	return NewMessageDispatcher(ctx, incoming, l), incoming
 }
 
 func testMsg(id uint32) canModels.CanMessageTimestamped {
@@ -27,7 +27,7 @@ func TestAdd_Success(t *testing.T) {
 	bc, _ := newTestClient()
 
 	ch := make(chan canModels.CanMessageTimestamped, 1)
-	err := bc.Add(BroadcastClientListener{Name: "listener1", Channel: ch})
+	err := bc.Add(canModels.MessageDispatcherListener{Name: "listener1", Channel: ch})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -41,10 +41,10 @@ func TestAdd_DuplicateNameReturnsError(t *testing.T) {
 	bc, _ := newTestClient()
 
 	ch := make(chan canModels.CanMessageTimestamped, 1)
-	_ = bc.Add(BroadcastClientListener{Name: "dupe", Channel: ch})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "dupe", Channel: ch})
 
 	ch2 := make(chan canModels.CanMessageTimestamped, 1)
-	err := bc.Add(BroadcastClientListener{Name: "dupe", Channel: ch2})
+	err := bc.Add(canModels.MessageDispatcherListener{Name: "dupe", Channel: ch2})
 	if err == nil {
 		t.Fatal("expected error for duplicate name, got nil")
 	}
@@ -55,7 +55,7 @@ func TestRemove_Success(t *testing.T) {
 	bc, _ := newTestClient()
 
 	ch := make(chan canModels.CanMessageTimestamped, 1)
-	_ = bc.Add(BroadcastClientListener{Name: "toRemove", Channel: ch})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "toRemove", Channel: ch})
 
 	err := bc.Remove("toRemove")
 	if err != nil {
@@ -81,7 +81,7 @@ func TestBroadcast_ExitsOnContextCancel(t *testing.T) {
 	incoming := make(chan canModels.CanMessageTimestamped, 4)
 	ctx, cancel := context.WithCancel(context.Background())
 	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	bc := NewBroadcastClient(ctx, incoming, l)
+	bc := NewMessageDispatcher(ctx, incoming, l)
 
 	done := make(chan error, 1)
 	go func() {
@@ -104,8 +104,8 @@ func TestBroadcast_FansOutToAllListeners(t *testing.T) {
 
 	ch1 := make(chan canModels.CanMessageTimestamped, 4)
 	ch2 := make(chan canModels.CanMessageTimestamped, 4)
-	_ = bc.Add(BroadcastClientListener{Name: "l1", Channel: ch1})
-	_ = bc.Add(BroadcastClientListener{Name: "l2", Channel: ch2})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "l1", Channel: ch1})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "l2", Channel: ch2})
 
 	go bc.Broadcast() //nolint:errcheck
 
@@ -137,7 +137,7 @@ func TestBroadcast_AndFilterBlocksNonMatchingMessage(t *testing.T) {
 			filter.CanInterfaceFilter{Value: 1},
 		},
 	}
-	_ = bc.Add(BroadcastClientListener{Name: "filtered", Channel: ch, Filter: filterGroup})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "filtered", Channel: ch, Filter: filterGroup})
 
 	go bc.Broadcast() //nolint:errcheck
 
@@ -166,7 +166,7 @@ func TestBroadcast_OrFilterAllowsPartiallyMatchingMessage(t *testing.T) {
 			filter.CanInterfaceFilter{Value: 1},
 		},
 	}
-	_ = bc.Add(BroadcastClientListener{Name: "filtered", Channel: ch, Filter: filterGroup})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "filtered", Channel: ch, Filter: filterGroup})
 
 	go bc.Broadcast() //nolint:errcheck
 
@@ -191,7 +191,7 @@ func TestFilterGroup_AndVsOrOperatorBehavior(t *testing.T) {
 	matchInterface0 := canModels.CanMessageTimestamped{Interface: 0, Data: []byte{0x01}}
 	matchInterface1 := canModels.CanMessageTimestamped{Interface: 1, Data: []byte{0x01}}
 
-	andListener := BroadcastClientListener{
+	andListener := canModels.MessageDispatcherListener{
 		Name:    "and",
 		Channel: make(chan canModels.CanMessageTimestamped, 1),
 		Filter: &canModels.CanMessageFilterGroup{
@@ -203,7 +203,7 @@ func TestFilterGroup_AndVsOrOperatorBehavior(t *testing.T) {
 		},
 	}
 
-	orListener := BroadcastClientListener{
+	orListener := canModels.MessageDispatcherListener{
 		Name:    "or",
 		Channel: make(chan canModels.CanMessageTimestamped, 1),
 		Filter: &canModels.CanMessageFilterGroup{
@@ -247,8 +247,8 @@ func TestBroadcast_DropsWhenListenerChannelFull(t *testing.T) {
 
 	okCh := make(chan canModels.CanMessageTimestamped, 4)
 
-	_ = bc.Add(BroadcastClientListener{Name: "full", Channel: fullCh})
-	_ = bc.Add(BroadcastClientListener{Name: "ok", Channel: okCh})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "full", Channel: fullCh})
+	_ = bc.Add(canModels.MessageDispatcherListener{Name: "ok", Channel: okCh})
 
 	go bc.Broadcast() //nolint:errcheck
 

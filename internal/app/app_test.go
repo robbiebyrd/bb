@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/robbiebyrd/cantou/internal/app"
-	"github.com/robbiebyrd/cantou/internal/client/signaldispatch"
+	"github.com/robbiebyrd/cantou/internal/client/signal-dispatch"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 

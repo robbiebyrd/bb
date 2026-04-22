@@ -1,5 +1,11 @@
 package obd2
 
+import (
+	"fmt"
+
+	canModels "github.com/robbiebyrd/cantou/internal/models"
+)
+
 // DecodePIDsSupported decodes an OBD-II "PIDs supported" bitmask into a sorted
 // list of supported PID numbers.
 //
@@ -29,6 +35,31 @@ var pidsSupportedSignals = map[string]uint8{
 	"S01PID80_PIDsSupported_81_A0": 0x80,
 	"S01PIDA0_PIDsSupported_A1_C0": 0xA0,
 	"S01PIDC0_PIDsSupported_C1_E0": 0xC0,
+}
+
+// ExpandPIDsSupported checks whether sig is a PIDs Supported bitmask signal.
+// If so, it returns one signal per supported PID (value=1, named
+// "S01PID_Supported_XX"). Otherwise it returns the original signal unchanged.
+// If the bitmask is zero, it returns an empty slice.
+func ExpandPIDsSupported(sig canModels.CanSignalTimestamped) []canModels.CanSignalTimestamped {
+	base, ok := IsPIDsSupportedSignal(sig.Signal)
+	if !ok {
+		return []canModels.CanSignalTimestamped{sig}
+	}
+	pids := DecodePIDsSupported(uint32(sig.Value), base)
+	expanded := make([]canModels.CanSignalTimestamped, 0, len(pids))
+	for _, pid := range pids {
+		expanded = append(expanded, canModels.CanSignalTimestamped{
+			Timestamp: sig.Timestamp,
+			Interface: sig.Interface,
+			ID:        sig.ID,
+			Message:   sig.Message,
+			Signal:    fmt.Sprintf("S01PID_Supported_%02X", pid),
+			Value:     1,
+			Unit:      sig.Unit,
+		})
+	}
+	return expanded
 }
 
 // IsPIDsSupportedSignal checks whether a DBC signal name is one of the OBD-II

@@ -70,13 +70,13 @@ type Config struct {
 
 	DisableOBD2           bool   `env:"DISABLE_OBD2"            envDefault:"false"`
 	MessageBufferSize     int    `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
-	// SimEmitRate is the fixed sleep interval between simulated CAN frames, in
-	// milliseconds. Ignored when SimEmitRateMin and SimEmitRateMax are both set.
-	// The default (10ms) yields ~100 msg/s — a reasonable rate for local development.
-	SimEmitRate    int `env:"SIM_RATE"     envDefault:"10"`
+	// SimEmitRate is the fixed sleep interval between simulated CAN frames in
+	// milliseconds. 0 means unset. When set, it takes priority over SimEmitRateMin/Max.
+	// A value of 10 (10ms) yields ~100 msg/s — a reasonable rate for local development.
+	SimEmitRate    int `env:"SIM_RATE"     envDefault:"0"`
 	// SimEmitRateMin / SimEmitRateMax define an inclusive millisecond range for a
-	// random per-frame sleep interval. Both must be set and Min < Max for random
-	// mode to activate; otherwise SimEmitRate is used.
+	// random per-frame sleep interval. Both must be non-zero; only active when
+	// SimEmitRate is 0. Returns an error at startup if only one is set.
 	SimEmitRateMin int `env:"SIM_RATE_MIN" envDefault:"0"`
 	SimEmitRateMax int `env:"SIM_RATE_MAX" envDefault:"0"`
 	LogLevel              string `env:"LOG_LEVEL"               envDefault:"info"`

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/robbiebyrd/cantou/internal/client/signaldispatch"
+	"github.com/robbiebyrd/cantou/internal/client/signal-dispatch"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
@@ -49,8 +49,8 @@ func TestDispatch_FansOutSignals(t *testing.T) {
 
 	ch1 := make(chan canModels.CanSignalTimestamped, 8)
 	ch2 := make(chan canModels.CanSignalTimestamped, 8)
-	d.AddListener(ch1)
-	d.AddListener(ch2)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch1})
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l2", Channel: ch2})
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()
@@ -78,7 +78,7 @@ func TestDispatch_PropagatesTimestampAndInterface(t *testing.T) {
 	}
 	d := signaldispatch.New(parser, 16, newLogger())
 	ch := make(chan canModels.CanSignalTimestamped, 4)
-	d.AddListener(ch)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
 
 	go d.Dispatch() //nolint:errcheck
 	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 0x200, Timestamp: 9999, Interface: 5}
@@ -94,7 +94,7 @@ func TestDispatch_UnknownMessageNoSend(t *testing.T) {
 	parser := &mockParser{signals: nil} // returns nil for all messages
 	d := signaldispatch.New(parser, 16, newLogger())
 	ch := make(chan canModels.CanSignalTimestamped, 4)
-	d.AddListener(ch)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()
@@ -112,7 +112,7 @@ func TestDispatch_DropsWhenListenerFull(t *testing.T) {
 	}
 	d := signaldispatch.New(parser, 16, newLogger())
 	ch := make(chan canModels.CanSignalTimestamped, 0) // zero-capacity: always full
-	d.AddListener(ch)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "full", Channel: ch})
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()
@@ -159,7 +159,7 @@ func TestDispatch_ExpandsPIDsSupported(t *testing.T) {
 	}
 	d := signaldispatch.New(parser, 16, newLogger())
 	ch := make(chan canModels.CanSignalTimestamped, 32)
-	d.AddListener(ch)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()
@@ -207,7 +207,7 @@ func TestDispatch_ExpandsPIDsSupported_Range21to40(t *testing.T) {
 	}
 	d := signaldispatch.New(parser, 16, newLogger())
 	ch := make(chan canModels.CanSignalTimestamped, 32)
-	d.AddListener(ch)
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch})
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()
@@ -231,6 +231,26 @@ check:
 	assert.Len(t, names, 2)
 }
 
+func TestDispatch_DroppedCount(t *testing.T) {
+	parser := &mockParser{
+		signals: []canModels.CanSignalTimestamped{{Signal: "S"}},
+	}
+	d := signaldispatch.New(parser, 16, newLogger())
+	ch := make(chan canModels.CanSignalTimestamped, 0) // always full
+	d.AddListener(canModels.SignalDispatcherListener{Name: "full", Channel: ch})
+
+	done := make(chan error, 1)
+	go func() { done <- d.Dispatch() }()
+
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 1}
+	d.GetChannel() <- canModels.CanMessageTimestamped{ID: 2}
+	close(d.GetChannel())
+	require.NoError(t, <-done)
+
+	assert.Equal(t, uint64(2), d.DroppedCount("full"))
+	assert.Equal(t, uint64(0), d.DroppedCount("unknown"))
+}
+
 func TestDispatch_ConcurrentAddListenerNoRace(t *testing.T) {
 	// This test must pass with go test -race.
 	// Story 001-b1a1 fixed the race by ensuring AddListener is always called
@@ -241,7 +261,7 @@ func TestDispatch_ConcurrentAddListenerNoRace(t *testing.T) {
 	d := signaldispatch.New(parser, 16, newLogger())
 
 	ch := make(chan canModels.CanSignalTimestamped, 4)
-	d.AddListener(ch) // AddListener BEFORE Dispatch — safe
+	d.AddListener(canModels.SignalDispatcherListener{Name: "l1", Channel: ch}) // AddListener BEFORE Dispatch — safe
 
 	done := make(chan error, 1)
 	go func() { done <- d.Dispatch() }()

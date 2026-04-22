@@ -1,4 +1,4 @@
-package broadcast
+package messagedispatch
 
 import (
 	"context"
@@ -12,18 +12,12 @@ import (
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
-type BroadcastClientListener struct {
-	Name    string
-	Channel chan canModels.CanMessageTimestamped
-	Filter  *canModels.CanMessageFilterGroup
-}
-
 type registeredListener struct {
-	listener BroadcastClientListener
+	listener canModels.MessageDispatcherListener
 	dropped  atomic.Uint64
 }
 
-type BroadcastClient struct {
+type MessageDispatcher struct {
 	ctx               context.Context
 	mu                sync.RWMutex
 	broadcastChannels []*registeredListener
@@ -32,19 +26,19 @@ type BroadcastClient struct {
 	l                 *slog.Logger
 }
 
-func NewBroadcastClient(
+func NewMessageDispatcher(
 	ctx context.Context,
 	incomingChannel chan canModels.CanMessageTimestamped,
 	l *slog.Logger,
-) *BroadcastClient {
-	return &BroadcastClient{
+) *MessageDispatcher {
+	return &MessageDispatcher{
 		ctx:             ctx,
 		incomingChannel: incomingChannel,
 		l:               l,
 	}
 }
 
-func (scc *BroadcastClient) Add(listener BroadcastClientListener) error {
+func (scc *MessageDispatcher) Add(listener canModels.MessageDispatcherListener) error {
 	scc.mu.Lock()
 	defer scc.mu.Unlock()
 	for _, c := range scc.broadcastChannels {
@@ -57,7 +51,7 @@ func (scc *BroadcastClient) Add(listener BroadcastClientListener) error {
 	return nil
 }
 
-func (scc *BroadcastClient) Remove(name string) error {
+func (scc *MessageDispatcher) Remove(name string) error {
 	scc.mu.Lock()
 	defer scc.mu.Unlock()
 	for i, c := range scc.broadcastChannels {
@@ -70,7 +64,7 @@ func (scc *BroadcastClient) Remove(name string) error {
 	return fmt.Errorf("could not find name %v", name)
 }
 
-func (scc *BroadcastClient) Broadcast() error {
+func (scc *MessageDispatcher) Broadcast() error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	go func() {
@@ -123,8 +117,8 @@ func (scc *BroadcastClient) Broadcast() error {
 	}
 }
 
-func (scc *BroadcastClient) testFilterGroup(
-	c BroadcastClientListener,
+func (scc *MessageDispatcher) testFilterGroup(
+	c canModels.MessageDispatcherListener,
 	canMsg canModels.CanMessageTimestamped,
 ) bool {
 	switch c.Filter.Operator {
@@ -148,7 +142,7 @@ func (scc *BroadcastClient) testFilterGroup(
 // DroppedCount returns the total number of messages that have been dropped for
 // the named listener because its channel was full. Returns 0 if the listener
 // is not registered.
-func (scc *BroadcastClient) DroppedCount(name string) uint64 {
+func (scc *MessageDispatcher) DroppedCount(name string) uint64 {
 	scc.mu.RLock()
 	defer scc.mu.RUnlock()
 	for _, c := range scc.broadcastChannels {

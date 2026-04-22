@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
 func TestDecodePIDsSupported_WikipediaExample(t *testing.T) {
@@ -81,6 +83,46 @@ func TestDecodePIDsSupported_MercedesE350_PID60(t *testing.T) {
 	got := DecodePIDsSupported(84410368, 0x60)
 	want := []uint8{0x66, 0x68, 0x6D}
 	assert.Equal(t, want, got)
+}
+
+func TestExpandPIDsSupported_NonPIDsSignal_Passthrough(t *testing.T) {
+	sig := canModels.CanSignalTimestamped{Signal: "EngineRPM", Value: 3000}
+	got := ExpandPIDsSupported(sig)
+	assert.Equal(t, []canModels.CanSignalTimestamped{sig}, got)
+}
+
+func TestExpandPIDsSupported_PIDsSignal_Expanded(t *testing.T) {
+	// 0x80000001 => bit 31 (PID 0x01) and bit 0 (PID 0x20) are set
+	sig := canModels.CanSignalTimestamped{
+		Timestamp: 1000,
+		Interface: 2,
+		ID:        0x7DF,
+		Message:   "OBD2_Mode01",
+		Signal:    "S01PID00_PIDsSupported_01_20",
+		Value:     0x80000001,
+		Unit:      "",
+	}
+	got := ExpandPIDsSupported(sig)
+	assert.Len(t, got, 2)
+	var names []string
+	for _, s := range got {
+		names = append(names, s.Signal)
+		assert.Equal(t, float64(1), s.Value)
+		assert.Equal(t, int64(1000), s.Timestamp)
+		assert.Equal(t, 2, s.Interface)
+		assert.Equal(t, "OBD2_Mode01", s.Message)
+	}
+	assert.Contains(t, names, "S01PID_Supported_01")
+	assert.Contains(t, names, "S01PID_Supported_20")
+}
+
+func TestExpandPIDsSupported_EmptyBitmask_ReturnsEmpty(t *testing.T) {
+	sig := canModels.CanSignalTimestamped{
+		Signal: "S01PID00_PIDsSupported_01_20",
+		Value:  0,
+	}
+	got := ExpandPIDsSupported(sig)
+	assert.Empty(t, got)
 }
 
 func TestIsPIDsSupportedSignal(t *testing.T) {
