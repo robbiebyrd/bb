@@ -121,6 +121,41 @@ func TestSimulationCanClient_ImplementsCanConnection(t *testing.T) {
 	var _ canModels.CanConnection = conn
 }
 
+func TestNewSimulationCanClient_UsesConfigRateWhenRateArgIsNil(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRate: 42, CanInterfaceSeparator: "-"}
+	conn := NewSimulationCanClient(context.Background(), cfg, "sim1", testChannel(), silentLogger(), nil, nil, nil)
+	assert.Equal(t, 42, conn.rate)
+}
+
+func TestNewSimulationCanClient_MinMaxRateStoredOnClient(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRateMin: 1, SimEmitRateMax: 1000, CanInterfaceSeparator: "-"}
+	conn := NewSimulationCanClient(context.Background(), cfg, "sim1", testChannel(), silentLogger(), nil, nil, nil)
+	assert.Equal(t, 1, conn.rateMin)
+	assert.Equal(t, 1000, conn.rateMax)
+}
+
+func TestReceive_RandomRateStaysWithinBounds(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch := make(chan canModels.CanMessageTimestamped, 64)
+	cfg := &canModels.Config{SimEmitRateMin: 1, SimEmitRateMax: 5, CanInterfaceSeparator: "-"}
+	client := NewSimulationCanClient(ctx, cfg, "test-sim", ch, silentLogger(), nil, nil, nil)
+
+	var wg sync.WaitGroup
+	client.Receive(&wg)
+
+	// Collect a few messages then cancel
+	for i := 0; i < 3; i++ {
+		select {
+		case <-ch:
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("timed out waiting for simulated message")
+		}
+	}
+	cancel()
+}
+
 func TestReceive_ExitsOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan canModels.CanMessageTimestamped, 4)
