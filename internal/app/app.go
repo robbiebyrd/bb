@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/robbiebyrd/cantou/internal/client/broadcast"
+	messagedispatch "github.com/robbiebyrd/cantou/internal/client/message-dispatch"
 	"github.com/robbiebyrd/cantou/internal/client/filter"
 	cm "github.com/robbiebyrd/cantou/internal/connection"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
@@ -16,7 +16,7 @@ import (
 type AppData struct {
 	config            *canModels.Config
 	wgClients         *errgroup.Group
-	broadcastClient   *broadcast.BroadcastClient
+	broadcastClient   *messagedispatch.MessageDispatcher
 	connections       canModels.ConnectionManager
 	logger            *slog.Logger
 	logLevel          *slog.LevelVar
@@ -36,7 +36,7 @@ func NewApp(cfg *canModels.Config, logger *slog.Logger, logLevel *slog.LevelVar)
 	canMsgChannel := make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize)
 
 	logger.Debug("creating broadcast client")
-	broadcastClient := broadcast.NewBroadcastClient(ctx, canMsgChannel, logger)
+	broadcastClient := messagedispatch.NewMessageDispatcher(ctx, canMsgChannel, logger)
 
 	logger.Debug("creating connection manager")
 	connections := cm.NewConnectionManager(ctx, cfg, canMsgChannel, logger)
@@ -69,14 +69,14 @@ func (b *AppData) AddOutput(c canModels.OutputClient) {
 		b.wgClients.Go(c.HandleCanMessageChannel)
 
 		b.logger.Debug("adding broadcast listener for output client", "name", c.GetName())
-		b.broadcastClient.Add(broadcast.BroadcastClientListener{Name: c.GetName(), Channel: c.GetChannel()})
+		b.broadcastClient.Add(canModels.MessageDispatcherListener{Name: c.GetName(), Channel: c.GetChannel()})
 	}
 
 	if sc, ok := c.(canModels.SignalOutputClient); ok && len(b.signalDispatchers) > 0 {
 		b.logger.Debug("wiring signal handler for output client", "name", c.GetName())
 		b.wgClients.Go(sc.HandleSignalChannel)
 		for _, d := range b.signalDispatchers {
-			d.AddListener(sc.GetSignalChannel())
+			d.AddListener(canModels.SignalDispatcherListener{Name: c.GetName(), Channel: sc.GetSignalChannel()})
 		}
 	}
 }
@@ -85,7 +85,7 @@ func (b *AppData) AddSignalDispatcher(d canModels.SignalDispatcherRegistrar, int
 	if !b.config.LogSignals {
 		return
 	}
-	if err := b.broadcastClient.Add(broadcast.BroadcastClientListener{
+	if err := b.broadcastClient.Add(canModels.MessageDispatcherListener{
 		Name:    fmt.Sprintf("signal-dispatcher-%d", interfaceID),
 		Channel: d.GetChannel(),
 		Filter: &canModels.CanMessageFilterGroup{

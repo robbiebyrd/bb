@@ -10,7 +10,7 @@ import (
 	"github.com/robbiebyrd/cantou/internal/app"
 	"github.com/robbiebyrd/cantou/internal/client/dedupe"
 	"github.com/robbiebyrd/cantou/internal/client/logging"
-	"github.com/robbiebyrd/cantou/internal/client/signaldispatch"
+	"github.com/robbiebyrd/cantou/internal/client/signal-dispatch"
 	"github.com/robbiebyrd/cantou/internal/config"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 	"github.com/robbiebyrd/cantou/internal/output/crtd"

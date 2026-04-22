@@ -132,6 +132,14 @@ func TestNewSimulationCanClient_MinMaxRateStoredOnClient(t *testing.T) {
 	conn := NewSimulationCanClient(context.Background(), cfg, "sim1", testChannel(), silentLogger(), nil, nil, nil)
 	assert.Equal(t, 1, conn.rateMin)
 	assert.Equal(t, 1000, conn.rateMax)
+	assert.True(t, conn.useRandomRate)
+}
+
+func TestNewSimulationCanClient_SimEmitRateOverridesMinMax(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRate: 50, SimEmitRateMin: 1, SimEmitRateMax: 1000, CanInterfaceSeparator: "-"}
+	conn := NewSimulationCanClient(context.Background(), cfg, "sim1", testChannel(), silentLogger(), nil, nil, nil)
+	assert.Equal(t, 50, conn.rate)
+	assert.False(t, conn.useRandomRate)
 }
 
 func TestReceive_RandomRateStaysWithinBounds(t *testing.T) {

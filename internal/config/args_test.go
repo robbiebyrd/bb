@@ -128,6 +128,42 @@ func TestLoadInfluxToken_FromFile(t *testing.T) {
 	assert.Equal(t, "file-token", cfg.InfluxDB.Token)
 }
 
+func TestValidateSimRate_OnlyMinSet_ReturnsError(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRateMin: 1, SimEmitRateMax: 0}
+	err := config.ValidateSimRate(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SIM_RATE_MIN")
+	assert.Contains(t, err.Error(), "SIM_RATE_MAX")
+}
+
+func TestValidateSimRate_OnlyMaxSet_ReturnsError(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRateMin: 0, SimEmitRateMax: 1000}
+	err := config.ValidateSimRate(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SIM_RATE_MIN")
+	assert.Contains(t, err.Error(), "SIM_RATE_MAX")
+}
+
+func TestValidateSimRate_BothMinAndMaxSet_NoError(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRateMin: 1, SimEmitRateMax: 1000}
+	require.NoError(t, config.ValidateSimRate(cfg))
+}
+
+func TestValidateSimRate_OnlyRateSet_NoError(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRate: 10}
+	require.NoError(t, config.ValidateSimRate(cfg))
+}
+
+func TestValidateSimRate_RateAndMinMaxSet_NoError(t *testing.T) {
+	cfg := &canModels.Config{SimEmitRate: 10, SimEmitRateMin: 1, SimEmitRateMax: 1000}
+	require.NoError(t, config.ValidateSimRate(cfg))
+}
+
+func TestValidateSimRate_NoneSet_NoError(t *testing.T) {
+	cfg := &canModels.Config{}
+	require.NoError(t, config.ValidateSimRate(cfg))
+}
+
 func TestLoadInfluxToken_FileMissing(t *testing.T) {
 	cfg := &canModels.Config{
 		InfluxDB: canModels.InfluxDBConfig{TokenFile: "/nonexistent/path/token.json"},

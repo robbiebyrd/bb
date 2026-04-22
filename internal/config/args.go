@@ -11,9 +11,24 @@ import (
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
+// ValidateSimRate returns an error when exactly one of SimEmitRateMin / SimEmitRateMax
+// is set. Both must be provided together; setting only one is a configuration mistake.
+func ValidateSimRate(cfg *canModels.Config) error {
+	minSet := cfg.SimEmitRateMin != 0
+	maxSet := cfg.SimEmitRateMax != 0
+	if minSet != maxSet {
+		return fmt.Errorf("SIM_RATE_MIN and SIM_RATE_MAX must both be set or both be unset")
+	}
+	return nil
+}
+
 func Load(logger *slog.Logger) (canModels.Config, string) {
 	cfg, err := env.ParseAs[canModels.Config]()
 	if err != nil {
+		panic(err)
+	}
+
+	if err := ValidateSimRate(&cfg); err != nil {
 		panic(err)
 	}
 
