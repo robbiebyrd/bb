@@ -39,3 +39,4 @@ data
 /.claude
 stories/archive
 config/influxdb
+output

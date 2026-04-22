@@ -24,7 +24,9 @@ type SimulationCanClient struct {
 	opened      bool
 	streaming   bool
 	l           *slog.Logger
-	rate        int // nanoseconds
+	rate        int // milliseconds (fixed); ignored when rateMin/rateMax are set
+	rateMin     int // milliseconds (random range lower bound)
+	rateMax     int // milliseconds (random range upper bound)
 	count       int
 	cfg         *canModels.Config
 	dbcFilePath *string
@@ -68,6 +70,8 @@ func NewSimulationCanClient(
 		uri:     *uri,
 		l:       logger,
 		rate:    *rate,
+		rateMin: cfg.SimEmitRateMin,
+		rateMax: cfg.SimEmitRateMax,
 		cfg:     cfg,
 	}
 }
@@ -185,8 +189,13 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 			scc.count++
 			scc.l.Debug("emitted simulated can message", "count", scc.count)
 
+			sleepMs := scc.rate
+			if scc.rateMin > 0 && scc.rateMax > scc.rateMin {
+				sleepMs = scc.rateMin + rng.Intn(scc.rateMax-scc.rateMin+1)
+			}
+
 			select {
-			case <-time.After(time.Duration(scc.rate) * time.Nanosecond):
+			case <-time.After(time.Duration(sleepMs) * time.Millisecond):
 			case <-scc.ctx.Done():
 				return
 			}
