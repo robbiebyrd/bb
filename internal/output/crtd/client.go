@@ -2,7 +2,6 @@ package crtd
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sync/atomic"
 	"time"
@@ -12,10 +11,14 @@ import (
 	crtdfmt "github.com/robbiebyrd/cantou/internal/parser/crtd"
 )
 
+// crtdFlushInterval caps how long buffered output can sit in memory before
+// being flushed. Same rationale as csvFlushInterval.
+const crtdFlushInterval = 1 * time.Second
+
 type CRTDLoggerClient struct {
 	canWriter      *crtdfmt.CANWriter
 	signalWriter   *crtdfmt.SignalWriter
-	filters        map[string]canModels.FilterInterface
+	filters        *common.FilterSet
 	canChannel     chan canModels.CanMessageTimestamped
 	signalChannel  chan canModels.CanSignalTimestamped
 	l              *slog.Logger
@@ -57,25 +60,21 @@ func NewClient(
 		signalWriter:  signalWriter,
 		canChannel:    make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		signalChannel: make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
-		filters:       make(map[string]canModels.FilterInterface),
+		filters:       common.NewFilterSet(),
 		l:             logger,
 	}, nil
 }
 
 func (c *CRTDLoggerClient) AddFilter(name string, filter canModels.FilterInterface) error {
-	if _, ok := c.filters[name]; ok {
-		return fmt.Errorf("filter group already exists: %v", name)
-	}
 	c.l.Debug("creating new filter group", "filterName", name)
-	c.filters[name] = filter
-	return nil
+	return c.filters.Add(name, filter)
 }
 
 func (c *CRTDLoggerClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if c.canWriter == nil {
 		return
 	}
-	if shouldFilter, _ := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+	if shouldFilter, _ := c.filters.ShouldFilter(canMsg); shouldFilter {
 		return
 	}
 	if err := c.canWriter.Append(canMsg.Timestamp, canMsg.Interface, canMsg.ID, canMsg.Transmit, canMsg.Data); err != nil {
@@ -94,11 +93,32 @@ func (c *CRTDLoggerClient) HandleCanMessageChannel() error {
 	done := make(chan struct{})
 	defer close(done)
 	common.StartThroughputReporter(done, c.l, c.GetName(), "can", &c.canMsgCount, func() int { return len(c.canChannel) }, 5*time.Second)
-	for canMsg := range c.canChannel {
-		c.canMsgCount.Add(1)
-		c.HandleCanMessage(canMsg)
+
+	ticker := time.NewTicker(crtdFlushInterval)
+	defer ticker.Stop()
+
+	flush := func() {
+		if c.canWriter == nil {
+			return
+		}
+		if err := c.canWriter.Flush(); err != nil {
+			c.l.Error("Could not flush CRTD file", "error", err)
+		}
 	}
-	return nil
+
+	for {
+		select {
+		case canMsg, ok := <-c.canChannel:
+			if !ok {
+				flush()
+				return nil
+			}
+			c.canMsgCount.Add(1)
+			c.HandleCanMessage(canMsg)
+		case <-ticker.C:
+			flush()
+		}
+	}
 }
 
 func (c *CRTDLoggerClient) GetChannel() chan canModels.CanMessageTimestamped {
@@ -129,11 +149,32 @@ func (c *CRTDLoggerClient) HandleSignalChannel() error {
 	done := make(chan struct{})
 	defer close(done)
 	common.StartThroughputReporter(done, c.l, c.GetName(), "signal", &c.signalMsgCount, func() int { return len(c.signalChannel) }, 5*time.Second)
-	for sig := range c.signalChannel {
-		c.signalMsgCount.Add(1)
-		c.HandleSignal(sig)
+
+	ticker := time.NewTicker(crtdFlushInterval)
+	defer ticker.Stop()
+
+	flush := func() {
+		if c.signalWriter == nil {
+			return
+		}
+		if err := c.signalWriter.Flush(); err != nil {
+			c.l.Error("Could not flush CRTD signal file", "error", err)
+		}
 	}
-	return nil
+
+	for {
+		select {
+		case sig, ok := <-c.signalChannel:
+			if !ok {
+				flush()
+				return nil
+			}
+			c.signalMsgCount.Add(1)
+			c.HandleSignal(sig)
+		case <-ticker.C:
+			flush()
+		}
+	}
 }
 
 func (c *CRTDLoggerClient) GetName() string {

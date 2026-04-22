@@ -15,6 +15,7 @@ import (
 
 type CanConnectionManager struct {
 	ctx            context.Context
+	mu             sync.RWMutex
 	connections    map[int]canModels.CanConnection
 	nextID         int
 	MessageChannel chan canModels.CanMessageTimestamped
@@ -42,6 +43,8 @@ func NewConnectionManager(
 }
 
 func (cm *CanConnectionManager) Connections() []canModels.CanConnection {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
 	conns := make([]canModels.CanConnection, 0, len(cm.connections))
 	for _, conn := range cm.connections {
 		conns = append(conns, conn)
@@ -50,6 +53,8 @@ func (cm *CanConnectionManager) Connections() []canModels.CanConnection {
 }
 
 func (cm *CanConnectionManager) ConnectionByName(name string) canModels.CanConnection {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
 	for _, connection := range cm.connections {
 		if connection.GetName() == name {
 			return connection
@@ -59,6 +64,8 @@ func (cm *CanConnectionManager) ConnectionByName(name string) canModels.CanConne
 }
 
 func (cm *CanConnectionManager) ConnectionByID(id int) canModels.CanConnection {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
 	conn, ok := cm.connections[id]
 	if !ok {
 		return nil
@@ -70,6 +77,8 @@ func (cm *CanConnectionManager) Add(conn canModels.CanConnection) int {
 	if conn == nil {
 		return -1
 	}
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
 	id := cm.nextID
 	conn.SetID(id)
 	cm.connections[id] = conn
@@ -144,6 +153,8 @@ func (cm *CanConnectionManager) ConnectMultiple(options canModels.CanInterfaceOp
 }
 
 func (cm *CanConnectionManager) DeleteConnection(name string) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
 	for id, connection := range cm.connections {
 		if connection.GetName() == name {
 			connection.Close()
@@ -154,7 +165,7 @@ func (cm *CanConnectionManager) DeleteConnection(name string) {
 }
 
 func (cm *CanConnectionManager) OpenAll() error {
-	for _, connection := range cm.connections {
+	for _, connection := range cm.snapshot() {
 		if err := connection.Open(); err != nil {
 			return err
 		}
@@ -163,7 +174,7 @@ func (cm *CanConnectionManager) OpenAll() error {
 }
 
 func (cm *CanConnectionManager) CloseAll() error {
-	for _, connection := range cm.connections {
+	for _, connection := range cm.snapshot() {
 		if err := connection.Close(); err != nil {
 			return err
 		}
@@ -172,9 +183,19 @@ func (cm *CanConnectionManager) CloseAll() error {
 }
 
 func (cm *CanConnectionManager) ReceiveAll() error {
-	for _, connection := range cm.connections {
+	for _, connection := range cm.snapshot() {
 		connection.Receive(cm.wg)
 	}
 	cm.wg.Wait()
 	return nil
+}
+
+func (cm *CanConnectionManager) snapshot() []canModels.CanConnection {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	conns := make([]canModels.CanConnection, 0, len(cm.connections))
+	for _, conn := range cm.connections {
+		conns = append(conns, conn)
+	}
+	return conns
 }

@@ -151,7 +151,7 @@ func TestNewClient_filtersApplied(t *testing.T) {
 	client, err := NewClient(context.Background(), cfg, silentLogger(), testResolver(), filter)
 	require.NoError(t, err)
 	c := client.(*PrometheusClient)
-	assert.Len(t, c.filters, 1)
+	assert.Equal(t, 1, c.filters.Len())
 }
 
 // --- Step 4: HandleCanMessageChannel ---

@@ -57,12 +57,7 @@ func (c *PlaybackCanClient) Receive(wg *sync.WaitGroup) {
 				}
 
 				select {
-				case <-c.ctx.Done():
-					return
-				default:
-				}
-
-				c.channel <- canModels.CanMessageTimestamped{
+				case c.channel <- canModels.CanMessageTimestamped{
 					Timestamp: time.Now().UnixNano(),
 					Interface: c.id,
 					ID:        entry.ID,
@@ -70,6 +65,9 @@ func (c *PlaybackCanClient) Receive(wg *sync.WaitGroup) {
 					Remote:    entry.Remote,
 					Length:    entry.Length,
 					Data:      commonUtils.PadOrTrim(entry.Data, 8),
+				}:
+				case <-c.ctx.Done():
+					return
 				}
 			}
 

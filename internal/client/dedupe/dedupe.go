@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"log/slog"
+	"sync"
 	"time"
 
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
 type DedupeFilterClient struct {
+	mu      sync.Mutex
 	storage map[uint64]time.Time
 	l       *slog.Logger
 	timeout int
@@ -41,6 +43,9 @@ func (dc *DedupeFilterClient) Filter(canMsg canModels.CanMessageTimestamped) boo
 		dc.l.Error("error hashing message for shadow copy", "error", err)
 		return false
 	}
+
+	dc.mu.Lock()
+	defer dc.mu.Unlock()
 
 	value, ok := dc.storage[msgHash]
 

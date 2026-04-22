@@ -145,29 +145,35 @@ func (scc *SimulationCanClient) Receive(wg *sync.WaitGroup) {
 	scc.streaming = true
 
 	wg.Go(func() {
+		// Per-goroutine rand.Rand avoids contention on the global math/rand
+		// source (which takes a mutex on every call). At high emit rates the
+		// global lock becomes the hot contention point.
+		rng := mathRand.New(mathRand.NewSource(time.Now().UnixNano()))
+
+		lengthOfDataPacket := [...]uint8{
+			canMessageMaxDataLength / 4,
+			canMessageMaxDataLength / 2,
+			canMessageMaxDataLength,
+		}
+
 		for {
 			// Create a slice of random bytes
 			randomBytes := make([]byte, canMessageMaxDataLength)
 
 			// Fill with pseudo-random bytes (crypto quality not needed for simulation).
 			for i := range randomBytes {
-				randomBytes[i] = byte(mathRand.Intn(256))
+				randomBytes[i] = byte(rng.Intn(256))
 			}
 
 			// Select a random length for the data packet.
-			lengthOfDataPacket := []uint8{
-				canMessageMaxDataLength / 4,
-				canMessageMaxDataLength / 2,
-				canMessageMaxDataLength,
-			}
-			randomLength := lengthOfDataPacket[mathRand.Intn(len(lengthOfDataPacket))]
+			randomLength := lengthOfDataPacket[rng.Intn(len(lengthOfDataPacket))]
 
 			select {
 			case scc.channel <- canModels.CanMessageTimestamped{
 				Timestamp: time.Now().UnixNano(),
 				Interface: scc.GetID(),
 				Transmit:  false,
-				ID:        uint32(mathRand.Intn(2047)),
+				ID:        uint32(rng.Intn(2047)),
 				Remote:    false,
 				Length:    randomLength,
 				Data:      commonUtils.PadOrTrim(randomBytes[:randomLength], int(canMessageMaxDataLength)),

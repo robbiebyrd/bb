@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/robbiebyrd/cantou/internal/client/common"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 	crtdfmt "github.com/robbiebyrd/cantou/internal/parser/crtd"
 )
@@ -48,7 +49,7 @@ func newTestClient(t *testing.T) (*CRTDLoggerClient, string) {
 		canWriter:     canWriter,
 		canChannel:    make(chan canModels.CanMessageTimestamped, 16),
 		signalChannel: make(chan canModels.CanSignalTimestamped, 16),
-		filters:       make(map[string]canModels.FilterInterface),
+		filters:       common.NewFilterSet(),
 		l:             silentLogger(),
 	}, path
 }
@@ -69,7 +70,7 @@ func newSignalTestClient(t *testing.T) (*CRTDLoggerClient, string, string) {
 		signalWriter:  sigWriter,
 		canChannel:    make(chan canModels.CanMessageTimestamped, 16),
 		signalChannel: make(chan canModels.CanSignalTimestamped, 16),
-		filters:       make(map[string]canModels.FilterInterface),
+		filters:       common.NewFilterSet(),
 		l:             silentLogger(),
 	}, canPath, sigPath
 }

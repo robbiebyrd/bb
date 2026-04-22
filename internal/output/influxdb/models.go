@@ -9,7 +9,7 @@ type InfluxDBCanMessage struct {
 	ID          string    `lp:"tag,can_id"`
 	Length      uint8     `lp:"field,length"`
 	Remote      uint8     `lp:"field,remote"`
-	Data        string    `lp:"tag,data"`
+	Data        string    `lp:"field,data"`
 	Measurement string    `lp:"measurement"`
 }
 

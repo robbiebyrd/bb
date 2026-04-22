@@ -30,7 +30,7 @@ type Client struct {
 	finalize       bool
 	canChannel     chan canModels.CanMessageTimestamped
 	signalChannel  chan canModels.CanSignalTimestamped
-	filters        map[string]canModels.FilterInterface
+	filters        *common.FilterSet
 	l              *slog.Logger
 	canMsgCount    atomic.Uint64
 	signalMsgCount atomic.Uint64
@@ -72,25 +72,21 @@ func NewClient(
 		finalize:      cfg.MF4Logger.Finalize,
 		canChannel:    make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		signalChannel: make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
-		filters:       make(map[string]canModels.FilterInterface),
+		filters:       common.NewFilterSet(),
 		l:             logger,
 	}, nil
 }
 
 func (c *Client) AddFilter(name string, filter canModels.FilterInterface) error {
-	if _, ok := c.filters[name]; ok {
-		return fmt.Errorf("filter group already exists: %v", name)
-	}
 	c.l.Debug("creating new filter group", "filterName", name)
-	c.filters[name] = filter
-	return nil
+	return c.filters.Add(name, filter)
 }
 
 func (c *Client) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 	if c.canWriter == nil {
 		return
 	}
-	if shouldFilter, _ := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+	if shouldFilter, _ := c.filters.ShouldFilter(canMsg); shouldFilter {
 		return
 	}
 	if err := c.canWriter.AppendCAN(canMsg.Timestamp, canMsg.ID, canMsg.Transmit, canMsg.Data); err != nil {

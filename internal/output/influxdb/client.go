@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,7 +36,7 @@ type InfluxDBClient struct {
 	l                     *slog.Logger
 	canChannel            chan canModels.CanMessageTimestamped
 	signalChannel         chan canModels.CanSignalTimestamped
-	filters               map[string]canModels.FilterInterface
+	filters               *common.FilterSet
 	resolver              canModels.InterfaceResolver
 	canMsgCount           atomic.Uint64
 	signalMsgCount        atomic.Uint64
@@ -93,11 +92,6 @@ func NewClient(
 
 	logger.Debug("started influxdb3 client")
 
-	newFilters := make(map[string]canModels.FilterInterface)
-	for _, f := range filters {
-		newFilters[f.Name] = f.Filter
-	}
-
 	return &InfluxDBClient{
 		client:                client,
 		signalClient:          signalClient,
@@ -129,18 +123,14 @@ func NewClient(
 			cfg.InfluxDB.MaxWriteLines,
 		),
 		wg:       sync.WaitGroup{},
-		filters:  newFilters,
+		filters:  common.NewFilterSetFromInputs(filters),
 		resolver: resolver,
 	}, nil
 }
 
 func (c *InfluxDBClient) AddFilter(name string, filter canModels.FilterInterface) error {
-	if _, ok := c.filters[name]; ok {
-		return fmt.Errorf("filter group already exists: %v", name)
-	}
 	c.l.Debug("creating new filter group", "filterName", name)
-	c.filters[name] = filter
-	return nil
+	return c.filters.Add(name, filter)
 }
 
 func (c *InfluxDBClient) GetChannel() chan canModels.CanMessageTimestamped {
@@ -176,6 +166,11 @@ func (c *InfluxDBClient) HandleCanMessageChannel() error {
 
 	for {
 		select {
+		case <-c.ctx.Done():
+			flush()
+			close(c.internalChannel)
+			c.wg.Wait()
+			return nil
 		case canMsg, ok := <-c.canChannel:
 			if !ok {
 				flush()
@@ -184,13 +179,13 @@ func (c *InfluxDBClient) HandleCanMessageChannel() error {
 				return nil
 			}
 			c.canMsgCount.Add(1)
-			if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+			if shouldFilter, filterName := c.filters.ShouldFilter(canMsg); shouldFilter {
 				c.l.Debug(
 					"message filtered, dropping message",
 					"message",
 					canMsg,
 					"filterName",
-					*filterName,
+					filterName,
 				)
 				continue
 			}
@@ -250,9 +245,17 @@ func (c *InfluxDBClient) Run() error {
 }
 
 func (c *InfluxDBClient) convertMsg(msg canModels.CanMessageTimestamped) InfluxDBCanMessage {
-	newMsgData := make([]string, msg.Length)
-	for i := 0; i < int(msg.Length); i++ {
-		newMsgData[i] = strconv.Itoa(int(msg.Data[i]))
+	// Format data bytes as "b1,b2,..." using a single growable buffer instead
+	// of a []string + strings.Join, which would allocate a new string per byte.
+	var dataBuf []byte
+	if msg.Length > 0 {
+		dataBuf = make([]byte, 0, int(msg.Length)*4)
+		for i := 0; i < int(msg.Length); i++ {
+			if i > 0 {
+				dataBuf = append(dataBuf, ',')
+			}
+			dataBuf = strconv.AppendInt(dataBuf, int64(msg.Data[i]), 10)
+		}
 	}
 
 	interfaceName := ""
@@ -260,18 +263,30 @@ func (c *InfluxDBClient) convertMsg(msg canModels.CanMessageTimestamped) InfluxD
 		interfaceName = conn.GetInterfaceName()
 	}
 
-	msgConverted := InfluxDBCanMessage{
+	return InfluxDBCanMessage{
 		Timestamp:   time.Unix(0, msg.Timestamp),
-		ID:          fmt.Sprintf("%03x", msg.ID),
+		ID:          formatCanID(msg.ID),
 		Length:      msg.Length,
-		Data:        strings.Join(newMsgData, ","),
+		Data:        string(dataBuf),
 		Remote:      boolToInt(msg.Remote),
 		Transmit:    boolToInt(msg.Transmit),
 		Interface:   interfaceName,
 		Measurement: c.measurementName,
 	}
+}
 
-	return msgConverted
+// formatCanID renders a CAN ID as lowercase hex, zero-padded to a minimum of
+// 3 characters for standard 11-bit IDs. Replaces fmt.Sprintf("%03x", id) on the
+// hot path to avoid reflection and fmt's allocations.
+func formatCanID(id uint32) string {
+	s := strconv.FormatUint(uint64(id), 16)
+	if len(s) >= 3 {
+		return s
+	}
+	// pad with leading zeros to length 3
+	pad := [3]byte{'0', '0', '0'}
+	copy(pad[3-len(s):], s)
+	return string(pad[:])
 }
 
 func (c *InfluxDBClient) convertMany(msgs []canModels.CanMessageTimestamped) []InfluxDBCanMessage {
@@ -330,6 +345,11 @@ func (c *InfluxDBClient) HandleSignalChannel() error {
 
 	for {
 		select {
+		case <-c.ctx.Done():
+			flush()
+			close(c.signalInternalChannel)
+			c.signalWg.Wait()
+			return nil
 		case sig, ok := <-c.signalChannel:
 			if !ok {
 				flush()

@@ -3,6 +3,7 @@ package signaldispatch
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 	"github.com/robbiebyrd/cantou/internal/parser/obd2"
@@ -14,6 +15,7 @@ import (
 type SignalDispatcher struct {
 	parser    canModels.ParserInterface
 	inChannel chan canModels.CanMessageTimestamped
+	mu        sync.RWMutex
 	listeners []chan canModels.CanSignalTimestamped
 	l         *slog.Logger
 }
@@ -28,8 +30,10 @@ func New(parser canModels.ParserInterface, bufSize int, logger *slog.Logger) *Si
 	}
 }
 
-// AddListener registers a signal output channel. Must be called before Dispatch.
+// AddListener registers a signal output channel.
 func (d *SignalDispatcher) AddListener(ch chan canModels.CanSignalTimestamped) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.listeners = append(d.listeners, ch)
 }
 
@@ -45,8 +49,12 @@ func (d *SignalDispatcher) Dispatch() error {
 		signals := d.parser.ParseSignals(msg)
 		for _, sig := range signals {
 			expanded := expandPIDsSupported(sig)
+			d.mu.RLock()
+			listeners := make([]chan canModels.CanSignalTimestamped, len(d.listeners))
+			copy(listeners, d.listeners)
+			d.mu.RUnlock()
 			for _, s := range expanded {
-				for _, ch := range d.listeners {
+				for _, ch := range listeners {
 					select {
 					case ch <- s:
 					default:

@@ -25,7 +25,7 @@ type MQTTClient struct {
 	topic          string
 	qos            uint8
 	shadowCopy     bool
-	filters        map[string]canModels.FilterInterface
+	filters        *common.FilterSet
 	resolver       canModels.InterfaceResolver
 	canMsgCount    atomic.Uint64
 	signalMsgCount atomic.Uint64
@@ -78,12 +78,6 @@ func NewClient(
 
 	logger.Debug("started MQTT client")
 
-	newFilters := make(map[string]canModels.FilterInterface)
-
-	for _, filterInput := range filters {
-		newFilters[filterInput.Name] = filterInput.Filter
-	}
-
 	return &MQTTClient{
 		client:        client,
 		ctx:           ctx,
@@ -93,19 +87,14 @@ func NewClient(
 		topic:         cfg.MQTTConfig.Topic,
 		qos:           cfg.MQTTConfig.Qos,
 		shadowCopy:    cfg.MQTTConfig.ShadowCopy,
-		filters:       newFilters,
+		filters:       common.NewFilterSetFromInputs(filters),
 		resolver:      resolver,
 	}, nil
 }
 
 func (c *MQTTClient) AddFilter(name string, filter canModels.FilterInterface) error {
-	if _, ok := c.filters[name]; ok {
-		return fmt.Errorf("filter group already exists: %v", name)
-	}
-
 	c.l.Debug("creating new filter group", "filterName", name)
-	c.filters[name] = filter
-	return nil
+	return c.filters.Add(name, filter)
 }
 
 func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
@@ -114,7 +103,7 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 		return
 	}
 
-	if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
+	if shouldFilter, filterName := c.filters.ShouldFilter(canMsg); shouldFilter {
 		if c.l.Enabled(context.Background(), slog.LevelDebug) {
 			msgString, err := c.ToJSON(canMsg)
 			if err != nil {
@@ -123,24 +112,26 @@ func (c *MQTTClient) HandleCanMessage(canMsg canModels.CanMessageTimestamped) {
 					"error",
 					err,
 					"filterName",
-					*filterName,
+					filterName,
 				)
 			} else {
-				c.l.Debug("message filtered, dropping message", "message", msgString, "filterName", *filterName)
+				c.l.Debug("message filtered, dropping message", "message", msgString, "filterName", filterName)
 			}
 		}
 		return
 	}
 
 	topic := c.getTopicFromMessage(canMsg)
-	msgString, err := c.ToJSON(canMsg)
+	payload, err := c.toJSONBytes(canMsg)
 	if err != nil {
 		c.l.Error("MQTT failed to serialize message", "error", err)
 		return
 	}
 
-	c.publish(topic, msgString)
-	c.l.Debug("MQTT published message", "topic", topic, "message", msgString)
+	c.publish(topic, payload)
+	if c.l.Enabled(context.Background(), slog.LevelDebug) {
+		c.l.Debug("MQTT published message", "topic", topic, "message", string(payload))
+	}
 }
 
 func (c *MQTTClient) GetChannel() chan canModels.CanMessageTimestamped {
@@ -192,13 +183,30 @@ func (c *MQTTClient) GetName() string {
 	return "output-mqtt"
 }
 
-// publish sends payload to topic and waits for the broker acknowledgment in a goroutine.
+// publishAckTimeout bounds the time we'll wait for a publish acknowledgment
+// before giving up and logging. Keeps the per-message goroutine from leaking
+// indefinitely when the broker stalls.
+const publishAckTimeout = 5 * time.Second
+
+// publish sends payload to topic. For QoS 0 the token completes synchronously
+// and the error is checked inline. For QoS > 0 we wait for the broker ack in
+// a goroutine bounded by publishAckTimeout, which prevents per-message
+// goroutine leaks if the broker becomes unresponsive.
 func (c *MQTTClient) publish(topic string, payload any) {
 	token := c.client.Publish(topic, c.qos, c.shadowCopy, payload)
+	if c.qos == 0 {
+		if err := token.Error(); err != nil {
+			c.l.Error("MQTT publish failed", "error", err)
+		}
+		return
+	}
 	go func(t mqtt.Token) {
-		t.Wait()
-		if t.Error() != nil {
-			c.l.Error("MQTT publish failed", "error", t.Error())
+		if !t.WaitTimeout(publishAckTimeout) {
+			c.l.Warn("MQTT publish ack timed out", "timeout", publishAckTimeout)
+			return
+		}
+		if err := t.Error(); err != nil {
+			c.l.Error("MQTT publish failed", "error", err)
 		}
 	}(token)
 }

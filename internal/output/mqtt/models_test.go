@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/robbiebyrd/cantou/internal/client/common"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
@@ -39,7 +40,7 @@ func (r *mockResolver) ConnectionByID(id int) canModels.CanConnection {
 func newTestMQTTClient(resolver canModels.InterfaceResolver) *MQTTClient {
 	return &MQTTClient{
 		resolver: resolver,
-		filters:  make(map[string]canModels.FilterInterface),
+		filters:  common.NewFilterSet(),
 	}
 }
 

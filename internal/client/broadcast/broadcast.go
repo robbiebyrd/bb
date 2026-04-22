@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,9 +18,15 @@ type BroadcastClientListener struct {
 	Filter  *canModels.CanMessageFilterGroup
 }
 
+type registeredListener struct {
+	listener BroadcastClientListener
+	dropped  atomic.Uint64
+}
+
 type BroadcastClient struct {
 	ctx               context.Context
-	broadcastChannels []BroadcastClientListener
+	mu                sync.RWMutex
+	broadcastChannels []*registeredListener
 	incomingChannel   chan canModels.CanMessageTimestamped
 	msgCount          atomic.Uint64
 	l                 *slog.Logger
@@ -38,17 +45,23 @@ func NewBroadcastClient(
 }
 
 func (scc *BroadcastClient) Add(listener BroadcastClientListener) error {
-	if scc.listenerExists(listener) {
-		return fmt.Errorf("the name %v is already in use", listener.Name)
+	scc.mu.Lock()
+	defer scc.mu.Unlock()
+	for _, c := range scc.broadcastChannels {
+		if c.listener.Name == listener.Name {
+			return fmt.Errorf("the name %v is already in use", listener.Name)
+		}
 	}
-	scc.broadcastChannels = append(scc.broadcastChannels, listener)
+	scc.broadcastChannels = append(scc.broadcastChannels, &registeredListener{listener: listener})
 
 	return nil
 }
 
 func (scc *BroadcastClient) Remove(name string) error {
+	scc.mu.Lock()
+	defer scc.mu.Unlock()
 	for i, c := range scc.broadcastChannels {
-		if c.Name == name {
+		if c.listener.Name == name {
 			scc.broadcastChannels = slices.Delete(scc.broadcastChannels, i, i+1)
 			return nil
 		}
@@ -84,17 +97,25 @@ func (scc *BroadcastClient) Broadcast() error {
 			return scc.ctx.Err()
 		case canMsg := <-scc.incomingChannel:
 			scc.msgCount.Add(1)
-			for _, c := range scc.broadcastChannels {
+			scc.mu.RLock()
+			listeners := make([]*registeredListener, len(scc.broadcastChannels))
+			copy(listeners, scc.broadcastChannels)
+			scc.mu.RUnlock()
+			for _, c := range listeners {
 				broadcastMsg := true
-				if c.Filter != nil {
-					broadcastMsg = scc.testFilterGroup(c, canMsg)
+				if c.listener.Filter != nil {
+					broadcastMsg = scc.testFilterGroup(c.listener, canMsg)
 				}
 				if broadcastMsg {
 					select {
-					case c.Channel <- canMsg:
+					case c.listener.Channel <- canMsg:
 					default:
-						scc.l.Warn("broadcast: dropped message, listener channel full",
-							"listener", c.Name)
+						dropped := c.dropped.Add(1)
+						if dropped == 1 || dropped%1000 == 0 {
+							scc.l.Warn("broadcast: dropped message, listener channel full",
+								"listener", c.listener.Name,
+								"dropped_total", dropped)
+						}
 					}
 				}
 			}
@@ -124,11 +145,16 @@ func (scc *BroadcastClient) testFilterGroup(
 	}
 }
 
-func (scc *BroadcastClient) listenerExists(listener BroadcastClientListener) bool {
+// DroppedCount returns the total number of messages that have been dropped for
+// the named listener because its channel was full. Returns 0 if the listener
+// is not registered.
+func (scc *BroadcastClient) DroppedCount(name string) uint64 {
+	scc.mu.RLock()
+	defer scc.mu.RUnlock()
 	for _, c := range scc.broadcastChannels {
-		if c.Name == listener.Name {
-			return true
+		if c.listener.Name == name {
+			return c.dropped.Load()
 		}
 	}
-	return false
+	return 0
 }

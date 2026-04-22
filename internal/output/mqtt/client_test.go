@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/robbiebyrd/cantou/internal/client/common"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
@@ -121,7 +122,7 @@ func TestHandleCanMessageChannel_DrainAndReturn(t *testing.T) {
 		l:               slog.Default(),
 		ctx:             context.Background(),
 		canChannel: make(chan canModels.CanMessageTimestamped),
-		filters:         make(map[string]canModels.FilterInterface),
+		filters:         common.NewFilterSet(),
 		resolver:        &mockResolver{conns: map[int]*mockCanConn{}},
 	}
 
@@ -138,7 +139,7 @@ func TestHandleSignalChannel_DrainAndReturn(t *testing.T) {
 		l:             slog.Default(),
 		ctx:           context.Background(),
 		signalChannel: make(chan canModels.CanSignalTimestamped),
-		filters:       make(map[string]canModels.FilterInterface),
+		filters:       common.NewFilterSet(),
 		resolver:      &mockResolver{conns: map[int]*mockCanConn{}},
 	}
 
@@ -152,19 +153,19 @@ func TestHandleSignalChannel_DrainAndReturn(t *testing.T) {
 func TestAddFilter_HappyPath(t *testing.T) {
 	c := &MQTTClient{
 		l:       slog.Default(),
-		filters: make(map[string]canModels.FilterInterface),
+		filters: common.NewFilterSet(),
 	}
 
 	err := c.AddFilter("my-filter", &stubFilter{})
 	require.NoError(t, err)
-	assert.Contains(t, c.filters, "my-filter")
+	assert.True(t, c.filters.Has("my-filter"))
 }
 
 // TestAddFilter_DuplicateRejected verifies registering the same filter name twice returns an error.
 func TestAddFilter_DuplicateRejected(t *testing.T) {
 	c := &MQTTClient{
 		l:       slog.Default(),
-		filters: make(map[string]canModels.FilterInterface),
+		filters: common.NewFilterSet(),
 	}
 
 	require.NoError(t, c.AddFilter("dup", &stubFilter{}))

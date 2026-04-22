@@ -67,7 +67,7 @@ func newHandleClient(maxBlocks, maxConnections, flushTimeMs, internalChanSize in
 		signalChannel:         make(chan canModels.CanSignalTimestamped, 32),
 		messageBlock:          make([]canModels.CanMessageTimestamped, 0, maxBlocks),
 		signalBlock:           make([]canModels.CanSignalTimestamped, 0, maxBlocks),
-		filters:               make(map[string]canModels.FilterInterface),
+		filters:               common.NewFilterSet(),
 	}
 }
 
@@ -240,9 +240,9 @@ func TestShouldFilterMessage_NoFilters(t *testing.T) {
 	c := newHandleClient(10, 2, 100, 4)
 	msg := testMsg(0x100)
 
-	shouldFilter, name := common.ShouldFilter(c.filters, msg)
+	shouldFilter, name := c.filters.ShouldFilter(msg)
 	assert.False(t, shouldFilter)
-	assert.Nil(t, name)
+	assert.Empty(t, name)
 }
 
 func TestShouldFilterMessage_MatchingFilter(t *testing.T) {
@@ -250,10 +250,9 @@ func TestShouldFilterMessage_MatchingFilter(t *testing.T) {
 	_ = c.AddFilter("drop-all", &mockFilterAlwaysTrue{})
 
 	msg := testMsg(0x100)
-	shouldFilter, name := common.ShouldFilter(c.filters, msg)
+	shouldFilter, name := c.filters.ShouldFilter(msg)
 	assert.True(t, shouldFilter)
-	require.NotNil(t, name)
-	assert.Equal(t, "drop-all", *name)
+	assert.Equal(t, "drop-all", name)
 }
 
 func TestConvertMsg(t *testing.T) {
@@ -372,7 +371,7 @@ func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
 		flushTime:       50,
 		l:               silentLogger(),
 		ctx:             ctx,
-		filters:         make(map[string]canModels.FilterInterface),
+		filters:         common.NewFilterSet(),
 	}
 
 	// Start a fake worker that reads from internalChannel and signals done.

@@ -25,7 +25,7 @@ type PrometheusClient struct {
 	canChannel     chan canModels.CanMessageTimestamped
 	signalChannel  chan canModels.CanSignalTimestamped
 	resolver       canModels.InterfaceResolver
-	filters        map[string]canModels.FilterInterface
+	filters        *common.FilterSet
 	canMsgCount    atomic.Uint64
 	signalMsgCount atomic.Uint64
 	registry       *prometheus.Registry
@@ -62,11 +62,6 @@ func NewClient(
 	}, []string{"interface", "message", "signal", "unit"})
 	reg.MustRegister(signals)
 
-	newFilters := make(map[string]canModels.FilterInterface, len(filters))
-	for _, f := range filters {
-		newFilters[f.Name] = f.Filter
-	}
-
 	logger.Debug("started prometheus client")
 
 	return &PrometheusClient{
@@ -75,7 +70,7 @@ func NewClient(
 		canChannel:    make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize),
 		signalChannel: make(chan canModels.CanSignalTimestamped, cfg.MessageBufferSize),
 		resolver:      resolver,
-		filters:       newFilters,
+		filters:       common.NewFilterSetFromInputs(filters),
 		registry:      reg,
 		frames:        frames,
 		signals:       signals,
@@ -103,12 +98,8 @@ func (c *PrometheusClient) HandleCanMessage(_ canModels.CanMessageTimestamped) {
 func (c *PrometheusClient) HandleSignal(_ canModels.CanSignalTimestamped) {}
 
 func (c *PrometheusClient) AddFilter(name string, filter canModels.FilterInterface) error {
-	if _, ok := c.filters[name]; ok {
-		return fmt.Errorf("filter group already exists: %v", name)
-	}
 	c.l.Debug("creating new filter group", "filterName", name)
-	c.filters[name] = filter
-	return nil
+	return c.filters.Add(name, filter)
 }
 
 func (c *PrometheusClient) HandleCanMessageChannel() error {
@@ -120,20 +111,40 @@ func (c *PrometheusClient) HandleCanMessageChannel() error {
 
 	for canMsg := range c.canChannel {
 		c.canMsgCount.Add(1)
-		if shouldFilter, filterName := common.ShouldFilter(c.filters, canMsg); shouldFilter {
-			c.l.Debug("message filtered, dropping", "message", canMsg, "filterName", *filterName)
+		if shouldFilter, filterName := c.filters.ShouldFilter(canMsg); shouldFilter {
+			c.l.Debug("message filtered, dropping", "message", canMsg, "filterName", filterName)
 			continue
 		}
 		interfaceName := ""
 		if conn := c.resolver.ConnectionByID(canMsg.Interface); conn != nil {
 			interfaceName = conn.GetInterfaceName()
 		}
-		c.frames.With(prometheus.Labels{
-			"interface": interfaceName,
-			"id":        fmt.Sprintf("0x%X", canMsg.ID),
-		}).Inc()
+		// WithLabelValues avoids the per-call prometheus.Labels map allocation
+		// that With() requires. The CounterVec internally caches the child
+		// counter, so repeat lookups for the same (interface, id) are cheap.
+		c.frames.WithLabelValues(interfaceName, formatCanIDHex(canMsg.ID)).Inc()
 	}
 	return nil
+}
+
+// formatCanIDHex renders a CAN ID as "0x<uppercase hex>" without fmt.
+func formatCanIDHex(id uint32) string {
+	const digits = "0123456789ABCDEF"
+	if id == 0 {
+		return "0x0"
+	}
+	var buf [10]byte // "0x" + up to 8 hex digits
+	buf[0] = '0'
+	buf[1] = 'x'
+	i := len(buf)
+	for id > 0 {
+		i--
+		buf[i] = digits[id&0xF]
+		id >>= 4
+	}
+	// Shift the hex digits to sit immediately after "0x".
+	copy(buf[2:], buf[i:])
+	return string(buf[:2+len(buf)-i])
 }
 
 func (c *PrometheusClient) HandleSignalChannel() error {
@@ -149,12 +160,7 @@ func (c *PrometheusClient) HandleSignalChannel() error {
 		if conn := c.resolver.ConnectionByID(sig.Interface); conn != nil {
 			interfaceName = conn.GetInterfaceName()
 		}
-		c.signals.With(prometheus.Labels{
-			"interface": interfaceName,
-			"message":   sig.Message,
-			"signal":    sig.Signal,
-			"unit":      sig.Unit,
-		}).Set(sig.Value)
+		c.signals.WithLabelValues(interfaceName, sig.Message, sig.Signal, sig.Unit).Set(sig.Value)
 	}
 	return nil
 }
