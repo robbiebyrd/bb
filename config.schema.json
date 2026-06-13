@@ -83,7 +83,8 @@
           "description": "OBD-II requests as mode+PID hex, e.g. 010C (engine RPM)."
         },
         "pollMs": { "type": "integer", "minimum": 1, "default": 1000, "description": "Poll interval (ms) for poll/hybrid." },
-        "portBaud": { "type": "integer", "minimum": 1, "default": 115200, "description": "Serial line speed; nominal over Bluetooth." }
+        "portBaud": { "type": "integer", "minimum": 1, "default": 115200, "description": "Serial line speed; nominal over Bluetooth." },
+        "responseFilter": { "type": "boolean", "default": true, "description": "Auto-add OBD-II response IDs (7E8-7EF / 18DAF1xx) to hwFilter in poll/hybrid so replies aren't dropped." }
       }
     },
 

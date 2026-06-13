@@ -179,6 +179,21 @@ func New(
 		mode = fallback
 	}
 
+	proto := obd.ProtocolFor(opt.OBD.Protocol)
+
+	// When actively polling behind a hardware filter, auto-include the OBD-II
+	// response IDs so replies are not pruned by the adapter. Only needed when a
+	// filter is actually set (an empty filter already passes everything).
+	responseFilter := opt.OBD.ResponseFilter == nil || *opt.OBD.ResponseFilter
+	if responseFilter && len(filters) > 0 && (mode == ModePoll || mode == ModeHybrid) {
+		before := len(filters)
+		filters = obd.MergeUniqueIDs(filters, obd.OBDResponseIDs(proto.Extended))
+		if added := len(filters) - before; added > 0 {
+			logger.Debug("auto-added OBD response IDs to hardware filter",
+				"interface", opt.Name, "count", added, "extended", proto.Extended)
+		}
+	}
+
 	return &Base{
 		ctx:            ctx,
 		cfg:            cfg,
@@ -190,7 +205,7 @@ func New(
 		supportsHybrid: supportsHybrid,
 		factory:        factory,
 		openTransport:  obd.Open,
-		proto:          obd.ProtocolFor(opt.OBD.Protocol),
+		proto:          proto,
 		mode:           mode,
 		filters:        filters,
 		pids:           pids,

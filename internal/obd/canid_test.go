@@ -32,3 +32,20 @@ func TestParseCANIDs_SkipsBlanks(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []uint32{0x7E8, 0x244}, got)
 }
+
+func TestOBDResponseIDs_11Bit(t *testing.T) {
+	ids := OBDResponseIDs(false)
+	assert.Equal(t, []uint32{0x7E8, 0x7E9, 0x7EA, 0x7EB, 0x7EC, 0x7ED, 0x7EE, 0x7EF}, ids)
+}
+
+func TestOBDResponseIDs_29Bit(t *testing.T) {
+	ids := OBDResponseIDs(true)
+	assert.Len(t, ids, 16)
+	assert.Equal(t, uint32(0x18DAF100), ids[0])
+	assert.Equal(t, uint32(0x18DAF10F), ids[15])
+}
+
+func TestMergeUniqueIDs(t *testing.T) {
+	got := MergeUniqueIDs([]uint32{0x1C4, 0x7E8}, []uint32{0x7E8, 0x7E9})
+	assert.Equal(t, []uint32{0x1C4, 0x7E8, 0x7E9}, got)
+}

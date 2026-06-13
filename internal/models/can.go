@@ -46,6 +46,12 @@ type OBDOptions struct {
 	PollMS int `env:"POLL_MS" envDefault:"1000" json:"pollMs"`
 	// PortBaud is the serial line speed. Nominal for Bluetooth rfcomm links.
 	PortBaud int `env:"PORT_BAUD" envDefault:"115200" json:"portBaud"`
+	// ResponseFilter controls whether the OBD-II diagnostic response IDs
+	// (7E8–7EF, or 18DAF1xx for 29-bit) are automatically added to HWFilters in
+	// poll/hybrid modes so poll replies are not dropped by the hardware filter.
+	// Defaults to enabled; set false to opt out. It is a pointer so a JSON config
+	// that omits it still gets the default rather than Go's zero value (false).
+	ResponseFilter *bool `env:"RESPONSE_FILTER" envDefault:"true" json:"responseFilter,omitempty"`
 }
 
 type CanInterfaceOption struct {

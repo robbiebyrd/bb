@@ -145,3 +145,52 @@ func TestBase_ImplementsCanConnection(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{Name: "mx", Network: canModels.NetworkSTN}, canModels.NetworkSTN)
 	var _ canModels.CanConnection = b
 }
+
+func TestNew_AutoAddsResponseIDsWhenPollingFiltered(t *testing.T) {
+	b := newBase(canModels.CanInterfaceOption{
+		Name:    "mx",
+		Network: canModels.NetworkSTN,
+		OBD: canModels.OBDOptions{
+			Mode:      ModePoll,
+			PIDs:      []string{"010C"},
+			HWFilters: []string{"1C4"},
+		},
+	}, canModels.NetworkSTN)
+	assert.Contains(t, b.filters, uint32(0x1C4)) // user filter preserved
+	assert.Contains(t, b.filters, uint32(0x7E8)) // response IDs auto-added
+	assert.Contains(t, b.filters, uint32(0x7EF))
+}
+
+func TestNew_NoResponseIDsWithoutHardwareFilter(t *testing.T) {
+	// An empty filter already passes everything, so nothing is added.
+	b := newBase(canModels.CanInterfaceOption{
+		Name:    "mx",
+		Network: canModels.NetworkSTN,
+		OBD:     canModels.OBDOptions{Mode: ModePoll, PIDs: []string{"010C"}},
+	}, canModels.NetworkSTN)
+	assert.Empty(t, b.filters)
+}
+
+func TestNew_NoResponseIDsInMonitorMode(t *testing.T) {
+	b := newBase(canModels.CanInterfaceOption{
+		Name:    "mx",
+		Network: canModels.NetworkSTN,
+		OBD:     canModels.OBDOptions{Mode: ModeMonitor, HWFilters: []string{"1C4"}},
+	}, canModels.NetworkSTN)
+	assert.Equal(t, []uint32{0x1C4}, b.filters) // untouched
+}
+
+func TestNew_ResponseFilterOptOut(t *testing.T) {
+	off := false
+	b := newBase(canModels.CanInterfaceOption{
+		Name:    "mx",
+		Network: canModels.NetworkSTN,
+		OBD: canModels.OBDOptions{
+			Mode:           ModePoll,
+			PIDs:           []string{"010C"},
+			HWFilters:      []string{"1C4"},
+			ResponseFilter: &off,
+		},
+	}, canModels.NetworkSTN)
+	assert.Equal(t, []uint32{0x1C4}, b.filters) // opt-out: not added
+}

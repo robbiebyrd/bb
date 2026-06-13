@@ -14,7 +14,7 @@
       "obd": {
         "mode": "hybrid",
         "protocol": "6",
-        "hwFilter": ["7E8", "7E9", "7EA", "1C4", "244"],
+        "hwFilter": ["1C4", "244"],
         "pids": ["010C", "010D"],
         "pollMs": 1000,
         "portBaud": 115200

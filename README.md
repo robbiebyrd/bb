@@ -87,7 +87,7 @@ All config is environment-based and every field is also exposed as a CLI flag. S
 | Prefix | Selected keys |
 |---|---|
 | `INTERFACE_N_` | `NAME`, `NET` (`can`\|`sim`\|`slcan`\|`playback`\|`elm327`\|`stn`), `URI`, `DBC` (comma-separated paths), `LOOP`, `SIGNAL_FILTER` (comma-separated rules), `SIGNAL_FILTER_OP` (`and`\|`or`, default `and`), `SIGNAL_FILTER_MODE` (`exclude`\|`include`, default `exclude`) |
-| `INTERFACE_N_` (OBD: `elm327`\|`stn`) | `OBD_MODE` (`monitor`\|`poll`\|`hybrid`), `OBD_PROTOCOL` (ATSP selector; `6`=ISO15765 11/500 default), `OBD_HW_FILTER` (hex CAN IDs to pass), `OBD_PIDS` (e.g. `010C,010D`), `OBD_POLL_MS`, `OBD_PORT_BAUD` |
+| `INTERFACE_N_` (OBD: `elm327`\|`stn`) | `OBD_MODE` (`monitor`\|`poll`\|`hybrid`), `OBD_PROTOCOL` (ATSP selector; `6`=ISO15765 11/500 default), `OBD_HW_FILTER` (hex CAN IDs to pass), `OBD_PIDS` (e.g. `010C,010D`), `OBD_POLL_MS`, `OBD_PORT_BAUD`, `OBD_RESPONSE_FILTER` (auto-pass poll replies, default `true`) |
 | `INFLUX_` | `HOST`, `TOKEN`, `TOKEN_FILE`, `MESSAGE_DATABASE`, `SIGNAL_DATABASE`, `TABLE`, `FLUSH_TIME` |
 | `MQTT_` | `HOST`, `CLIENT_ID`, `TOPIC`, `DEDUPE`, `DEDUPE_TIMEOUT_MS`, `DEDUPE_IDS`, `USERNAME`, `PASSWORD`, `TLS` |
 | `CSV_` | `CAN_OUTPUT_FILE`, `SIGNAL_OUTPUT_FILE`, `OUTPUT_HEADERS` |
@@ -182,7 +182,7 @@ go run ./cmd/server/main.go
 
 A dropped link (engine off, out of range) reconnects automatically with exponential backoff. On **macOS/Windows**, pair via the OS and point `URI` at the serial device instead (`/dev/cu.*` / `COMx`). See `.env.example` for monitor/poll/hybrid templates.
 
-> **Tip:** in `hybrid` mode, include the OBD response IDs `7E8`–`7EF` in `OBD_HW_FILTER` or the hardware filter will drop your poll replies.
+> **Note:** in `poll`/`hybrid` mode, CANtou automatically adds the OBD-II response IDs (`7E8`–`7EF`, or `18DAF1xx` for 29-bit) to your `OBD_HW_FILTER` so poll replies aren't dropped. Disable with `OBD_RESPONSE_FILTER=false` (`"responseFilter": false` in JSON) if you want the filter exactly as written.
 
 ## Development
 
