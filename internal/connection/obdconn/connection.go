@@ -61,6 +61,15 @@ type Driver interface {
 // DriverFactory builds a Driver over a freshly opened transport.
 type DriverFactory func(t obd.Transport, proto obd.Protocol, debug bool, logf obd.Logf) Driver
 
+// periodicDriver is implemented by drivers that can offload periodic PID polling
+// to device firmware (STN via STPPMA), so monitoring and polling run
+// concurrently with no gap. Drivers without this capability (ELM327) are kept
+// out of hybrid mode by New.
+type periodicDriver interface {
+	StartPeriodic(pids []string, period time.Duration) error
+	StopPeriodic() error
+}
+
 // Base is the shared CanConnection implementation for OBD adapters.
 type Base struct {
 	ctx     context.Context
@@ -341,36 +350,29 @@ func (b *Base) pollOnce() {
 	}
 }
 
-// runHybrid interleaves monitoring with periodic polling. Each cycle monitors
-// for one poll interval, then issues the PID batch. STN's hardware filtering and
-// high throughput keep the monitor gap during the poll batch small. Only STN
-// devices reach this path (ELM327 is downgraded in New).
+// runHybrid monitors the bus while the device fires the PID requests itself, in
+// firmware, on a timer (STN STPPMA). Because the polling happens on the adapter,
+// monitoring is never interrupted and no frames are lost — the poll responses
+// simply appear in the monitor stream. Only STN devices reach this path (ELM327
+// is downgraded in New), but the capability is checked defensively.
 func (b *Base) runHybrid() {
-	for {
-		select {
-		case <-b.quit:
-			return
-		case <-b.ctx.Done():
-			return
-		default:
-		}
+	pd, ok := b.driver.(periodicDriver)
+	if !ok {
+		b.l.Error("hybrid mode requires a periodic-capable driver; monitoring only", "interface", b.name)
+		b.runMonitor()
+		return
+	}
+	if err := pd.StartPeriodic(b.pids, b.pollInterval); err != nil {
+		b.l.Error("failed to start firmware periodic polling; monitoring only", "interface", b.name, "error", err)
+		b.runMonitor()
+		return
+	}
 
-		// Monitor for one interval, or until shutdown.
-		windowStop := make(chan struct{})
-		go func() {
-			select {
-			case <-time.After(b.pollInterval):
-			case <-b.quit:
-			case <-b.ctx.Done():
-			}
-			close(windowStop)
-		}()
-		if err := b.driver.Monitor(b.emit, b.onError, windowStop); err != nil {
-			b.l.Error("hybrid monitor window ended with error", "interface", b.name, "error", err)
-			return
-		}
+	// Stream bus traffic and the firmware-driven poll responses together.
+	b.runMonitor()
 
-		// Then poll the PID batch (device is back at the prompt).
-		b.pollOnce()
+	// Monitor has returned to the prompt; clear the periodic messages.
+	if err := pd.StopPeriodic(); err != nil {
+		b.l.Debug("failed to clear periodic messages on shutdown", "interface", b.name, "error", err)
 	}
 }
