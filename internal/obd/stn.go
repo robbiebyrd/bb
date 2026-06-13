@@ -9,9 +9,6 @@ import "fmt"
 // throughput a single Bluetooth link allows.
 type STN struct {
 	*ELM327
-	// filtered tracks whether any ST pass filter is active, which selects STM
-	// (filtered) over STMA (all) for monitoring.
-	filtered bool
 }
 
 // NewSTN builds an ST-command driver over a transport.
@@ -42,7 +39,6 @@ func (s *STN) SetPassFilters(ids []uint32) error {
 		return err
 	}
 	if len(ids) == 0 {
-		s.filtered = false
 		return nil
 	}
 	width := 3
@@ -59,7 +55,6 @@ func (s *STN) SetPassFilters(ids []uint32) error {
 			return fmt.Errorf("adding pass filter for %X: %w", id, err)
 		}
 	}
-	s.filtered = true
 	return nil
 }
 
@@ -68,17 +63,15 @@ func (s *STN) clearFilters() error {
 	if err := s.expectOK("STFCA"); err != nil {
 		return fmt.Errorf("clearing ST filters: %w", err)
 	}
-	s.filtered = false
 	return nil
 }
 
-// Monitor streams frames using the ST monitor commands: STM honours the
-// installed pass filters; STMA monitors everything. Filtering in hardware is
-// what keeps a busy bus from overrunning a Bluetooth link.
+// Monitor streams raw CAN frames using STM, honouring any installed pass filters
+// (with none installed, STM passes all identifiers). STMA is deliberately not
+// used: it reassembles CAN as ISO 15765 and overrides configured filters with a
+// temporary pass-all, neither of which suits raw frame logging. Hardware pass
+// filters via SetPassFilters are what keep a busy bus from overrunning a slow
+// Bluetooth link.
 func (s *STN) Monitor(onFrame func(Frame), onError func(error), stop <-chan struct{}) error {
-	cmd := "STMA"
-	if s.filtered {
-		cmd = "STM"
-	}
-	return s.Device.Monitor(cmd, s.proto.Extended, onFrame, onError, stop)
+	return s.Device.Monitor("STM", s.proto.Extended, onFrame, onError, stop)
 }
