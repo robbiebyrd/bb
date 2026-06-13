@@ -6,10 +6,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/robbiebyrd/cantou/internal/connection/elm327"
 	"github.com/robbiebyrd/cantou/internal/connection/playback"
 	"github.com/robbiebyrd/cantou/internal/connection/simulate"
 	"github.com/robbiebyrd/cantou/internal/connection/slcan"
 	"github.com/robbiebyrd/cantou/internal/connection/socketcan"
+	"github.com/robbiebyrd/cantou/internal/connection/stn"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )
 
@@ -114,6 +116,10 @@ func (cm *CanConnectionManager) Connect(options canModels.CanInterfaceOption) {
 				&dbcStr,
 			),
 		)
+	case canModels.NetworkELM327:
+		cm.Add(elm327.NewConnection(cm.ctx, cm.cfg, cm.MessageChannel, cm.l, options))
+	case canModels.NetworkSTN:
+		cm.Add(stn.NewConnection(cm.ctx, cm.cfg, cm.MessageChannel, cm.l, options))
 	case "playback":
 		dbcStr := strings.Join(options.DBCFiles, ",")
 		cm.Add(

@@ -21,12 +21,12 @@ type mockCanConn struct {
 	interfaceName string
 }
 
-func (m *mockCanConn) SetID(_ int)                {}
-func (m *mockCanConn) GetName() string            { return "" }
-func (m *mockCanConn) GetInterfaceName() string   { return m.interfaceName }
-func (m *mockCanConn) Open() error                { return nil }
-func (m *mockCanConn) Close() error               { return nil }
-func (m *mockCanConn) Receive(_ *sync.WaitGroup)  {}
+func (m *mockCanConn) SetID(_ int)               {}
+func (m *mockCanConn) GetName() string           { return "" }
+func (m *mockCanConn) GetInterfaceName() string  { return m.interfaceName }
+func (m *mockCanConn) Open() error               { return nil }
+func (m *mockCanConn) Close() error              { return nil }
+func (m *mockCanConn) Receive(_ *sync.WaitGroup) {}
 
 // mockResolver implements canModels.InterfaceResolver for testing.
 type mockResolver struct {
@@ -212,9 +212,9 @@ func TestCSVClient_HandleChannel(t *testing.T) {
 
 	rows := readRowsByName(t, canPath)
 	require.Len(t, rows, 3)
-	assert.Equal(t, "256", rows[0][1])  // 0x100
-	assert.Equal(t, "512", rows[1][1])  // 0x200
-	assert.Equal(t, "768", rows[2][1])  // 0x300
+	assert.Equal(t, "256", rows[0][1]) // 0x100
+	assert.Equal(t, "512", rows[1][1]) // 0x200
+	assert.Equal(t, "768", rows[2][1]) // 0x300
 }
 
 func newTestConfig(t *testing.T, includeHeaders bool) *canModels.Config {

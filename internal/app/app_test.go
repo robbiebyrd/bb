@@ -42,10 +42,10 @@ func (m *mockSignalClient) HandleCanMessageChannel() error {
 	}
 	return nil
 }
-func (m *mockSignalClient) GetChannel() chan canModels.CanMessageTimestamped { return m.msgCh }
-func (m *mockSignalClient) GetName() string                                  { return "mock-signal" }
+func (m *mockSignalClient) GetChannel() chan canModels.CanMessageTimestamped      { return m.msgCh }
+func (m *mockSignalClient) GetName() string                                       { return "mock-signal" }
 func (m *mockSignalClient) AddFilter(_ string, _ canModels.FilterInterface) error { return nil }
-func (m *mockSignalClient) HandleSignal(_ canModels.CanSignalTimestamped)        {}
+func (m *mockSignalClient) HandleSignal(_ canModels.CanSignalTimestamped)         {}
 func (m *mockSignalClient) HandleSignalChannel() error {
 	m.started <- struct{}{}
 	for range m.signalCh {

@@ -112,11 +112,11 @@ func (b *mf4Builder) build() []byte {
 	binary.LittleEndian.PutUint64(cg1[32:40], uint64(cnTsAddr))      // CnFirst -> CN Timestamp
 	binary.LittleEndian.PutUint64(cg1[40:48], uint64(txAcqNameAddr)) // TxAcqName
 	// Data: RecordID(8) CycleCount(8) Flags(2) PathSeparator(2) Reserved(4) DataBytes(4) InvalBytes(4)
-	dataOffset := 24 + 6*8 // 72
-	binary.LittleEndian.PutUint64(cg1[dataOffset:dataOffset+8], 1)      // RecordID=1
-	binary.LittleEndian.PutUint64(cg1[dataOffset+8:dataOffset+16], 0)   // CycleCount (0 for unfinalized)
+	dataOffset := 24 + 6*8                                                  // 72
+	binary.LittleEndian.PutUint64(cg1[dataOffset:dataOffset+8], 1)          // RecordID=1
+	binary.LittleEndian.PutUint64(cg1[dataOffset+8:dataOffset+16], 0)       // CycleCount (0 for unfinalized)
 	binary.LittleEndian.PutUint16(cg1[dataOffset+16:dataOffset+18], 0x0006) // Flags: bus event
-	binary.LittleEndian.PutUint32(cg1[dataOffset+24:dataOffset+28], 22) // DataBytes=22
+	binary.LittleEndian.PutUint32(cg1[dataOffset+24:dataOffset+28], 22)     // DataBytes=22
 	buf = append(buf, cg1...)
 
 	// === CG2 Block (VLSD) ===
@@ -126,7 +126,7 @@ func (b *mf4Builder) build() []byte {
 	binary.LittleEndian.PutUint64(cg2[16:24], 6) // link count
 	// Links: all zero (no next, no channels)
 	// Data:
-	binary.LittleEndian.PutUint64(cg2[dataOffset:dataOffset+8], 2)    // RecordID=2
+	binary.LittleEndian.PutUint64(cg2[dataOffset:dataOffset+8], 2)          // RecordID=2
 	binary.LittleEndian.PutUint16(cg2[dataOffset+16:dataOffset+18], 0x0001) // Flags: VLSD
 	buf = append(buf, cg2...)
 
@@ -139,11 +139,11 @@ func (b *mf4Builder) build() []byte {
 	binary.LittleEndian.PutUint64(cnTs[24:32], uint64(cnCANAddr))       // Next -> CN CAN_DataFrame
 	binary.LittleEndian.PutUint64(cnTs[40:48], uint64(txTimestampAddr)) // TxName
 	// Data: Type(1) SyncType(1) DataType(1) BitOffset(1) ByteOffset(4) BitCount(4) ...
-	cnTsData := cnTs[24+8*8:] // offset past header+links
-	cnTsData[0] = 2           // Type=Master
-	cnTsData[1] = 1           // SyncType=Time
-	cnTsData[2] = 4           // DataType=IEEE754FloatLE
-	binary.LittleEndian.PutUint32(cnTsData[4:8], 0)  // ByteOffset=0
+	cnTsData := cnTs[24+8*8:]                         // offset past header+links
+	cnTsData[0] = 2                                   // Type=Master
+	cnTsData[1] = 1                                   // SyncType=Time
+	cnTsData[2] = 4                                   // DataType=IEEE754FloatLE
+	binary.LittleEndian.PutUint32(cnTsData[4:8], 0)   // ByteOffset=0
 	binary.LittleEndian.PutUint32(cnTsData[8:12], 64) // BitCount=64
 	buf = append(buf, cnTs...)
 
@@ -156,10 +156,10 @@ func (b *mf4Builder) build() []byte {
 	binary.LittleEndian.PutUint64(cnCAN[40:48], uint64(txCANDFAddr)) // TxName
 	// Data:
 	cnCANData := cnCAN[24+8*8:]
-	cnCANData[0] = 0                                       // Type=FixedLength
-	cnCANData[2] = 10                                      // DataType=ByteArray
-	binary.LittleEndian.PutUint32(cnCANData[4:8], 8)       // ByteOffset=8
-	binary.LittleEndian.PutUint32(cnCANData[8:12], 112)    // BitCount=112 (14 bytes)
+	cnCANData[0] = 0                                    // Type=FixedLength
+	cnCANData[2] = 10                                   // DataType=ByteArray
+	binary.LittleEndian.PutUint32(cnCANData[4:8], 8)    // ByteOffset=8
+	binary.LittleEndian.PutUint32(cnCANData[8:12], 112) // BitCount=112 (14 bytes)
 	buf = append(buf, cnCAN...)
 
 	// === DG Block ===
@@ -402,8 +402,8 @@ func TestDetectParser_MF4_Finalized(t *testing.T) {
 	// Build an MF4 with finalized magic
 	b := &mf4Builder{frames: nil}
 	data := b.build()
-	copy(data[0:8], "MDF     ")                         // finalized magic
-	binary.LittleEndian.PutUint16(data[60:62], 0)       // clear unfinalized flag
+	copy(data[0:8], "MDF     ")                   // finalized magic
+	binary.LittleEndian.PutUint16(data[60:62], 0) // clear unfinalized flag
 	path := writeMF4Temp(t, data)
 	parser, err := DetectParser(path, silentLogger())
 	require.NoError(t, err)

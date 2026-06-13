@@ -1,0 +1,57 @@
+{
+  "$schema": "./config.schema.json",
+  "logLevel": "info",
+  "messageBufferSize": 81920,
+  "disableObd2": false,
+  "canInterfaceSeparator": "-",
+
+  "interfaces": [
+    {
+      "name": "bertha",
+      "net": "stn",
+      "uri": "rfcomm://AA:BB:CC:DD:EE:FF",
+      "dbc": ["./dbc/bertha.dbc"],
+      "obd": {
+        "mode": "hybrid",
+        "protocol": "6",
+        "hwFilter": ["7E8", "7E9", "7EA", "1C4", "244"],
+        "pids": ["010C", "010D"],
+        "pollMs": 1000,
+        "portBaud": 115200
+      },
+      "signalFilter": ["signal:contains:UNUSED"],
+      "signalFilterOp": "or",
+      "signalFilterMode": "exclude"
+    },
+    {
+      "name": "sim",
+      "net": "sim",
+      "uri": "can0"
+    }
+  ],
+
+  "influx": {
+    "host": "http://localhost:8181",
+    "tokenFile": "./config/influxdb/token.json",
+    "messageDatabase": "can_data"
+  },
+  "mqtt": {
+    "host": "localhost:1883",
+    "clientId": "bb_app",
+    "topic": "bb_app",
+    "dedupe": true
+  },
+  "csv": {
+    "canOutputFile": "./messages.csv",
+    "signalOutputFile": "./signals.csv"
+  },
+  "mf4": {
+    "canOutputFile": "",
+    "signalOutputFile": "",
+    "finalize": true
+  },
+  "prometheus": {
+    "listenAddr": "127.0.0.1:9091",
+    "path": "/metrics"
+  }
+}

@@ -18,12 +18,12 @@ type mockCanConn struct {
 	interfaceName string
 }
 
-func (m *mockCanConn) SetID(_ int)                {}
-func (m *mockCanConn) GetName() string            { return m.name }
-func (m *mockCanConn) GetInterfaceName() string   { return m.interfaceName }
-func (m *mockCanConn) Open() error                { return nil }
-func (m *mockCanConn) Close() error               { return nil }
-func (m *mockCanConn) Receive(_ *sync.WaitGroup)  {}
+func (m *mockCanConn) SetID(_ int)               {}
+func (m *mockCanConn) GetName() string           { return m.name }
+func (m *mockCanConn) GetInterfaceName() string  { return m.interfaceName }
+func (m *mockCanConn) Open() error               { return nil }
+func (m *mockCanConn) Close() error              { return nil }
+func (m *mockCanConn) Receive(_ *sync.WaitGroup) {}
 
 // mockResolver implements canModels.InterfaceResolver for testing.
 type mockResolver struct {

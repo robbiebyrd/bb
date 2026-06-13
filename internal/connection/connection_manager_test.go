@@ -20,13 +20,13 @@ type mockConn struct {
 	open bool
 }
 
-func (m *mockConn) GetID() int                 { return m.id }
-func (m *mockConn) SetID(id int)               { m.id = id }
-func (m *mockConn) GetName() string            { return m.name }
-func (m *mockConn) GetInterfaceName() string   { return m.name }
-func (m *mockConn) Open() error                { m.open = true; return nil }
-func (m *mockConn) Close() error               { m.open = false; return nil }
-func (m *mockConn) Receive(_ *sync.WaitGroup)  {}
+func (m *mockConn) GetID() int                { return m.id }
+func (m *mockConn) SetID(id int)              { m.id = id }
+func (m *mockConn) GetName() string           { return m.name }
+func (m *mockConn) GetInterfaceName() string  { return m.name }
+func (m *mockConn) Open() error               { m.open = true; return nil }
+func (m *mockConn) Close() error              { m.open = false; return nil }
+func (m *mockConn) Receive(_ *sync.WaitGroup) {}
 
 func newMock(name string) *mockConn {
 	return &mockConn{name: name}

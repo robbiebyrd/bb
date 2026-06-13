@@ -154,7 +154,7 @@ func TestDispatch_ExpandsPIDsSupported(t *testing.T) {
 	// forwarding the raw bitmask.
 	parser := &mockParser{
 		signals: []canModels.CanSignalTimestamped{
-			{Message: "OBD2_Mode01", Signal: "S01PID", Value: 0}, // mux switch — passed through
+			{Message: "OBD2_Mode01", Signal: "S01PID", Value: 0},                                // mux switch — passed through
 			{Message: "OBD2_Mode01", Signal: "S01PID00_PIDsSupported_01_20", Value: 0x80000001}, // only PID 0x01 and 0x20
 		},
 	}

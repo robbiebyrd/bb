@@ -127,9 +127,9 @@ func TestGroup_IncludeOr_KeepsWhenAnyRuleMatches(t *testing.T) {
 		Op:   signalfilter.GroupOpOr,
 		Mode: signalfilter.ModeInclude,
 	}
-	assert.True(t, g.Allow(sig("OBD2", "RPM")))    // both → keep
-	assert.True(t, g.Allow(sig("Other", "RPM")))   // signal matches → keep
-	assert.True(t, g.Allow(sig("OBD2", "Speed")))  // message matches → keep
+	assert.True(t, g.Allow(sig("OBD2", "RPM")))     // both → keep
+	assert.True(t, g.Allow(sig("Other", "RPM")))    // signal matches → keep
+	assert.True(t, g.Allow(sig("OBD2", "Speed")))   // message matches → keep
 	assert.False(t, g.Allow(sig("Other", "Speed"))) // neither → drop
 }
 

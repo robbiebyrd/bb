@@ -18,6 +18,11 @@ import (
 func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 	f := cmd.Flags()
 
+	// --config is consumed by config.Load (which runs before cobra parses flags);
+	// it is registered here only so it is accepted and shown in --help.
+	configPath := ConfigFilePath()
+	f.StringVarP(&configPath, "config", "c", configPath, "Path to a JSON config file overlaid on top of env vars")
+
 	// InfluxDB
 	f.StringVar(&cfg.InfluxDB.Host, "influx-host", cfg.InfluxDB.Host, "InfluxDB host URL")
 	f.StringVar(&cfg.InfluxDB.Token, "influx-token", cfg.InfluxDB.Token, "InfluxDB auth token")

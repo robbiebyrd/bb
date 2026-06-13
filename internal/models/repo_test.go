@@ -13,14 +13,14 @@ import (
 type staticSignalOutputClient struct{}
 
 func (s *staticSignalOutputClient) HandleCanMessage(_ models.CanMessageTimestamped) {}
-func (s *staticSignalOutputClient) HandleCanMessageChannel() error                 { return nil }
-func (s *staticSignalOutputClient) GetChannel() chan models.CanMessageTimestamped  { return nil }
-func (s *staticSignalOutputClient) GetName() string                                { return "" }
+func (s *staticSignalOutputClient) HandleCanMessageChannel() error                  { return nil }
+func (s *staticSignalOutputClient) GetChannel() chan models.CanMessageTimestamped   { return nil }
+func (s *staticSignalOutputClient) GetName() string                                 { return "" }
 func (s *staticSignalOutputClient) AddFilter(_ string, _ models.FilterInterface) error {
 	return nil
 }
-func (s *staticSignalOutputClient) HandleSignal(_ models.CanSignalTimestamped)        {}
-func (s *staticSignalOutputClient) HandleSignalChannel() error                        { return nil }
+func (s *staticSignalOutputClient) HandleSignal(_ models.CanSignalTimestamped)         {}
+func (s *staticSignalOutputClient) HandleSignalChannel() error                         { return nil }
 func (s *staticSignalOutputClient) GetSignalChannel() chan models.CanSignalTimestamped { return nil }
 
 var _ models.SignalOutputClient = (*staticSignalOutputClient)(nil)

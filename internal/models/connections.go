@@ -1,5 +1,15 @@
 package models
 
+// Network type identifiers for the NET interface option.
+const (
+	NetworkSim      = "sim"
+	NetworkSLCAN    = "slcan"
+	NetworkPlayback = "playback"
+	NetworkCAN      = "can"
+	NetworkELM327   = "elm327"
+	NetworkSTN      = "stn"
+)
+
 type InterfaceResolver interface {
 	ConnectionByID(id int) CanConnection
 }

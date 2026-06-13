@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/robbiebyrd/cantou/config.schema.json",
+  "title": "CANtou configuration",
+  "description": "JSON config for CANtou, overlaid on top of environment variables (CONFIG_FILE / --config). Keys mirror the env groups; multiword leaves are camelCase.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "logLevel": { "type": "string", "enum": ["debug", "info", "warn", "error"], "default": "info" },
+    "messageBufferSize": { "type": "integer", "minimum": 1, "default": 81920 },
+    "disableObd2": { "type": "boolean", "default": false, "description": "Disable auto-injection of the built-in OBD-II DBC." },
+    "canInterfaceSeparator": { "type": "string", "default": "-" },
+    "simRate": { "type": "integer", "minimum": 0, "description": "Fixed sim emit interval (ms). 0 = unset." },
+    "simRateMin": { "type": "integer", "minimum": 0 },
+    "simRateMax": { "type": "integer", "minimum": 0 },
+    "logCanMessages": { "type": "boolean", "default": true },
+    "logSignals": { "type": "boolean", "default": true },
+
+    "interfaces": { "type": "array", "items": { "$ref": "#/$defs/interface" } },
+    "influx": { "$ref": "#/$defs/influx" },
+    "mqtt": { "$ref": "#/$defs/mqtt" },
+    "csv": { "$ref": "#/$defs/csv" },
+    "crtd": { "$ref": "#/$defs/crtd" },
+    "mf4": { "$ref": "#/$defs/mf4" },
+    "prometheus": { "$ref": "#/$defs/prometheus" }
+  },
+
+  "$defs": {
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Unique interface label." },
+        "net": {
+          "type": "string",
+          "enum": ["can", "sim", "slcan", "playback", "elm327", "stn"],
+          "default": "can",
+          "description": "Frame source kind."
+        },
+        "uri": {
+          "type": "string",
+          "description": "Device path or address. For OBD over Bluetooth on Linux: rfcomm://<MAC>. USB/macOS/Windows: serial path (/dev/ttyUSB0, /dev/cu.*, COM3)."
+        },
+        "dbc": { "type": "array", "items": { "type": "string" }, "description": "DBC file paths for signal decoding." },
+        "loop": { "type": "boolean", "default": false, "description": "Loop playback files." },
+        "signalFilter": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(signal|message):(eq|neq|contains|notcontains|startswith|notstartswith|endswith|notendswith):.+$" },
+          "description": "Per-interface signal filter rules: field:op:value."
+        },
+        "signalFilterOp": { "type": "string", "enum": ["and", "or"], "default": "and" },
+        "signalFilterMode": { "type": "string", "enum": ["exclude", "include"], "default": "exclude" },
+        "obd": { "$ref": "#/$defs/obd" }
+      }
+    },
+
+    "obd": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OBD adapter options (net = elm327 | stn).",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["monitor", "poll", "hybrid"],
+          "default": "monitor",
+          "description": "monitor = passive sniff; poll = active PID requests; hybrid = both (STN only, ELM327 falls back)."
+        },
+        "protocol": {
+          "type": "string",
+          "description": "ELM327 ATSP selector: 6 = ISO15765 11/500 (default), 7 = 29/500, 0 = auto."
+        },
+        "hwFilter": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(0[xX])?[0-9A-Fa-f]{1,8}$" },
+          "description": "Hex CAN identifiers to pass in hardware (empty = all)."
+        },
+        "pids": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^([0-9A-Fa-f]{2})+$" },
+          "description": "OBD-II requests as mode+PID hex, e.g. 010C (engine RPM)."
+        },
+        "pollMs": { "type": "integer", "minimum": 1, "default": 1000, "description": "Poll interval (ms) for poll/hybrid." },
+        "portBaud": { "type": "integer", "minimum": 1, "default": 115200, "description": "Serial line speed; nominal over Bluetooth." }
+      }
+    },
+
+    "influx": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string" },
+        "token": { "type": "string" },
+        "tokenFile": { "type": "string" },
+        "messageDatabase": { "type": "string" },
+        "signalDatabase": { "type": "string", "description": "Empty = signals disabled." },
+        "table": { "type": "string" },
+        "signalTable": { "type": "string" },
+        "flushTime": { "type": "integer", "minimum": 0 },
+        "maxWriteLines": { "type": "integer", "minimum": 1 },
+        "maxConnections": { "type": "integer", "minimum": 1 },
+        "tls": { "type": "boolean" },
+        "tlsCaFile": { "type": "string" },
+        "dedupe": { "type": "boolean" },
+        "dedupeTimeoutMs": { "type": "integer", "minimum": 0 },
+        "dedupeIds": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
+
+    "mqtt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string" },
+        "clientId": { "type": "string" },
+        "topic": { "type": "string" },
+        "qos": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "shadowCopy": { "type": "boolean" },
+        "dedupe": { "type": "boolean" },
+        "dedupeTimeoutMs": { "type": "integer", "minimum": 0 },
+        "dedupeIds": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "tls": { "type": "boolean" },
+        "tlsCaFile": { "type": "string" }
+      }
+    },
+
+    "csv": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canOutputFile": { "type": "string" },
+        "signalOutputFile": { "type": "string" },
+        "includeHeaders": { "type": "boolean" }
+      }
+    },
+
+    "crtd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canOutputFile": { "type": "string" },
+        "signalOutputFile": { "type": "string" }
+      }
+    },
+
+    "mf4": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canOutputFile": { "type": "string" },
+        "signalOutputFile": { "type": "string" },
+        "finalize": { "type": "boolean", "default": true }
+      }
+    },
+
+    "prometheus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "listenAddr": { "type": "string", "description": "Empty = disabled, e.g. 127.0.0.1:9091." },
+        "path": { "type": "string", "default": "/metrics" }
+      }
+    }
+  }
+}

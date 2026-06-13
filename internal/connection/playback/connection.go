@@ -74,16 +74,16 @@ func NewPlaybackCanClient(
 }
 
 func (c *PlaybackCanClient) GetID() int               { return c.id }
-func (c *PlaybackCanClient) SetID(id int)              { c.id = id }
-func (c *PlaybackCanClient) GetName() string           { return c.name }
-func (c *PlaybackCanClient) SetName(name string)       { c.name = name }
-func (c *PlaybackCanClient) GetNetwork() string        { return c.network }
-func (c *PlaybackCanClient) SetNetwork(n string)       { c.network = n }
-func (c *PlaybackCanClient) GetURI() string            { return c.uri }
-func (c *PlaybackCanClient) SetURI(uri string)         { c.uri = uri }
-func (c *PlaybackCanClient) GetDBCFilePath() *string   { return c.dbcFilePath }
-func (c *PlaybackCanClient) SetDBCFilePath(p *string)  { c.dbcFilePath = p }
-func (c *PlaybackCanClient) IsOpen() bool              { return c.opened }
+func (c *PlaybackCanClient) SetID(id int)             { c.id = id }
+func (c *PlaybackCanClient) GetName() string          { return c.name }
+func (c *PlaybackCanClient) SetName(name string)      { c.name = name }
+func (c *PlaybackCanClient) GetNetwork() string       { return c.network }
+func (c *PlaybackCanClient) SetNetwork(n string)      { c.network = n }
+func (c *PlaybackCanClient) GetURI() string           { return c.uri }
+func (c *PlaybackCanClient) SetURI(uri string)        { c.uri = uri }
+func (c *PlaybackCanClient) GetDBCFilePath() *string  { return c.dbcFilePath }
+func (c *PlaybackCanClient) SetDBCFilePath(p *string) { c.dbcFilePath = p }
+func (c *PlaybackCanClient) IsOpen() bool             { return c.opened }
 
 // GetConnection returns nil — playback reads a file, not a network socket.
 func (c *PlaybackCanClient) GetConnection() net.Conn { return nil }

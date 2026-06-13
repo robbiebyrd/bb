@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	messagedispatch "github.com/robbiebyrd/cantou/internal/client/message-dispatch"
 	"github.com/robbiebyrd/cantou/internal/client/filter"
+	messagedispatch "github.com/robbiebyrd/cantou/internal/client/message-dispatch"
 	cm "github.com/robbiebyrd/cantou/internal/connection"
 	canModels "github.com/robbiebyrd/cantou/internal/models"
 )

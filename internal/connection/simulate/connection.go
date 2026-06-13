@@ -14,11 +14,11 @@ import (
 )
 
 type SimulationCanClient struct {
-	ctx         context.Context
-	id          int
-	name        string
-	network     string
-	uri         string
+	ctx           context.Context
+	id            int
+	name          string
+	network       string
+	uri           string
 	channel       chan canModels.CanMessageTimestamped
 	connection    net.Conn
 	opened        bool
@@ -29,8 +29,8 @@ type SimulationCanClient struct {
 	rateMax       int  // milliseconds (random range upper bound)
 	useRandomRate bool // true when SIM_RATE is unset and both MIN/MAX are provided
 	count         int
-	cfg         *canModels.Config
-	dbcFilePath *string
+	cfg           *canModels.Config
+	dbcFilePath   *string
 }
 
 const canMessageMaxDataLength = 8 // bytes

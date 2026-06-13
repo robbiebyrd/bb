@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 
@@ -22,13 +23,80 @@ func ValidateSimRate(cfg *canModels.Config) error {
 	return nil
 }
 
+// ValidateInterfaces ensures every configured interface has a name. The env
+// loader enforces this via the `required` tag, but a JSON overlay bypasses that,
+// so re-check after overlaying.
+func ValidateInterfaces(ifaces []canModels.CanInterfaceOption) error {
+	for i, iface := range ifaces {
+		if iface.Name == "" {
+			return fmt.Errorf("interface %d has no name (every interface needs a name)", i)
+		}
+	}
+	return nil
+}
+
+// OverlayConfigFile overlays a JSON config file onto cfg. json.Unmarshal only
+// sets keys present in the file, leaving env/default values for the rest. Note
+// that a JSON "interfaces" array replaces the env-derived interfaces wholesale.
+func OverlayConfigFile(cfg *canModels.Config, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading config file %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return fmt.Errorf("parsing config file %s: %w", path, err)
+	}
+	return nil
+}
+
+// ConfigFileEnv names the env var that points at an optional JSON config file.
+const ConfigFileEnv = "CONFIG_FILE"
+
+// resolveConfigPath returns the JSON config file path from the --config/-c flag
+// (parsed manually because Load runs before cobra) or, failing that, the
+// CONFIG_FILE env value.
+func resolveConfigPath(args []string, envValue string) string {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--config" || a == "-c":
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		case strings.HasPrefix(a, "--config="):
+			return strings.TrimPrefix(a, "--config=")
+		case strings.HasPrefix(a, "-c="):
+			return strings.TrimPrefix(a, "-c=")
+		}
+	}
+	return envValue
+}
+
+// ConfigFilePath resolves the JSON config file path from the --config/-c CLI flag
+// or the CONFIG_FILE env var.
+func ConfigFilePath() string {
+	return resolveConfigPath(os.Args[1:], os.Getenv(ConfigFileEnv))
+}
+
 func Load(logger *slog.Logger) (canModels.Config, string) {
 	cfg, err := env.ParseAs[canModels.Config]()
 	if err != nil {
 		panic(err)
 	}
 
+	// A JSON config file (--config / CONFIG_FILE) is overlaid on top of the
+	// env-derived config: only keys present in the file are applied, so env vars
+	// and defaults remain in effect for everything the file omits.
+	if path := ConfigFilePath(); path != "" {
+		if err := OverlayConfigFile(&cfg, path); err != nil {
+			panic(err)
+		}
+		logger.Info("applied JSON config overlay", "path", path)
+	}
+
 	if err := ValidateSimRate(&cfg); err != nil {
+		panic(err)
+	}
+	if err := ValidateInterfaces(cfg.CanInterfaces); err != nil {
 		panic(err)
 	}
 
