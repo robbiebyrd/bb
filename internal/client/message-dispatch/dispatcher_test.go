@@ -15,7 +15,7 @@ func newTestClient() (*MessageDispatcher, chan canModels.CanMessageTimestamped) 
 	incoming := make(chan canModels.CanMessageTimestamped, 16)
 	ctx := context.Background()
 	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	return NewMessageDispatcher(ctx, incoming, l), incoming
+	return NewMessageDispatcher(ctx, incoming, 0, l), incoming
 }
 
 func testMsg(id uint32) canModels.CanMessageTimestamped {
@@ -81,7 +81,7 @@ func TestBroadcast_ExitsOnContextCancel(t *testing.T) {
 	incoming := make(chan canModels.CanMessageTimestamped, 4)
 	ctx, cancel := context.WithCancel(context.Background())
 	l := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	bc := NewMessageDispatcher(ctx, incoming, l)
+	bc := NewMessageDispatcher(ctx, incoming, 0, l)
 
 	done := make(chan error, 1)
 	go func() {

@@ -36,7 +36,7 @@ func NewApp(cfg *canModels.Config, logger *slog.Logger, logLevel *slog.LevelVar)
 	canMsgChannel := make(chan canModels.CanMessageTimestamped, cfg.MessageBufferSize)
 
 	logger.Debug("creating broadcast client")
-	broadcastClient := messagedispatch.NewMessageDispatcher(ctx, canMsgChannel, logger)
+	broadcastClient := messagedispatch.NewMessageDispatcher(ctx, canMsgChannel, cfg.ThroughputLogIntervalSec, logger)
 
 	logger.Debug("creating connection manager")
 	connections := cm.NewConnectionManager(ctx, cfg, canMsgChannel, logger)

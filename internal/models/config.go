@@ -81,6 +81,7 @@ type Config struct {
 	SimEmitRateMax        int    `env:"SIM_RATE_MAX" envDefault:"0" json:"simRateMax"`
 	LogLevel              string `env:"LOG_LEVEL"               envDefault:"info" json:"logLevel"`
 	CanInterfaceSeparator string `env:"CAN_INTERFACE_SEPARATOR" envDefault:"-"    json:"canInterfaceSeparator"`
-	LogCanMessages        bool   `env:"LOG_CAN_MESSAGES"        envDefault:"true" json:"logCanMessages"`
-	LogSignals            bool   `env:"LOG_SIGNALS"             envDefault:"true" json:"logSignals"`
+	LogCanMessages           bool `env:"LOG_CAN_MESSAGES"           envDefault:"true" json:"logCanMessages"`
+	LogSignals               bool `env:"LOG_SIGNALS"                envDefault:"true" json:"logSignals"`
+	ThroughputLogIntervalSec int  `env:"THROUGHPUT_LOG_INTERVAL"    envDefault:"5"    json:"throughputLogIntervalSec"`
 }

@@ -18,23 +18,26 @@ type registeredListener struct {
 }
 
 type MessageDispatcher struct {
-	ctx               context.Context
-	mu                sync.RWMutex
-	broadcastChannels []*registeredListener
-	incomingChannel   chan canModels.CanMessageTimestamped
-	msgCount          atomic.Uint64
-	l                 *slog.Logger
+	ctx                      context.Context
+	mu                       sync.RWMutex
+	broadcastChannels        []*registeredListener
+	incomingChannel          chan canModels.CanMessageTimestamped
+	msgCount                 atomic.Uint64
+	throughputLogInterval    time.Duration
+	l                        *slog.Logger
 }
 
 func NewMessageDispatcher(
 	ctx context.Context,
 	incomingChannel chan canModels.CanMessageTimestamped,
+	throughputLogIntervalSec int,
 	l *slog.Logger,
 ) *MessageDispatcher {
 	return &MessageDispatcher{
-		ctx:             ctx,
-		incomingChannel: incomingChannel,
-		l:               l,
+		ctx:                   ctx,
+		incomingChannel:       incomingChannel,
+		throughputLogInterval: time.Duration(throughputLogIntervalSec) * time.Second,
+		l:                     l,
 	}
 }
 
@@ -65,26 +68,32 @@ func (scc *MessageDispatcher) Remove(name string) error {
 }
 
 func (scc *MessageDispatcher) Broadcast() error {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	go func() {
-		var lastCount uint64
-		for {
-			select {
-			case <-ticker.C:
-				current := scc.msgCount.Load()
-				rate := (current - lastCount) / 5
-				lastCount = current
-				scc.l.Info("broadcast throughput",
-					"msgs_per_sec", rate,
-					"buffer_queue", len(scc.incomingChannel),
-				)
-			case <-scc.ctx.Done():
-				return
+	if scc.throughputLogInterval > 0 {
+		ticker := time.NewTicker(scc.throughputLogInterval)
+		defer ticker.Stop()
+		intervalSecs := uint64(scc.throughputLogInterval / time.Second)
+		go func() {
+			var lastCount uint64
+			for {
+				select {
+				case <-ticker.C:
+					current := scc.msgCount.Load()
+					rate := (current - lastCount) / intervalSecs
+					lastCount = current
+					scc.l.Info("broadcast throughput",
+						"msgs_per_sec", rate,
+						"buffer_queue", len(scc.incomingChannel),
+					)
+				case <-scc.ctx.Done():
+					return
+				}
 			}
-		}
-	}()
+		}()
+	}
+	return scc.broadcast()
+}
 
+func (scc *MessageDispatcher) broadcast() error {
 	for {
 		select {
 		case <-scc.ctx.Done():

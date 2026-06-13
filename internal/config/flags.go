@@ -75,6 +75,7 @@ func BindFlags(cmd *cobra.Command, cfg *canModels.Config) func() error {
 	f.BoolVar(&cfg.LogCanMessages, "log-can-messages", cfg.LogCanMessages, "Enable logging of CAN messages to output clients")
 	f.BoolVar(&cfg.LogSignals, "log-signals", cfg.LogSignals, "Enable logging of decoded signals to output clients")
 	f.BoolVar(&cfg.DisableOBD2, "disable-obd2", cfg.DisableOBD2, "Disable auto-injection of the built-in OBD-II DBC for all interfaces")
+	f.IntVar(&cfg.ThroughputLogIntervalSec, "throughput-log-interval", cfg.ThroughputLogIntervalSec, "Interval in seconds between broadcast throughput log lines (0 = disabled)")
 
 	// Complex types: stored in local vars, applied by the returned function.
 	dedupeIDsStr := formatUint32Slice(cfg.MQTTConfig.DedupeIDs)

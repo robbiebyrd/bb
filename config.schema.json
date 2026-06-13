@@ -17,6 +17,7 @@
     "simRateMax": { "type": "integer", "minimum": 0 },
     "logCanMessages": { "type": "boolean", "default": true },
     "logSignals": { "type": "boolean", "default": true },
+    "throughputLogIntervalSec": { "type": "integer", "minimum": 0, "default": 5, "description": "Seconds between broadcast throughput log lines. 0 disables the log entirely." },
 
     "interfaces": { "type": "array", "items": { "$ref": "#/$defs/interface" } },
     "influx": { "$ref": "#/$defs/influx" },

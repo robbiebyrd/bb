@@ -2,6 +2,7 @@
   "$schema": "./config.schema.json",
   "logLevel": "info",
   "messageBufferSize": 81920,
+  "throughputLogIntervalSec": 5,
   "disableObd2": false,
   "canInterfaceSeparator": "-",
 
