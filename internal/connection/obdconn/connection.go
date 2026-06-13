@@ -99,7 +99,7 @@ type Base struct {
 	mode         string
 	filters      []uint32
 	pids         []string
-	pidErr       error
+	cfgErr       error
 	pollInterval time.Duration
 	baud         int
 
@@ -145,7 +145,11 @@ func New(
 		network = kind
 	}
 
-	pids, pidErr := obd.NormalizePIDRequests(opt.OBDPIDs)
+	pids, cfgErr := obd.NormalizePIDRequests(opt.OBDPIDs)
+	filters, filterErr := obd.ParseCANIDs(opt.HWFilters)
+	if cfgErr == nil {
+		cfgErr = filterErr
+	}
 
 	pollInterval := defaultPollInterval
 	if opt.OBDPollMS > 0 {
@@ -188,9 +192,9 @@ func New(
 		openTransport:  obd.Open,
 		proto:          obd.ProtocolFor(opt.OBDProtocol),
 		mode:           mode,
-		filters:        opt.HWFilters,
+		filters:        filters,
 		pids:           pids,
-		pidErr:         pidErr,
+		cfgErr:         cfgErr,
 		pollInterval:   pollInterval,
 		baud:           baud,
 	}
@@ -223,8 +227,8 @@ func (b *Base) GetInterfaceName() string {
 
 // Open validates configuration and establishes the initial connection.
 func (b *Base) Open() error {
-	if b.pidErr != nil {
-		return fmt.Errorf("invalid OBD PID list for %s: %w", b.name, b.pidErr)
+	if b.cfgErr != nil {
+		return fmt.Errorf("invalid OBD configuration for %s: %w", b.name, b.cfgErr)
 	}
 	if (b.mode == ModePoll || b.mode == ModeHybrid) && len(b.pids) == 0 {
 		return fmt.Errorf("%s mode requires at least one PID (set INTERFACE_OBD_PIDS)", b.mode)

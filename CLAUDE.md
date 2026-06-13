@@ -44,6 +44,7 @@ All config is environment-based via `caarlos0/env`.
 
 ## Gotchas
 
+- **Interface env vars are indexed**: `CanInterfaces` is a slice, so each interface's vars are `INTERFACE_<n>_<KEY>` starting at 0 — e.g. `INTERFACE_0_NAME`, `INTERFACE_0_NET`, `INTERFACE_1_NAME`. A bare `INTERFACE_NAME` (no index) is ignored by `caarlos0/env` and falls through to the default sim interface.
 - **No `INTERFACE_*` env vars set?** Defaults silently to a single `sim` interface — useful for local dev, surprising in prod.
 - **InfluxDB token**: loaded from `INFLUX_TOKEN` env var; if empty, falls back to `INFLUX_TOKEN_FILE` (default `./config/influxdb/token.json`). Docker compose writes the token there on first start.
 - **Interface name format**: `{name}{sep}{network}{sep}{uri}` — separator defaults to `-`, configurable via `CAN_INTERFACE_SEPARATOR`.

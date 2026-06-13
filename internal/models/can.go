@@ -46,10 +46,10 @@ type CanInterfaceOption struct {
 	// OBDProtocol is the ELM327 ATSP selector (e.g. "6" = ISO 15765-4 CAN
 	// 11-bit/500k, "7" = 29-bit/500k, "0" = automatic). Empty defaults to "6".
 	OBDProtocol string `env:"OBD_PROTOCOL" envDefault:""`
-	// HWFilters is a comma-separated list of CAN identifiers the adapter should
-	// pass through in hardware (empty = all frames). STN installs one filter per
-	// id; ELM327 reduces them to a single code/mask pair.
-	HWFilters []uint32 `env:"HW_FILTER" envDefault:""`
+	// HWFilters is a comma-separated list of hex CAN identifiers the adapter
+	// should pass through in hardware (empty = all frames), e.g. "7E8,7E9,244".
+	// STN installs one filter per id; ELM327 reduces them to a single code/mask.
+	HWFilters []string `env:"HW_FILTER" envDefault:""`
 	// OBDPIDs is a comma-separated list of OBD-II request strings to poll, e.g.
 	// "010C,010D,0105". Required for poll and hybrid modes.
 	OBDPIDs []string `env:"OBD_PIDS" envDefault:""`

@@ -12,7 +12,7 @@ import (
 // LogEntry is a single CAN frame with its playback timing offset from the
 // first frame in the file.
 type LogEntry struct {
-	OffsetNs int64  // nanoseconds since the first frame
+	OffsetNs int64 // nanoseconds since the first frame
 	ID       uint32
 	Transmit bool
 	Remote   bool

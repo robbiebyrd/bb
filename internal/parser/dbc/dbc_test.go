@@ -290,4 +290,3 @@ func TestMultiParser_CombinesSignals(t *testing.T) {
 	assert.Contains(t, got, "CoolantTemp", "p1 (mux_test.dbc) signal must be present")
 	assert.Contains(t, got, "S01PID05_EngineCoolantTemp", "p2 (obd2.dbc) signal must be present")
 }
-

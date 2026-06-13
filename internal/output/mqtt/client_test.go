@@ -119,11 +119,11 @@ func (s *stubFilter) Filter(_ canModels.CanMessageTimestamped) bool { return fal
 // returns nil once the incoming channel is closed with no pending messages.
 func TestHandleCanMessageChannel_DrainAndReturn(t *testing.T) {
 	c := &MQTTClient{
-		l:               slog.Default(),
-		ctx:             context.Background(),
+		l:          slog.Default(),
+		ctx:        context.Background(),
 		canChannel: make(chan canModels.CanMessageTimestamped),
-		filters:         common.NewFilterSet(),
-		resolver:        &mockResolver{conns: map[int]*mockCanConn{}},
+		filters:    common.NewFilterSet(),
+		resolver:   &mockResolver{conns: map[int]*mockCanConn{}},
 	}
 
 	close(c.canChannel)

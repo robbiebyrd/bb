@@ -348,4 +348,3 @@ func (w *Writer) finalize() error {
 	}
 	return nil
 }
-

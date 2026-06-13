@@ -138,4 +138,3 @@ func TestArrayAllTrue(t *testing.T) {
 	empty := ArrayAllTrue([]bool{})
 	assert.Equal(t, true, empty, "AND with no filters should be true (vacuous truth).")
 }
-

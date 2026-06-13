@@ -20,12 +20,12 @@ type mockCanConn struct {
 	interfaceName string
 }
 
-func (m *mockCanConn) SetID(_ int)                {}
-func (m *mockCanConn) GetName() string            { return "" }
-func (m *mockCanConn) GetInterfaceName() string   { return m.interfaceName }
-func (m *mockCanConn) Open() error                { return nil }
-func (m *mockCanConn) Close() error               { return nil }
-func (m *mockCanConn) Receive(_ *sync.WaitGroup)  {}
+func (m *mockCanConn) SetID(_ int)               {}
+func (m *mockCanConn) GetName() string           { return "" }
+func (m *mockCanConn) GetInterfaceName() string  { return m.interfaceName }
+func (m *mockCanConn) Open() error               { return nil }
+func (m *mockCanConn) Close() error              { return nil }
+func (m *mockCanConn) Receive(_ *sync.WaitGroup) {}
 
 // mockResolver implements canModels.InterfaceResolver for testing.
 type mockResolver struct {
@@ -364,7 +364,7 @@ func TestHandleCanMessageChannel_WorkersDrainBeforeReturn(t *testing.T) {
 	// Note: this test validates the shutdown sequence, not actual writes.
 	ctx := context.Background()
 	c := &InfluxDBClient{
-		canChannel: make(chan canModels.CanMessageTimestamped, 4),
+		canChannel:      make(chan canModels.CanMessageTimestamped, 4),
 		internalChannel: make(chan []canModels.CanMessageTimestamped, 2),
 		messageBlock:    make([]canModels.CanMessageTimestamped, 0, 10),
 		maxBlocks:       10,
