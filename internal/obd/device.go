@@ -217,24 +217,23 @@ func (d *Device) stopMonitor() error {
 	return nil
 }
 
-// expectOK sends a command and verifies the response indicates success. ELM327
-// replies "OK"; some commands (e.g. ATZ) reply with a banner, so an allowBanner
-// flag relaxes the check.
+// expectOK sends a configuration command and verifies the adapter acknowledged
+// it with "OK". Every command routed through here (echo/format toggles, protocol
+// selection, filter and monitoring-mode setup) replies "OK" on success, so any
+// other response — "?", "CAN ERROR", "UNABLE TO CONNECT", "NO DATA", … — is
+// treated as a failure. This surfaces a mis-configuration at Init rather than
+// letting the adapter silently run in the wrong state. (Commands that return a
+// value rather than "OK", such as ATZ's banner or STPPMA's handle, use command
+// directly instead of expectOK.)
 func (d *Device) expectOK(cmd string) error {
 	resp, err := d.command(cmd)
 	if err != nil {
 		return err
 	}
-	up := strings.ToUpper(strings.TrimSpace(resp))
-	if strings.Contains(up, "OK") {
+	if strings.Contains(strings.ToUpper(resp), "OK") {
 		return nil
 	}
-	if up == "?" {
-		return fmt.Errorf("command %q not recognised by adapter", cmd)
-	}
-	// Some configuration commands echo an acknowledgement other than OK; accept a
-	// non-error, non-"?" response rather than failing the whole init.
-	return nil
+	return fmt.Errorf("command %q returned %q, expected OK", cmd, resp)
 }
 
 // --- small helpers (avoid bytes import churn) ---

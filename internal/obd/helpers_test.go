@@ -67,16 +67,16 @@ func (s *scriptedTransport) Write(p []byte) (int, error) {
 
 func (s *scriptedTransport) Read(p []byte) (int, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if len(s.readQ) == 0 {
-		// Emulate a serial read timeout: no data, no error.
 		s.mu.Unlock()
+		// Emulate a serial read timeout: no data, no error. Sleep without the
+		// lock held so writers can enqueue responses meanwhile.
 		time.Sleep(time.Millisecond)
-		s.mu.Lock()
 		return 0, nil
 	}
 	n := copy(p, s.readQ)
 	s.readQ = s.readQ[n:]
+	s.mu.Unlock()
 	return n, nil
 }
 
