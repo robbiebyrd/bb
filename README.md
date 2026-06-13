@@ -100,7 +100,7 @@ Interfaces are also configurable via the repeatable `--interface name:net:uri[:d
 
 ### JSON config file
 
-For anything beyond a couple of interfaces, a JSON file is easier to author than indexed `INTERFACE_0_…` env vars — interfaces become a plain array. Point `CONFIG_FILE` at a JSON file whose tree mirrors the env groups, with multiword leaves as `camelCase` keys:
+For anything beyond a couple of interfaces, a JSON file is easier to author than indexed `INTERFACE_0_…` env vars — interfaces become a plain array. Point `--config` (or `CONFIG_FILE`) at a JSON file whose tree mirrors the env groups, with multiword leaves as `camelCase` keys:
 
 ```jsonc
 {
@@ -120,10 +120,11 @@ For anything beyond a couple of interfaces, a JSON file is easier to author than
 ```
 
 ```bash
-CONFIG_FILE=./config.json go run ./cmd/server/main.go
+go run ./cmd/server/main.go --config ./config.json
+# or: CONFIG_FILE=./config.json go run ./cmd/server/main.go
 ```
 
-The file is **overlaid on top of env vars**: only keys the file contains are applied, so env vars and defaults remain in effect for everything it omits — keep secrets like `INFLUX_TOKEN` in the environment and structure in the file. Mapping is 1:1 with env (`obd.mode` ↔ `INTERFACE_0_OBD_MODE`, `mqtt.host` ↔ `MQTT_HOST`). A full template lives in [`config.example.json`](config.example.json).
+The file is **overlaid on top of env vars**: only keys the file contains are applied, so env vars and defaults remain in effect for everything it omits — keep secrets like `INFLUX_TOKEN` in the environment and structure in the file. Mapping is 1:1 with env (`obd.mode` ↔ `INTERFACE_0_OBD_MODE`, `mqtt.host` ↔ `MQTT_HOST`). A full template lives in [`config.example.json`](config.example.json), and [`config.schema.json`](config.schema.json) gives editors autocomplete and validation (reference it with `"$schema": "./config.schema.json"`).
 
 ### Signal filtering
 

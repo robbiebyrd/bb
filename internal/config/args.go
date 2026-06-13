@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 
@@ -51,16 +52,41 @@ func OverlayConfigFile(cfg *canModels.Config, path string) error {
 // ConfigFileEnv names the env var that points at an optional JSON config file.
 const ConfigFileEnv = "CONFIG_FILE"
 
+// resolveConfigPath returns the JSON config file path from the --config/-c flag
+// (parsed manually because Load runs before cobra) or, failing that, the
+// CONFIG_FILE env value.
+func resolveConfigPath(args []string, envValue string) string {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--config" || a == "-c":
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		case strings.HasPrefix(a, "--config="):
+			return strings.TrimPrefix(a, "--config=")
+		case strings.HasPrefix(a, "-c="):
+			return strings.TrimPrefix(a, "-c=")
+		}
+	}
+	return envValue
+}
+
+// ConfigFilePath resolves the JSON config file path from the --config/-c CLI flag
+// or the CONFIG_FILE env var.
+func ConfigFilePath() string {
+	return resolveConfigPath(os.Args[1:], os.Getenv(ConfigFileEnv))
+}
+
 func Load(logger *slog.Logger) (canModels.Config, string) {
 	cfg, err := env.ParseAs[canModels.Config]()
 	if err != nil {
 		panic(err)
 	}
 
-	// A JSON config file (CONFIG_FILE) is overlaid on top of the env-derived
-	// config: only keys present in the file are applied, so env vars and defaults
-	// remain in effect for everything the file omits.
-	if path := os.Getenv(ConfigFileEnv); path != "" {
+	// A JSON config file (--config / CONFIG_FILE) is overlaid on top of the
+	// env-derived config: only keys present in the file are applied, so env vars
+	// and defaults remain in effect for everything the file omits.
+	if path := ConfigFilePath(); path != "" {
 		if err := OverlayConfigFile(&cfg, path); err != nil {
 			panic(err)
 		}

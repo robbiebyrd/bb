@@ -1,4 +1,5 @@
 {
+  "$schema": "./config.schema.json",
   "logLevel": "info",
   "messageBufferSize": 81920,
   "disableObd2": false,
