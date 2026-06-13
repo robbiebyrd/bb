@@ -182,8 +182,10 @@ func (d *Device) Monitor(
 			d.feedMonitor(d.readBuf[:n], &line, emit)
 		}
 		if err != nil {
+			// Surface EOF (peer closed the link) as an error so the connection
+			// layer can reconnect; a clean stop returns via the stop channel above.
 			if errors.Is(err, io.EOF) {
-				return nil
+				return io.EOF
 			}
 			return fmt.Errorf("monitor read: %w", err)
 		}

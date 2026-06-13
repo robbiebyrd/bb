@@ -32,8 +32,23 @@ type SerialConfig struct {
 	ReadTimeout time.Duration
 }
 
-// OpenSerial opens a serial/rfcomm transport. The caller is responsible for
-// having bound the Bluetooth device first (e.g. "rfcomm bind /dev/rfcomm0 <MAC> 1").
+// Open resolves a connection URI and opens the appropriate transport: a native
+// Bluetooth RFCOMM socket for an "rfcomm://<MAC>" / bare-MAC URI (no manual
+// `rfcomm bind` needed), or a serial port for a device path. See ParseURI.
+func Open(uri string, baud int, readTimeout time.Duration) (Transport, error) {
+	target, err := ParseURI(uri)
+	if err != nil {
+		return nil, err
+	}
+	if target.Kind == TargetRFCOMM {
+		return openRFCOMM(target, readTimeout)
+	}
+	return OpenSerial(SerialConfig{Port: target.Path, Baud: baud, ReadTimeout: readTimeout})
+}
+
+// OpenSerial opens a serial transport. This also covers a Bluetooth device the
+// caller has already bound to a device path (e.g. "rfcomm bind /dev/rfcomm0
+// <MAC> 1"); prefer an "rfcomm://<MAC>" URI to skip the manual bind.
 func OpenSerial(cfg SerialConfig) (Transport, error) {
 	mode := &serial.Mode{
 		BaudRate: cfg.Baud,

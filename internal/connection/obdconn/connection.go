@@ -40,6 +40,13 @@ const defaultPollInterval = time.Second
 // Bluetooth rfcomm links the value is nominal.
 const defaultBaud = 115200
 
+// Reconnect backoff bounds. When a live link drops (engine off, out of range),
+// the receive loop retries the connection with exponential backoff between these.
+const (
+	reconnectMinBackoff = time.Second
+	reconnectMaxBackoff = 30 * time.Second
+)
+
 // Driver abstracts the device-specific command dialect. ELM327 and STN provide
 // implementations.
 type Driver interface {
@@ -83,6 +90,9 @@ type Base struct {
 	l              *slog.Logger
 	supportsHybrid bool
 	factory        DriverFactory
+	// openTransport opens the byte transport for a URI. It defaults to obd.Open
+	// and is a seam for tests to inject a fake transport.
+	openTransport func(uri string, baud int, readTimeout time.Duration) (obd.Transport, error)
 
 	// Resolved options.
 	proto        obd.Protocol
@@ -93,6 +103,9 @@ type Base struct {
 	pollInterval time.Duration
 	baud         int
 
+	// mu guards the driver/transport pointers, which the receive loop swaps on
+	// reconnect while Close may read them.
+	mu        sync.Mutex
 	driver    Driver
 	transport obd.Transport
 	opened    bool
@@ -172,6 +185,7 @@ func New(
 		l:              logger,
 		supportsHybrid: supportsHybrid,
 		factory:        factory,
+		openTransport:  obd.Open,
 		proto:          obd.ProtocolFor(opt.OBDProtocol),
 		mode:           mode,
 		filters:        opt.HWFilters,
@@ -207,7 +221,7 @@ func (b *Base) GetInterfaceName() string {
 	return b.name + b.cfg.CanInterfaceSeparator + b.network + b.cfg.CanInterfaceSeparator + b.uri
 }
 
-// Open opens the transport, builds the driver, and configures the adapter.
+// Open validates configuration and establishes the initial connection.
 func (b *Base) Open() error {
 	if b.pidErr != nil {
 		return fmt.Errorf("invalid OBD PID list for %s: %w", b.name, b.pidErr)
@@ -216,27 +230,8 @@ func (b *Base) Open() error {
 		return fmt.Errorf("%s mode requires at least one PID (set INTERFACE_OBD_PIDS)", b.mode)
 	}
 
-	transport, err := obd.OpenSerial(obd.SerialConfig{
-		Port:        b.uri,
-		Baud:        b.baud,
-		ReadTimeout: 50 * time.Millisecond,
-	})
-	if err != nil {
+	if err := b.connect(); err != nil {
 		return err
-	}
-	b.transport = transport
-
-	debug := b.cfg.LogLevel == "debug"
-	logf := func(format string, args ...any) { b.l.Debug(fmt.Sprintf(format, args...)) }
-	b.driver = b.factory(transport, b.proto, debug, logf)
-
-	if err := b.driver.Init(); err != nil {
-		_ = transport.Close()
-		return fmt.Errorf("initialising %s adapter %s: %w", b.network, b.uri, err)
-	}
-	if err := b.driver.SetFilters(b.filters); err != nil {
-		_ = transport.Close()
-		return fmt.Errorf("setting filters on %s: %w", b.uri, err)
 	}
 
 	b.opened = true
@@ -246,15 +241,50 @@ func (b *Base) Open() error {
 	return nil
 }
 
+// connect opens the transport, builds the driver, and configures the adapter for
+// the requested protocol and filters. The URI may be a serial device path or an
+// "rfcomm://<MAC>" Bluetooth address (see obd.Open).
+func (b *Base) connect() error {
+	transport, err := b.openTransport(b.uri, b.baud, 50*time.Millisecond)
+	if err != nil {
+		return err
+	}
+
+	debug := b.cfg.LogLevel == "debug"
+	logf := func(format string, args ...any) { b.l.Debug(fmt.Sprintf(format, args...)) }
+	driver := b.factory(transport, b.proto, debug, logf)
+
+	if err := driver.Init(); err != nil {
+		_ = transport.Close()
+		return fmt.Errorf("initialising %s adapter %s: %w", b.network, b.uri, err)
+	}
+	if err := driver.SetFilters(b.filters); err != nil {
+		_ = transport.Close()
+		return fmt.Errorf("setting filters on %s: %w", b.uri, err)
+	}
+
+	b.mu.Lock()
+	b.transport = transport
+	b.driver = driver
+	b.mu.Unlock()
+	return nil
+}
+
 // Close stops streaming and closes the device.
 func (b *Base) Close() error {
 	_ = b.Discontinue()
-	if b.driver != nil {
-		if err := b.driver.Close(); err != nil {
+
+	b.mu.Lock()
+	d := b.driver
+	b.driver = nil
+	b.mu.Unlock()
+
+	b.opened = false
+	if d != nil {
+		if err := d.Close(); err != nil {
 			return fmt.Errorf("closing %s adapter %s: %w", b.network, b.uri, err)
 		}
 	}
-	b.opened = false
 	return nil
 }
 
@@ -267,21 +297,102 @@ func (b *Base) Discontinue() error {
 	return nil
 }
 
-// Receive starts the mode-appropriate receive loop.
+// Receive starts the receive loop, which streams frames and transparently
+// reconnects if the link drops.
 func (b *Base) Receive(wg *sync.WaitGroup) {
 	b.quit = make(chan struct{})
 	b.streaming = true
+	wg.Go(b.run)
+}
 
-	wg.Go(func() {
-		switch b.mode {
-		case ModePoll:
-			b.runPoll()
-		case ModeHybrid:
-			b.runHybrid()
-		default:
-			b.runMonitor()
+// run drives the mode-appropriate receive loop, reconnecting on transport
+// failure until shutdown is requested.
+func (b *Base) run() {
+	for {
+		err := b.runOnce()
+		if err == nil || b.stopping() {
+			return
 		}
-	})
+		b.l.Warn("OBD link lost; attempting to reconnect",
+			"interface", b.name, "uri", b.uri, "error", err)
+		if !b.reconnect() {
+			return
+		}
+	}
+}
+
+// runOnce runs the current mode until the link is cleanly stopped (nil) or fails
+// (non-nil, triggering a reconnect).
+func (b *Base) runOnce() error {
+	d := b.getDriver()
+	if d == nil {
+		return nil
+	}
+	switch b.mode {
+	case ModePoll:
+		return b.runPoll(d)
+	case ModeHybrid:
+		return b.runHybrid(d)
+	default:
+		return d.Monitor(b.emit, b.onError, b.quit)
+	}
+}
+
+// reconnect closes the failed driver and retries connect() with exponential
+// backoff until it succeeds. Returns false if it gave up because shutdown was
+// requested.
+func (b *Base) reconnect() bool {
+	b.mu.Lock()
+	if b.driver != nil {
+		_ = b.driver.Close()
+		b.driver = nil
+	}
+	b.mu.Unlock()
+
+	backoff := reconnectMinBackoff
+	for {
+		if b.stopping() {
+			return false
+		}
+		if err := b.connect(); err != nil {
+			b.l.Warn("OBD reconnect attempt failed; backing off",
+				"interface", b.name, "uri", b.uri, "backoff", backoff.String(), "error", err)
+			select {
+			case <-time.After(backoff):
+			case <-b.quit:
+				return false
+			case <-b.ctx.Done():
+				return false
+			}
+			if backoff < reconnectMaxBackoff {
+				if backoff *= 2; backoff > reconnectMaxBackoff {
+					backoff = reconnectMaxBackoff
+				}
+			}
+			continue
+		}
+		b.l.Info("OBD link reconnected", "interface", b.name, "uri", b.uri)
+		return true
+	}
+}
+
+// stopping reports whether shutdown has been requested.
+func (b *Base) stopping() bool {
+	select {
+	case <-b.quit:
+		return true
+	case <-b.ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// getDriver returns the current driver under lock.
+func (b *Base) getDriver() Driver {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.driver
 }
 
 // emit forwards a decoded frame onto the message channel, respecting shutdown.
@@ -306,48 +417,40 @@ func (b *Base) onError(err error) {
 	b.l.Debug("frame decode error", "interface", b.name, "error", err)
 }
 
-// runMonitor passively streams frames until shutdown.
-func (b *Base) runMonitor() {
-	if err := b.driver.Monitor(b.emit, b.onError, b.quit); err != nil {
-		b.l.Error("monitor loop ended with error", "interface", b.name, "error", err)
-	}
-}
-
-// runPoll repeatedly requests the configured PID list on an interval.
-func (b *Base) runPoll() {
+// runPoll repeatedly requests the configured PID list on an interval. It returns
+// nil on clean shutdown, or the request error so the link can be reconnected.
+func (b *Base) runPoll(d Driver) error {
 	ticker := time.NewTicker(b.pollInterval)
 	defer ticker.Stop()
 	for {
-		b.pollOnce()
+		if err := b.pollOnce(d); err != nil {
+			return err
+		}
 		select {
 		case <-ticker.C:
 		case <-b.quit:
-			return
+			return nil
 		case <-b.ctx.Done():
-			return
+			return nil
 		}
 	}
 }
 
 // pollOnce sends each PID request once and emits the response frames.
-func (b *Base) pollOnce() {
+func (b *Base) pollOnce(d Driver) error {
 	for _, pid := range b.pids {
-		select {
-		case <-b.quit:
-			return
-		case <-b.ctx.Done():
-			return
-		default:
+		if b.stopping() {
+			return nil
 		}
-		frames, err := b.driver.Request(pid)
+		frames, err := d.Request(pid)
 		if err != nil {
-			b.l.Debug("PID request failed", "interface", b.name, "pid", pid, "error", err)
-			continue
+			return fmt.Errorf("polling %s: %w", pid, err)
 		}
 		for _, f := range frames {
 			b.emit(f)
 		}
 	}
+	return nil
 }
 
 // runHybrid monitors the bus while the device fires the PID requests itself, in
@@ -355,24 +458,20 @@ func (b *Base) pollOnce() {
 // monitoring is never interrupted and no frames are lost — the poll responses
 // simply appear in the monitor stream. Only STN devices reach this path (ELM327
 // is downgraded in New), but the capability is checked defensively.
-func (b *Base) runHybrid() {
-	pd, ok := b.driver.(periodicDriver)
+func (b *Base) runHybrid(d Driver) error {
+	pd, ok := d.(periodicDriver)
 	if !ok {
 		b.l.Error("hybrid mode requires a periodic-capable driver; monitoring only", "interface", b.name)
-		b.runMonitor()
-		return
+		return d.Monitor(b.emit, b.onError, b.quit)
 	}
 	if err := pd.StartPeriodic(b.pids, b.pollInterval); err != nil {
-		b.l.Error("failed to start firmware periodic polling; monitoring only", "interface", b.name, "error", err)
-		b.runMonitor()
-		return
+		return fmt.Errorf("starting firmware periodic polling: %w", err)
 	}
 
 	// Stream bus traffic and the firmware-driven poll responses together.
-	b.runMonitor()
+	err := d.Monitor(b.emit, b.onError, b.quit)
 
-	// Monitor has returned to the prompt; clear the periodic messages.
-	if err := pd.StopPeriodic(); err != nil {
-		b.l.Debug("failed to clear periodic messages on shutdown", "interface", b.name, "error", err)
-	}
+	// Best-effort clear; on a dropped link the device is already gone.
+	_ = pd.StopPeriodic()
+	return err
 }
