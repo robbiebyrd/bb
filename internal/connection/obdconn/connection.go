@@ -145,25 +145,25 @@ func New(
 		network = kind
 	}
 
-	pids, cfgErr := obd.NormalizePIDRequests(opt.OBDPIDs)
-	filters, filterErr := obd.ParseCANIDs(opt.HWFilters)
+	pids, cfgErr := obd.NormalizePIDRequests(opt.OBD.PIDs)
+	filters, filterErr := obd.ParseCANIDs(opt.OBD.HWFilters)
 	if cfgErr == nil {
 		cfgErr = filterErr
 	}
 
 	pollInterval := defaultPollInterval
-	if opt.OBDPollMS > 0 {
-		pollInterval = time.Duration(opt.OBDPollMS) * time.Millisecond
+	if opt.OBD.PollMS > 0 {
+		pollInterval = time.Duration(opt.OBD.PollMS) * time.Millisecond
 	}
 
 	baud := defaultBaud
-	if opt.PortBaud > 0 {
-		baud = opt.PortBaud
+	if opt.OBD.PortBaud > 0 {
+		baud = opt.OBD.PortBaud
 	}
 
 	supportsHybrid := kind == canModels.NetworkSTN
 
-	mode := strings.ToLower(strings.TrimSpace(opt.OBDMode))
+	mode := strings.ToLower(strings.TrimSpace(opt.OBD.Mode))
 	if mode == "" {
 		mode = ModeMonitor
 	}
@@ -190,7 +190,7 @@ func New(
 		supportsHybrid: supportsHybrid,
 		factory:        factory,
 		openTransport:  obd.Open,
-		proto:          obd.ProtocolFor(opt.OBDProtocol),
+		proto:          obd.ProtocolFor(opt.OBD.Protocol),
 		mode:           mode,
 		filters:        filters,
 		pids:           pids,

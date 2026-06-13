@@ -28,6 +28,6 @@ func TestNewConnection_ImplementsCanConnection(t *testing.T) {
 	require.Equal(t, "mxplus-stn-/dev/rfcomm0", c.GetInterfaceName())
 	// STN retains hybrid mode when PIDs are supplied.
 	hybrid := NewConnection(context.Background(), testConfig(), make(chan canModels.CanMessageTimestamped, 1), logger,
-		canModels.CanInterfaceOption{Name: "mxplus", OBDMode: "hybrid", OBDPIDs: []string{"010C"}})
+		canModels.CanInterfaceOption{Name: "mxplus", OBD: canModels.OBDOptions{Mode: "hybrid", PIDs: []string{"010C"}}})
 	assert.Equal(t, "hybrid", hybrid.Mode())
 }

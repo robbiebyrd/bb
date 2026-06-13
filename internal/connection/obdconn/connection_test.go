@@ -63,26 +63,24 @@ func TestNew_DefaultsURIToName(t *testing.T) {
 
 func TestNew_ELM327HybridFallsBackToPollWithPIDs(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{
-		Name:    "elm",
-		OBDMode: ModeHybrid,
-		OBDPIDs: []string{"010C"},
+		Name: "elm",
+		OBD:  canModels.OBDOptions{Mode: ModeHybrid, PIDs: []string{"010C"}},
 	}, canModels.NetworkELM327)
 	assert.Equal(t, ModePoll, b.Mode())
 }
 
 func TestNew_ELM327HybridFallsBackToMonitorWithoutPIDs(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{
-		Name:    "elm",
-		OBDMode: ModeHybrid,
+		Name: "elm",
+		OBD:  canModels.OBDOptions{Mode: ModeHybrid},
 	}, canModels.NetworkELM327)
 	assert.Equal(t, ModeMonitor, b.Mode())
 }
 
 func TestNew_STNKeepsHybrid(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{
-		Name:    "mx",
-		OBDMode: ModeHybrid,
-		OBDPIDs: []string{"010C"},
+		Name: "mx",
+		OBD:  canModels.OBDOptions{Mode: ModeHybrid, PIDs: []string{"010C"}},
 	}, canModels.NetworkSTN)
 	assert.Equal(t, ModeHybrid, b.Mode())
 }
@@ -91,8 +89,8 @@ func TestOpen_PollWithoutPIDsErrors(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{
 		Name:    "mx",
 		Network: canModels.NetworkSTN,
-		OBDMode: ModePoll,
 		URI:     "/dev/does-not-exist-cantou-test",
+		OBD:     canModels.OBDOptions{Mode: ModePoll},
 	}, canModels.NetworkSTN)
 	err := b.Open()
 	require.Error(t, err)
@@ -103,8 +101,7 @@ func TestOpen_InvalidPIDErrors(t *testing.T) {
 	b := newBase(canModels.CanInterfaceOption{
 		Name:    "mx",
 		Network: canModels.NetworkSTN,
-		OBDMode: ModePoll,
-		OBDPIDs: []string{"01ZZ"},
+		OBD:     canModels.OBDOptions{Mode: ModePoll, PIDs: []string{"01ZZ"}},
 	}, canModels.NetworkSTN)
 	err := b.Open()
 	require.Error(t, err)

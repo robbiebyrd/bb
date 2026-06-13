@@ -22,13 +22,55 @@ func ValidateSimRate(cfg *canModels.Config) error {
 	return nil
 }
 
+// ValidateInterfaces ensures every configured interface has a name. The env
+// loader enforces this via the `required` tag, but a JSON overlay bypasses that,
+// so re-check after overlaying.
+func ValidateInterfaces(ifaces []canModels.CanInterfaceOption) error {
+	for i, iface := range ifaces {
+		if iface.Name == "" {
+			return fmt.Errorf("interface %d has no name (every interface needs a name)", i)
+		}
+	}
+	return nil
+}
+
+// OverlayConfigFile overlays a JSON config file onto cfg. json.Unmarshal only
+// sets keys present in the file, leaving env/default values for the rest. Note
+// that a JSON "interfaces" array replaces the env-derived interfaces wholesale.
+func OverlayConfigFile(cfg *canModels.Config, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading config file %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return fmt.Errorf("parsing config file %s: %w", path, err)
+	}
+	return nil
+}
+
+// ConfigFileEnv names the env var that points at an optional JSON config file.
+const ConfigFileEnv = "CONFIG_FILE"
+
 func Load(logger *slog.Logger) (canModels.Config, string) {
 	cfg, err := env.ParseAs[canModels.Config]()
 	if err != nil {
 		panic(err)
 	}
 
+	// A JSON config file (CONFIG_FILE) is overlaid on top of the env-derived
+	// config: only keys present in the file are applied, so env vars and defaults
+	// remain in effect for everything the file omits.
+	if path := os.Getenv(ConfigFileEnv); path != "" {
+		if err := OverlayConfigFile(&cfg, path); err != nil {
+			panic(err)
+		}
+		logger.Info("applied JSON config overlay", "path", path)
+	}
+
 	if err := ValidateSimRate(&cfg); err != nil {
+		panic(err)
+	}
+	if err := ValidateInterfaces(cfg.CanInterfaces); err != nil {
 		panic(err)
 	}
 
