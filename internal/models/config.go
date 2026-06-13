@@ -1,15 +1,15 @@
 package models
 
 type InfluxDBConfig struct {
-	Host            string `env:"HOST"             envDefault:""`
-	Token           string `env:"TOKEN"            envDefault:""`
-	TokenFile       string `env:"TOKEN_FILE"       envDefault:"./config/influxdb/token.json"`
-	MessageDatabase string `env:"MESSAGE_DATABASE" envDefault:"can_data"`
-	SignalDatabase  string `env:"SIGNAL_DATABASE"  envDefault:""`
-	TableName       string `env:"TABLE"            envDefault:"can_message"`
-	SignalTableName string `env:"SIGNAL_TABLE"     envDefault:"can_signal"`
-	FlushTime       int    `env:"FLUSH_TIME"       envDefault:"100"`
-	MaxWriteLines   int    `env:"MAX_WRITE_LINES"  envDefault:"1000"`
+	Host            string   `env:"HOST"             envDefault:""`
+	Token           string   `env:"TOKEN"            envDefault:""`
+	TokenFile       string   `env:"TOKEN_FILE"       envDefault:"./config/influxdb/token.json"`
+	MessageDatabase string   `env:"MESSAGE_DATABASE" envDefault:"can_data"`
+	SignalDatabase  string   `env:"SIGNAL_DATABASE"  envDefault:""`
+	TableName       string   `env:"TABLE"            envDefault:"can_message"`
+	SignalTableName string   `env:"SIGNAL_TABLE"     envDefault:"can_signal"`
+	FlushTime       int      `env:"FLUSH_TIME"       envDefault:"100"`
+	MaxWriteLines   int      `env:"MAX_WRITE_LINES"  envDefault:"1000"`
 	MaxConnections  int      `env:"MAX_CONNECTIONS"  envDefault:"5"`
 	TLS             bool     `env:"TLS"              envDefault:"false"`
 	TLSCACertFile   string   `env:"TLS_CA_FILE"      envDefault:""`
@@ -29,8 +29,8 @@ type MQTTConfig struct {
 	DedupeIDs     []uint32 `env:"DEDUPE_IDS" envDefault:""` // Comma-separated list of IDs to dedupe
 	Username      string   `env:"USERNAME" envDefault:""`
 	Password      string   `env:"PASSWORD" envDefault:""`
-	TLS           bool   `env:"TLS"         envDefault:"false"`
-	TLSCACertFile string `env:"TLS_CA_FILE"  envDefault:""`
+	TLS           bool     `env:"TLS"         envDefault:"false"`
+	TLSCACertFile string   `env:"TLS_CA_FILE"  envDefault:""`
 }
 
 type CSVLogConfig struct {
@@ -68,17 +68,17 @@ type Config struct {
 	MQTTConfig    MQTTConfig           `envPrefix:"MQTT_"`
 	Prometheus    PrometheusConfig     `envPrefix:"PROMETHEUS_"`
 
-	DisableOBD2           bool   `env:"DISABLE_OBD2"            envDefault:"false"`
-	MessageBufferSize     int    `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
+	DisableOBD2       bool `env:"DISABLE_OBD2"            envDefault:"false"`
+	MessageBufferSize int  `env:"MSG_BUFFER_SIZE"         envDefault:"81920"`
 	// SimEmitRate is the fixed sleep interval between simulated CAN frames in
 	// milliseconds. 0 means unset. When set, it takes priority over SimEmitRateMin/Max.
 	// A value of 10 (10ms) yields ~100 msg/s — a reasonable rate for local development.
-	SimEmitRate    int `env:"SIM_RATE"     envDefault:"0"`
+	SimEmitRate int `env:"SIM_RATE"     envDefault:"0"`
 	// SimEmitRateMin / SimEmitRateMax define an inclusive millisecond range for a
 	// random per-frame sleep interval. Both must be non-zero; only active when
 	// SimEmitRate is 0. Returns an error at startup if only one is set.
-	SimEmitRateMin int `env:"SIM_RATE_MIN" envDefault:"0"`
-	SimEmitRateMax int `env:"SIM_RATE_MAX" envDefault:"0"`
+	SimEmitRateMin        int    `env:"SIM_RATE_MIN" envDefault:"0"`
+	SimEmitRateMax        int    `env:"SIM_RATE_MAX" envDefault:"0"`
 	LogLevel              string `env:"LOG_LEVEL"               envDefault:"info"`
 	CanInterfaceSeparator string `env:"CAN_INTERFACE_SEPARATOR" envDefault:"-"`
 	LogCanMessages        bool   `env:"LOG_CAN_MESSAGES"        envDefault:"true"`

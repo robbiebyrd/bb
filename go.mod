@@ -11,6 +11,7 @@ require (
 	github.com/roffe/gocan v1.3.9
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	go.bug.st/serial v1.6.4
 	go.einride.tech/can v0.16.1
 	golang.org/x/sync v0.17.0
 )
@@ -46,7 +47,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
-	go.bug.st/serial v1.6.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/mod v0.28.0 // indirect
