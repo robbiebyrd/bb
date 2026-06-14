@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RealDash OBD-II Description File
+  Vehicle : 2024 Jeep Wrangler 4xe (JL)
+  Protocol: ISO 15765-4 CAN, 11-bit ID, 500 kbps
+  Request CAN ID : 0x7E0
+  Response CAN ID: 0x7E8
+
+  PID support verified against "CAN IDs 2018+ JL Wrangler - OBD-II Mode 1 PIDs" spreadsheet.
+  PIDs confirmed unsupported or with unknown formulas on this platform are omitted.
+  Requires RealDash 1.5.8 or newer.
+-->
+<OBD2>
+  <init>
+    <!-- Standard ELM327 adapter reset and configuration.
+         atl0 / ate0 / ats0 are REQUIRED for correct reply parsing — do not remove. -->
+    <command send="atd"></command>
+    <command send="atz"></command>
+    <command send="atat1"></command>
+    <command send="atst62"></command>
+    <!-- atsp6 = ISO 15765-4 CAN, 11-bit IDs, 500 kbps — Wrangler JL CAN-C protocol -->
+    <command send="atsp6"></command>
+    <command send="ate0"></command>
+    <command send="atl0"></command>
+    <command send="ats0"></command>
+    <command send="ath1"></command>
+    <command send="atdpn"></command>
+    <!-- PID support bitmap queries — populates RealDash's 'Checking PID support' screen -->
+    <command send="0100"></command>
+    <command send="0120"></command>
+    <command send="0140"></command>
+    <command send="0160"></command>
+    <command send="0180"></command>
+    <command send="01a0"></command>
+  </init>
+
+  <!--
+    skipCount guide used throughout this file:
+      0  = every poll (~20–30 Hz on CAN)
+      2  = every 3rd poll
+      5  = every 6th poll
+      10 = every 11th poll
+      20 = every 21st poll
+      30 = slow (temperatures that change gradually)
+      60 = very slow (counters, odometer)
+  -->
+
+  <rotation>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         HIGH-SPEED ENGINE CORE — polled every cycle
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x0C | Engine RPM — formula: ((A*256)+B)/4 -->
+    <command send="010c" skipCount="0" targetId="37" conversion="(B0*256+B1)/4"></command>
+
+    <!-- PID 0x0B | Intake manifold absolute pressure (MAP) — A kPa -->
+    <command send="010b" skipCount="0" targetId="31"></command>
+
+    <!-- PID 0x0D | Vehicle speed — A km/h -->
+    <command send="010d" skipCount="0" targetId="81" units="km/h"></command>
+
+    <!-- PID 0x11 | Absolute throttle position — A*100/255 % -->
+    <command send="0111" skipCount="0" targetId="42" conversion="V/2.55"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ENGINE MANAGEMENT — medium poll rate
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x04 | Calculated engine load — A*100/255 % -->
+    <command send="0104" skipCount="2" targetId="100" conversion="V/2.55"></command>
+
+    <!-- PID 0x0E | Ignition timing advance — (A/2)-64 degrees relative to #1 cylinder -->
+    <command send="010e" skipCount="2" targetId="38" conversion="V/2-64"></command>
+
+    <!-- PID 0x62 | Actual engine percent torque — A-125 % (-125 to +130) -->
+    <command send="0162" skipCount="2" name="Jeep 4xe: Engine Torque Actual %" conversion="V-125"></command>
+
+    <!-- PID 0x45 | Relative throttle position — ((A*256)+B)*100/255 % -->
+    <command send="0145" skipCount="2" name="Jeep 4xe: Throttle Position Relative %" conversion="(B0*256+B1)/2.55"></command>
+
+    <!-- PID 0x47 | Absolute throttle position B — A*100/255 % -->
+    <command send="0147" skipCount="2" name="Jeep 4xe: Throttle Position B %" conversion="V/2.55"></command>
+
+    <!-- PID 0x49 | Absolute throttle position D — A*100/255 % -->
+    <command send="0149" skipCount="2" name="Jeep 4xe: Throttle Position D %" conversion="V/2.55"></command>
+
+    <!-- PID 0x4A | Accelerator pedal position E — A*100/255 % -->
+    <command send="014a" skipCount="2" name="Jeep 4xe: Accel Pedal Position E %" conversion="V/2.55"></command>
+
+    <!-- PID 0x4C | Commanded throttle actuator — A*100/255 % -->
+    <command send="014c" skipCount="2" name="Jeep 4xe: Commanded Throttle Actuator %" conversion="V/2.55"></command>
+
+    <!-- PID 0x5E | Engine fuel rate — ((A*256)+B)/20 L/hr -->
+    <command send="015e" skipCount="5" name="Jeep 4xe: Fuel Rate L/hr" conversion="(B0*256+B1)/20"></command>
+
+    <!-- PID 0x43 | Absolute engine load value — ((A*256)+B)*100/255 % -->
+    <command send="0143" skipCount="5" name="Jeep 4xe: Absolute Load %" conversion="(B0*256+B1)/2.55"></command>
+
+    <!-- PID 0x44 | Commanded equivalence ratio — ((A*256)+B)/32768 -->
+    <command send="0144" skipCount="5" name="Jeep 4xe: Commanded Equivalence Ratio" conversion="(B0*256+B1)/32768"></command>
+
+    <!-- PID 0x0A | Fuel pressure — A*3 kPa (gauge) -->
+    <command send="010a" skipCount="5" targetId="202" conversion="V*3"></command>
+
+    <!-- PID 0x06 | Short-term fuel trim Bank 1 — (A-128)*100/128 % -->
+    <command send="0106" skipCount="5" targetId="17" conversion="(V-128)*100/128"></command>
+
+    <!-- PID 0x07 | Long-term fuel trim Bank 1 — (A-128)*100/128 % -->
+    <command send="0107" skipCount="20" targetId="102" conversion="(V-128)*100/128"></command>
+
+    <!-- PID 0x63 | Engine reference torque — (A*256)+B Nm -->
+    <command send="0163" skipCount="20" name="Jeep 4xe: Engine Reference Torque Nm" conversion="B0*256+B1"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TEMPERATURE SENSORS
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x05 | Engine coolant temperature — A-40 °C -->
+    <command send="0105" skipCount="10" targetId="14" units="C" conversion="V-40"></command>
+
+    <!-- PID 0x0F | Intake air temperature (sensor 1) — A-40 °C -->
+    <command send="010f" skipCount="10" targetId="27" units="C" conversion="V-40"></command>
+
+    <!-- PID 0x46 | Ambient air temperature — A-40 °C -->
+    <command send="0146" skipCount="30" targetId="173" units="C" conversion="V-40"></command>
+
+    <!-- PID 0x68 | Intake air temperature (multi-sensor, 2.0T turbo)
+         A=sensor bitmap. B = sensor 1 (same as PID 0x0F). D = post-turbo pre-intercooler.
+         PID 0x77 carries post-intercooler (charge air cooler) temperature. -->
+    <command send="0168" skipCount="10">
+      <values>
+        <!-- B1 (index 1) = sensor 1 IAT, same physical sensor as PID 0x0F -->
+        <value name="Jeep 4xe: IAT Sensor 1 C"      units="C" conversion="B1-40"></value>
+        <!-- B3 (index 3) = post-turbo pre-intercooler temperature -->
+        <value name="Jeep 4xe: IAT Post-Turbo C"    units="C" conversion="B3-40"></value>
+      </values>
+    </command>
+
+    <!-- PID 0x77 | Charge air cooler temperature (CACT) post-intercooler
+         A=bitmap. C (index 2) = sensor 2 = post-intercooler temperature on Wrangler 2.0T -->
+    <command send="0177" skipCount="10" name="Jeep 4xe: Charge Air Cooler Temp C" units="C" conversion="B2-40"></command>
+
+    <!-- PID 0x3C | Catalyst temperature Bank 1, Sensor 1 — ((A*256)+B)/10 - 40 °C -->
+    <command send="013c" skipCount="30" name="Jeep 4xe: Catalyst Temp B1S1 C" units="C" conversion="(B0*256+B1)/10-40"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ELECTRICAL / FUEL / BARO
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x42 | Control module voltage — ((A*256)+B)/1000 V -->
+    <command send="0142" skipCount="5" targetId="12" conversion="(B0*256+B1)/1000"></command>
+
+    <!-- PID 0x2F | Fuel level input — A*100/255 % -->
+    <command send="012f" skipCount="20" targetId="170" conversion="V/2.55"></command>
+
+    <!-- PID 0x33 | Barometric pressure — A kPa (absolute) -->
+    <command send="0133" skipCount="30" targetId="11"></command>
+
+    <!-- PID 0x1F | Run time since engine start — (A*256)+B seconds -->
+    <command send="011f" skipCount="10" targetId="33" conversion="B0*256+B1"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         OXYGEN SENSORS
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x15 | O2 Bank 1, Sensor 2 voltage (narrowband) — A*0.005 V
+         B byte = short-term fuel trim (skip if B=0xFF) -->
+    <command send="0115" skipCount="5" name="Jeep 4xe: O2 B1S2 Voltage V" conversion="B0/200"></command>
+
+    <!-- PID 0x34 | O2 Bank 1, Sensor 1 — wide-band lambda equivalence ratio
+         formula: ((A*256)+B)/32768 -->
+    <command send="0134" skipCount="5" name="Jeep 4xe: O2 B1S1 Lambda Ratio" conversion="(B0*256+B1)/32768"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EMISSIONS / EVAP
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x2C | Commanded EGR — 100*A/255 % -->
+    <command send="012c" skipCount="30" name="Jeep 4xe: Commanded EGR %" conversion="V/2.55"></command>
+
+    <!-- PID 0x2D | EGR error — (A-128)*100/128 % -->
+    <command send="012d" skipCount="30" name="Jeep 4xe: EGR Error %" conversion="(V-128)*100/128"></command>
+
+    <!-- PID 0x2E | Commanded evaporative purge — 100*A/255 % -->
+    <command send="012e" skipCount="30" name="Jeep 4xe: Evap Purge %" conversion="V/2.55"></command>
+
+
+    <!-- ═══════════════════════════════════════════════════════════
+         MAINTENANCE / DISTANCE COUNTERS — very low frequency
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- PID 0x21 | Distance travelled with MIL on — (A*256)+B km -->
+    <command send="0121" skipCount="60" name="Jeep 4xe: Distance With MIL On km" conversion="B0*256+B1"></command>
+
+    <!-- PID 0x30 | Number of warm-ups since codes cleared — A -->
+    <command send="0130" skipCount="60" name="Jeep 4xe: Warm-Ups Since Clear"></command>
+
+    <!-- PID 0x31 | Distance since codes cleared — (A*256)+B km -->
+    <command send="0131" skipCount="60" name="Jeep 4xe: Distance Since Clear km" conversion="B0*256+B1"></command>
+
+    <!-- PID 0xA6 | Odometer — (A*2^24 + B*2^16 + C*2^8 + D)/10 km
+         Range: 0 to 429,496,729.5 km. 4-byte response. -->
+    <command send="01a6" skipCount="60" name="Jeep 4xe: Odometer km" conversion="(B0*16777216+B1*65536+B2*256+B3)/10"></command>
+
+  </rotation>
+</OBD2>
