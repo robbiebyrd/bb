@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RealDash CAN Channel Description
+  Vehicle : 2024 Jeep Wrangler 4xe
+  Bus     : CAN-IHS (Interior High Speed)
+  Source  : JEEP-WRANGLER-4XE-IHS_2024.1.0
+
+  Signals named RAW, COUNTER, CHECKSUM, SIG_Bx, UNUSED, and N_A are omitted.
+  All frame IDs are standard 11-bit (non-extended).
+  Byte ordering is Motorola big-endian (@0) unless noted.
+-->
+<RealDashCAN version="2">
+  <frames>
+
+    <!-- 0x232 | TCM data shared on IHS: temperature, axle distance counters -->
+    <frame id="0x232" endianness="big">
+      <value name="TCM Temperature" offset="1" length="1"/>
+      <value name="Distance Front Axle" offset="4" length="2"/>
+      <value name="Distance Rear Axle" offset="6" length="2"/>
+    </frame>
+
+    <!-- 0x2C2 | Battery voltage (byte 2, 0.1 V per LSB) -->
+    <frame id="0x2C2" endianness="big" size="4">
+      <value name="Battery Voltage" offset="2" length="1" conversion="V*0.1" units="V"/>
+    </frame>
+
+    <!-- 0x2C3 | Per-wheel encoder pulses (one byte each, unlabeled in DBC but listed in CSV) -->
+    <frame id="0x2C3" endianness="big">
+      <value name="Wheel Encoder 1" offset="0" length="1"/>
+      <value name="Wheel Encoder 2" offset="1" length="1"/>
+      <value name="Wheel Encoder 3" offset="2" length="1"/>
+      <value name="Wheel Encoder 4" offset="3" length="1"/>
+    </frame>
+
+    <!-- 0x302 | Uconnect active camera view selection -->
+    <frame id="0x302" endianness="big">
+      <value name="Camera View Active" offset="0" length="1"/>
+    </frame>
+
+    <!-- 0x30F | Head unit audio state -->
+    <frame id="0x30F" endianness="big">
+      <value name="Radio Volume" offset="0" length="1"/>
+      <value name="Equalizer Mode" offset="6" length="1"/>
+    </frame>
+
+    <!-- 0x322 | Engine RPM and vehicle speed from PCM on IHS
+         Rpm: 16-bit, raw = rpm
+         Speed: 16-bit, factor 0.05 kph/LSB (same formula as CAN-C wheel speeds) -->
+    <frame id="0x322" endianness="big">
+      <value name="Engine RPM" offset="0" length="2" units="rpm"/>
+      <value name="Vehicle Speed" offset="2" length="2" conversion="V*0.05" units="kph"/>
+    </frame>
+
+    <!-- 0x332 | HVAC blower fan speed (byte 5, 0–7) -->
+    <frame id="0x332" endianness="big">
+      <value name="AC Fan Speed" offset="5" length="1"/>
+    </frame>
+
+    <!-- 0x33A | Interior cabin temperature
+         16-bit value: (raw * 0.01) - 40 = °C
+         Range: -40 to ~215 °C per jl-ihs.dbc -->
+    <frame id="0x33A" endianness="big">
+      <value name="Interior Temperature" offset="0" length="2" conversion="V*0.01-40" units="C"/>
+    </frame>
+
+    <!-- 0x340 | Cluster gear position and displayed speed
+         Gear_Selection: byte 2 (enum matches PRND + park pawl states)
+         MPH: byte 7, raw km/h or mph (cluster-displayed speed, no factor) -->
+    <frame id="0x340" endianness="big">
+      <value name="Cluster Gear Selection" offset="2" length="1"/>
+      <value name="Cluster Speed" offset="7" length="1"/>
+    </frame>
+
+    <!-- 0x350 | Date and time broadcast (IHS cluster source) -->
+    <frame id="0x350" endianness="big">
+      <value name="DateTime Seconds" offset="0" length="1" rangeMin="0" rangeMax="59"/>
+      <value name="DateTime Minutes" offset="1" length="1" rangeMin="0" rangeMax="59"/>
+      <value name="DateTime Hours"   offset="2" length="1" rangeMin="0" rangeMax="23"/>
+      <value name="DateTime Year"    offset="3" length="2"/>
+      <value name="DateTime Month"   offset="5" length="1" rangeMin="1" rangeMax="12"/>
+      <value name="DateTime Day"     offset="6" length="1" rangeMin="1" rangeMax="31"/>
+    </frame>
+
+    <!-- 0x358 | Compass heading A (byte 1 nibble)
+         0=N 1=NE 2=E 3=SE 4=S 5=SW 6=W 7=NW 0xF=offline -->
+    <frame id="0x358" endianness="big">
+      <value name="Compass Heading" offset="1" length="1"
+             enum="0:N,1:NE,2:E,3:SE,4:S,5:SW,6:W,7:NW,15:Offline"/>
+    </frame>
+
+    <!-- 0x35C | Compass heading B (duplicate from alternate gateway module) -->
+    <frame id="0x35C" endianness="big">
+      <value name="Compass Heading Alt" offset="1" length="1"
+             enum="0:N,1:NE,2:E,3:SE,4:S,5:SW,6:W,7:NW,15:Offline"/>
+    </frame>
+
+    <!-- 0x36F | Cooling system relay state -->
+    <frame id="0x36F" endianness="big">
+      <value name="Cooling Relay Byte 0" offset="0" length="1"/>
+      <value name="Cooling Relay Byte 1" offset="1" length="1"/>
+    </frame>
+
+    <!-- 0x3A0 | Uconnect requested camera view (vs 0x302 active view) -->
+    <frame id="0x3A0" endianness="big">
+      <value name="Camera View Requested" offset="4" length="1"/>
+    </frame>
+
+    <!-- 0x3D2 | Odometer — 24-bit value, 0.1 km per LSB
+         Matches OBD-II PID 0xA6 formula: (A*2^16 + B*2^8 + C) / 10
+         Range: 0 to 429,496,729.5 km -->
+    <frame id="0x3D2" endianness="big">
+      <value name="Odometer" offset="0" length="3" conversion="V*0.1" units="km"/>
+    </frame>
+
+  </frames>
+</RealDashCAN>

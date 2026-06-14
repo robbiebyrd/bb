@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RealDash CAN Channel Description
+  Vehicle : 2024 Jeep Wrangler 4xe
+  Bus     : CAN-C (high-speed chassis / powertrain)
+  Source  : JEEP-WRANGLER-4XE-C_2024.1.0
+
+  Signals named RAW, COUNTER, CHECKSUM, SIG_Bx, UNUSED, and N_A are omitted.
+  All frame IDs are standard 11-bit (non-extended).
+  Byte ordering is Motorola big-endian (@0) unless noted.
+-->
+<RealDashCAN version="2">
+  <frames>
+
+    <!-- 0x023 | Steering wheel angle and driver torque -->
+    <frame id="0x23" endianness="big">
+      <!-- Steering_wheel_angle: factor 0.5, offset -2048. Center = 0x1000 raw = 0 deg -->
+      <value name="Steering Wheel Angle" offset="0" length="2" conversion="V*0.5-2048" units="deg"/>
+      <!-- Steering_wheel_force: driver torque / rate of turn, offset -4096 -->
+      <value name="Steering Wheel Force" offset="2" length="2" conversion="V-4096"/>
+    </frame>
+
+    <!-- 0x02B | Roll / Pitch (Forward-Back, Left-Right accelerometer-like values) -->
+    <frame id="0x2B" endianness="big">
+      <value name="Roll Forward Back" offset="0" length="1"/>
+      <value name="Roll Left Right" offset="4" length="1"/>
+    </frame>
+
+    <!-- 0x037 | Unknown bitmap word pair (transmission-related) -->
+    <frame id="0x37" endianness="big">
+      <value name="Unknown Bitmap Word 1" offset="0" length="2"/>
+      <value name="Unknown Bitmap Word 2" offset="4" length="2"/>
+    </frame>
+
+    <!-- 0x07F | Individual wheel rotation counters (signed bytes, wrap at 0xFF) -->
+    <frame id="0x7F" endianness="big" signed="true">
+      <!-- Only the rear-driver value has a name in the DBC; others are unlabeled -->
+      <value name="Wheel Travel Rear Driver" offset="3" length="1" signed="true"/>
+    </frame>
+
+    <!-- 0x081 | Gas pedal / MAP sensor -->
+    <frame id="0x81" endianness="big">
+      <value name="Gas Pedal Position" offset="0" length="1"/>
+    </frame>
+
+    <!-- 0x085 | Current gear and gear status speed (from jl-c.dbc GearStatus) -->
+    <frame id="0x85" endianness="big">
+      <!-- GearPosition: byte 1 -->
+      <value name="Gear Position" offset="1" length="1"/>
+      <!-- GearStatusSpeed: bytes 4-5 -->
+      <value name="Gear Status Speed" offset="4" length="2"/>
+    </frame>
+
+    <!-- 0x08B | Individual tire speed — 0.05 mph per LSB (divide raw by 20 for mph) -->
+    <frame id="0x8B" endianness="big">
+      <value name="Wheel Speed FL" offset="0" length="2" conversion="V*0.05" units="mph"/>
+      <value name="Wheel Speed FR" offset="2" length="2" conversion="V*0.05" units="mph"/>
+      <value name="Wheel Speed RL" offset="4" length="2" conversion="V*0.05" units="mph"/>
+      <value name="Wheel Speed RR" offset="6" length="2" conversion="V*0.05" units="mph"/>
+    </frame>
+
+    <!-- 0x09D | Throttle position (alternate source, same scale as 0x81) -->
+    <frame id="0x9D" endianness="big">
+      <value name="Gas Pedal Position (Alt)" offset="0" length="1"/>
+    </frame>
+
+    <!-- 0x0B1 | Cruise control buttons (3-byte frame) -->
+    <!-- value & 0x40=center  0x10=resume  0x08=set-  0x04=set+  0x01=cancel -->
+    <frame id="0xB1" endianness="big" size="3">
+      <value name="Cruise Control Buttons" offset="0" length="1"/>
+    </frame>
+
+    <!-- 0x127 | Intake air temp, engine coolant temp, barometric pressure -->
+    <frame id="0x127" endianness="big">
+      <!-- IAT: value - 40 = °C -->
+      <value name="Intake Air Temperature" offset="0" length="1" conversion="V-40" units="C"/>
+      <!-- ECT: value - 40 = °C -->
+      <value name="Engine Coolant Temperature" offset="1" length="1" conversion="V-40" units="C"/>
+      <!-- Barometric pressure in kPa absolute (no conversion needed) -->
+      <value name="Barometric Pressure" offset="2" length="1" units="kPa"/>
+    </frame>
+
+    <!-- 0x1C8 | Keyfob remote status byte -->
+    <frame id="0x1C8" endianness="big">
+      <value name="Remote Status" offset="0" length="1"/>
+    </frame>
+
+    <!-- 0x232 | TCM: temperature (byte 1), front axle distance, rear axle distance -->
+    <frame id="0x232" endianness="big">
+      <value name="TCM Temperature" offset="1" length="1"/>
+      <!-- Distance in assumed 1/100th of a mile increments -->
+      <value name="Distance Front Axle" offset="4" length="2"/>
+      <value name="Distance Rear Axle" offset="6" length="2"/>
+    </frame>
+
+    <!-- 0x296 | Tire pressures in PSI (byte positions per jl-c.dbc) -->
+    <frame id="0x296" endianness="big">
+      <value name="Tire Pressure LF" offset="3" length="1" units="psi"/>
+      <value name="Tire Pressure RF" offset="4" length="1" units="psi"/>
+      <value name="Tire Pressure LR" offset="5" length="1" units="psi"/>
+      <value name="Tire Pressure RR" offset="6" length="1" units="psi"/>
+    </frame>
+
+    <!-- 0x2B1 | HVAC fan speed / temp blend doors (5-byte frame, read-only)
+         Fan speed: byte 0, values 0x01–0x07
+         Driver temp blend: byte 2, signed, 0x80=COOL 0xE4=HOT
+         Passenger temp blend: byte 3, same scale -->
+    <frame id="0x2B1" endianness="big" size="5">
+      <value name="HVAC Fan Speed" offset="0" length="1"/>
+      <value name="HVAC Driver Temp Blend" offset="2" length="1" signed="true"/>
+      <value name="HVAC Passenger Temp Blend" offset="3" length="1" signed="true"/>
+    </frame>
+
+    <!-- 0x350 | Date and time broadcast (CAN-C bus identifier byte = 0x39) -->
+    <frame id="0x350" endianness="big">
+      <value name="DateTime Seconds" offset="0" length="1" rangeMin="0" rangeMax="59"/>
+      <value name="DateTime Minutes" offset="1" length="1" rangeMin="0" rangeMax="59"/>
+      <value name="DateTime Hours"   offset="2" length="1" rangeMin="0" rangeMax="23"/>
+      <value name="DateTime Year"    offset="3" length="2"/>
+      <value name="DateTime Month"   offset="5" length="1" rangeMin="1" rangeMax="12"/>
+      <value name="DateTime Day"     offset="6" length="1" rangeMin="1" rangeMax="31"/>
+    </frame>
+
+    <!-- 0x358 | Compass heading A
+         0=N 1=NE 2=E 3=SE 4=S 5=SW 6=W 7=NW 0xF=offline -->
+    <frame id="0x358" endianness="big">
+      <value name="Compass Heading" offset="1" length="1"
+             enum="0:N,1:NE,2:E,3:SE,4:S,5:SW,6:W,7:NW,15:Offline"/>
+    </frame>
+
+    <!-- 0x371 | Sway bar connect / disconnect status -->
+    <!-- SwayBarPosition nibble at top of byte 0; individual bits for locked/disconnected/in-progress -->
+    <frame id="0x371" endianness="big">
+      <value name="Sway Bar Position"      startbit="7"  bitcount="4"/>
+      <value name="Sway Bar Locked"        startbit="0"  bitcount="1"
+             enum="0:Locked,1:Unlocked"/>
+      <value name="Sway Bar Disconnected"  startbit="8"  bitcount="1"
+             enum="0:Connected,1:Disconnected"/>
+      <value name="Sway Bar In Progress"   startbit="9"  bitcount="1"
+             enum="0:Idle,1:Moving"/>
+    </frame>
+
+  </frames>
+</RealDashCAN>
